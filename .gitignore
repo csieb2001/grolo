@@ -1,0 +1,6 @@
+.env
+mosquitto/certs/*
+!mosquitto/certs/.gitkeep
+grobro/dump/*
+!grobro/dump/.gitkeep
+NOTES.local.md

@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GroLo · Growatt Local</title>
+<style>
+  :root { --bg:#111217; --panel:#181b1f; --line:#2c3235; --text:#d8d9da; --muted:#8e8e8e;
+          --accent:#f2cc0c; --green:#73bf69; --orange:#ff9830; --red:#f2495c; --blue:#5794f2; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif }
+  header { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:5 }
+  header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:.02em } header h1 small { color:var(--muted); font-weight:400; font-size:12px; margin-left:6px }
+  header .spacer { flex:1 }
+  .pill { padding:3px 10px; border-radius:12px; font-size:12px; background:#26292d; color:var(--muted) }
+  .pill.ok { background:#1f3a24; color:var(--green) } .pill.bad { background:#3f1e22; color:var(--red) } .pill.warn { background:#3f3018; color:var(--orange) }
+  main { max-width:1200px; margin:0 auto; padding:18px 20px 60px; display:grid; gap:18px }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:14px 16px }
+  section h2 { margin:0 0 4px; font-size:15px; font-weight:600 }
+  section h3 { margin:14px 0 6px; font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em }
+  section p.hint { margin:0 0 12px; color:var(--muted); font-size:12.5px }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:10px }
+  .ctl { border:1px solid var(--line); border-radius:6px; padding:10px 12px; display:grid; gap:6px; background:#1c1f24 }
+  .ctl .top { display:flex; justify-content:space-between; align-items:baseline; gap:8px }
+  .ctl label { font-weight:600; font-size:13px }
+  .cur { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; white-space:nowrap }
+  .cur.pending { color:var(--orange) } .cur.unknown { color:var(--muted); font-weight:400 }
+  .ctl .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+  .desc, .muted { color:var(--muted); font-size:12px }
+  input[type=number], input[type=time], input[type=text], select {
+    flex:1; min-width:0; background:#0f1114; color:var(--text); border:1px solid #3a4046; border-radius:4px; padding:6px 8px; font-size:14px }
+  input[type=range] { flex:1; accent-color:var(--accent) }
+  button { background:#2f3540; color:var(--text); border:1px solid #444b54; border-radius:4px; padding:6px 12px; font-size:13px; cursor:pointer; white-space:nowrap }
+  button:hover { background:#3a414d } button.primary { background:#3d5a80; border-color:#4a6d9a } button.primary:hover { background:#476a96 }
+  button.danger { background:#5a2a2f; border-color:#7a3a41 }
+  .toggle { display:inline-flex; border:1px solid #444b54; border-radius:4px; overflow:hidden }
+  .toggle button { border:0; border-radius:0; padding:6px 14px } .toggle button.on { background:var(--green); color:#111 } .toggle button.off { background:var(--red); color:#111 }
+  .toggle.lang button.on { background:var(--blue); color:#fff }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th, td { padding:6px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle }
+  th { color:var(--muted); font-weight:600; font-size:12px }
+  td input, td select { width:100%; padding:4px 6px; font-size:13px }
+  td.slotno { font-weight:600 }
+  .tablewrap { overflow-x:auto }
+  .info { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px }
+  .kv { background:#1c1f24; border:1px solid var(--line); border-radius:6px; padding:8px 10px }
+  .kv .k { color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.03em }
+  .kv .v { font-size:15px; font-weight:600; margin-top:2px; word-break:break-all } .kv .v.small { font-size:12.5px; font-weight:400 }
+  #log { font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:240px; overflow:auto; background:#0f1114; border:1px solid var(--line); border-radius:4px; padding:8px 10px; color:#b5b8bc; white-space:pre-wrap }
+  .log-ok { color:var(--green) } .log-err { color:var(--red) } .log-tx { color:var(--blue) } .log-cloud { color:#c084fc } .log-info { color:#9aa0a6 }
+  a { color:var(--blue) }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px }
+  @media (max-width:700px) { header { padding:10px 12px } main { padding:12px } }
+</style>
+</head>
+<body>
+<header>
+  <h1>GroLo <small>Growatt Local · 2026.36.1</small></h1>
+  <span id="conn" class="pill">…</span>
+  <span id="dev" class="pill">–</span>
+  <span id="avail" class="pill">–</span>
+  <span class="spacer"></span>
+  <div class="toggle lang" id="lang"><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
+  <button id="readall" class="primary"></button>
+  <a id="grafana" href="#" target="_blank"></a>
+</header>
+
+<main>
+  <section id="sec-device"><h2 data-t="sec.device"></h2><p class="hint" data-t="sec.device.hint"></p>
+    <div class="info" id="dev-info"></div>
+    <h3 data-t="packs.title"></h3>
+    <div class="tablewrap"><table><thead><tr><th data-t="packs.pack"></th><th>SoC</th><th data-t="packs.temp"></th><th data-t="packs.cells"></th><th data-t="packs.cycles"></th><th data-t="packs.soh"></th></tr></thead><tbody id="packs"></tbody></table></div>
+    <h3 data-t="dongle.title"></h3><div class="info" id="dongle-info"><span class="muted" data-t="dongle.waiting"></span></div>
+  </section>
+
+  <section id="sec-mode"><h2 data-t="sec.mode"></h2><p class="hint" data-t="sec.mode.hint"></p><div class="grid" id="mode-grid"></div></section>
+  <section id="sec-battery"><h2 data-t="sec.battery"></h2><p class="hint" data-t="sec.battery.hint"></p><div class="grid"></div></section>
+  <section id="sec-output"><h2 data-t="sec.output"></h2><p class="hint" data-t="sec.output.hint"></p><div class="grid"></div></section>
+  <section id="sec-slots"><h2 data-t="sec.slots"></h2><p class="hint" data-t="sec.slots.hint"></p>
+    <div class="tablewrap"><table><thead><tr><th>Slot</th><th data-t="slots.active"></th><th data-t="slots.start"></th><th data-t="slots.end"></th><th data-t="slots.mode"></th><th data-t="slots.power"></th><th></th></tr></thead><tbody id="slots"></tbody></table></div>
+  </section>
+  <section id="sec-cloud"><h2 data-t="sec.cloud"></h2><p class="hint" data-t="sec.cloud.hint"></p>
+    <div class="grid">
+      <div class="ctl"><div class="top"><label data-t="cloud.switch"></label><span class="cur unknown" id="cloud-state">–</span></div>
+        <div class="desc" data-t="cloud.desc"></div>
+        <div class="row"><div class="toggle" id="cloud-toggle"><button class="b-on" id="cloud-on" data-t="on"></button><button class="b-off" id="cloud-off" data-t="off"></button></div></div></div>
+      <div class="ctl"><div class="top"><label data-t="cloud.status"></label></div><div class="desc" id="cloud-status">–</div></div>
+    </div>
+  </section>
+  <section id="sec-dongle"><h2 data-t="sec.dongle"></h2><p class="hint" data-t="sec.dongle.hint"></p><div class="grid"></div></section>
+  <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
+  <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
+</main>
+<footer>GroLo · Growatt Local · v2026.36.1 · MQTT <span id="ws-url"></span></footer>
+
+<script src="mqtt.min.js"></script>
+<script>
+(() => {
+  // ------------------------------------------------------------------ Konfiguration / config
+  const BASE = 'homeassistant';
+  const host = location.hostname || 'localhost';
+  const WS_URL = `ws://${host}:9001`;
+  const grafanaUrl = () => `http://${host}:3000/d/${lang === 'de' ? 'nexa2000-de' : 'nexa2000'}`;
+
+  // ------------------------------------------------------------------ Sprache / language
+  const I18N = {
+    en: {
+      'connecting': 'connecting…', 'connected': 'connected', 'reconnecting': 'reconnecting…', 'disconnected': 'disconnected', 'error': 'error',
+      'device': 'Device', 'online': 'device online', 'offline': 'device offline', 'readall': 'Read all values', 'dashboard': 'Dashboard',
+      'on': 'On', 'off': 'Off', 'set': 'Set', 'setslot': 'Set slot', 'unknown': 'unknown', 'loading': 'loading…', 'setting': 'setting…', 'run': 'Run',
+      'sec.device': 'Device and hardware', 'sec.device.hint': 'Reported by the NEXA and its Wi-Fi dongle, read-only. Battery packs appear as soon as the NEXA counts them.',
+      'packs.title': 'Battery packs', 'packs.pack': 'Pack / serial', 'packs.temp': 'Temperature', 'packs.cells': 'Cell voltage min / max', 'packs.cycles': 'Cycles', 'packs.soh': 'Health',
+      'packs.main': 'main unit', 'packs.ext': 'expansion', 'packs.reported': 'reported',
+      'dongle.title': 'Wi-Fi dongle (datalogger)', 'dongle.waiting': 'Waiting for the dongle configuration message (sent when it connects).',
+      'sec.mode': 'Operating mode', 'sec.mode.hint': 'The NEXA has no dedicated mode register: the active mode comes from the running time slot. This control writes the mode of the slot that covers the whole day (usually slot 1). Load first feeds the household, Battery first charges the battery first, Smart regulates automatically.',
+      'mode.label': 'Operating mode', 'mode.desc': 'Reported by the device', 'mode.noslot': 'No all-day slot found, use the slot table below.',
+      'sec.battery': 'Battery', 'sec.battery.hint': 'Charge and discharge limits of the battery.',
+      'sec.output': 'Output and operation', 'sec.output.hint': 'Base output and operating switches. Default output power is the fallback after a restart and is stored in flash, so change it rarely. Use the slot power for continuous control.',
+      'sec.slots': 'Time slots', 'sec.slots.hint': 'Times in the device\'s local time. Power applies to the output within the slot and is held in RAM only (no flash wear).',
+      'slots.active': 'Active', 'slots.start': 'Start', 'slots.end': 'End', 'slots.mode': 'Mode', 'slots.power': 'Power', 'slots.nochange': 'nothing changed',
+      'sec.cloud': 'Growatt cloud', 'sec.cloud.hint': 'Forward the device data through this host to the Growatt cloud so ShinePhone keeps working. The dongle itself stays blocked; the cloud-gate service opens the connection and drops configuration writes from the cloud to the dongle (broker, port).',
+      'cloud.switch': 'Forward to cloud', 'cloud.desc': 'On = data also goes to Growatt and the app shows live values. Off = everything stays local.', 'cloud.status': 'Status',
+      'cloud.conns': 'connections from the bridge', 'cloud.tocloud': 'to the cloud', 'cloud.bytes': 'up / down', 'cloud.blocked': 'dropped config writes', 'cloud.since': 'since', 'cloud.confirmoff': 'Switch off cloud forwarding? ShinePhone will stop showing live data.',
+      'sec.dongle': 'Dongle (datalogger)', 'sec.dongle.hint': 'Reporting interval, clock and time zone of the Wi-Fi module. Broker and port decide where the dongle sends its data. Wrong values disconnect it from this system.',
+      'sec.other': 'Other settings', 'sec.other.hint': 'Reported by the device, not categorised here.',
+      'sec.log': 'Log', 'sec.log.hint': 'Commands, confirmations, cloud events and device messages.',
+      'dev.pv': 'PV inputs in use', 'dev.pvdetail': 'PV inputs (voltage now, > 5 V = panel connected)', 'pv.free': 'free',
+      'dev.serial': 'Serial number', 'dev.model': 'Model', 'dev.fw': 'Firmware (reg. 119/120)', 'dev.mode': 'Operating mode', 'dev.systemp': 'System temperature', 'dev.packs': 'Battery packs detected', 'dev.soc': 'Total SoC', 'dev.last': 'Last data',
+      'dg.model': 'Model ID', 'dg.sw': 'Software', 'dg.hw': 'Hardware', 'dg.type': 'Device type / protocol', 'dg.wifi': 'Wi-Fi signal', 'dg.broker': 'Broker per dongle', 'dg.dns': 'DNS per dongle', 'dg.tz': 'Time zone / clock', 'dg.interval': 'Reporting interval', 'dg.mac': 'MAC per firmware', 'dg.ip': 'IP per firmware', 'dg.ipnote': '(AP mode, not the LAN IP)', 'dg.received': 'Received',
+      'log.mqtt': 'MQTT connected', 'log.mqtterr': 'MQTT error', 'log.discovery': 'writable settings detected for device', 'log.readall': 'read all values (the NEXA answers register by register, about a minute)',
+      'log.confirmed': 'confirmed', 'log.noconfirm': 'no confirmation from the device, read values again', 'log.otherdev': 'Another device ignored (page shows', 'log.dongle': 'Dongle configuration received', 'log.packs': 'battery pack count changed',
+      'log.cloudset': 'Cloud forwarding', 'log.cloudconn': 'Cloud connection established to', 'log.cloudlost': 'Cloud connection dropped', 'log.blocked': 'cloud-gate dropped a configuration write from the cloud (total', 'log.clouderr': 'Cloud error',
+      'log.status': 'Battery status', 'log.mode': 'Operating mode', 'log.lang': 'Language', 'log.avail': 'Device',
+      'L.charge_limit': ['Charge limit', 'Charge up to this state of charge'], 'L.discharge_limit': ['Discharge limit', 'Do not discharge below this state of charge'],
+      'L.default_power': ['Default output power', 'Fallback after restart (flash)'], 'L.ac_always_on': ['AC always on', 'Keep the output active without demand'],
+      'L.grid_power_allowed': ['Grid charging allowed', 'Battery may charge from the grid'], 'L.island_mode': ['Island mode', 'Operation without grid'], 'L.smart_mode': ['Smart mode (default)', 'Automatic regulation as base mode'],
+      'L.4': ['Reporting interval', 'Minutes between data packets'], 'L.30': ['Time zone', 'e.g. GMT+1 or GMT+2 (DST)'], 'L.31': ['Clock', 'Sync the dongle clock with this host'], 'L.32': ['Restart dongle', 'Connection drops for about 20 s'],
+      'L.18': ['MQTT port', 'Port the dongle sends to'], 'L.19': ['MQTT broker', 'Hostname the dongle sends to; usually redirected by local DNS'], 'L.17': ['MQTT IP', 'Server address as seen by the dongle'],
+      'btn.sync': 'Sync with host time', 'btn.restart': 'Restart', 'confirm.run': 'really run?', 'confirm.set': 'set to', 'confirm.danger': 'A wrong value disconnects the dongle from this system.',
+      'modes': { '0': 'Load first', '1': 'Battery first', '2': 'Smart' }, 'status': { 'Charging': 'charging', 'Discharging': 'discharging', 'Idle': 'idle' },
+    },
+    de: {
+      'connecting': 'verbinde…', 'connected': 'verbunden', 'reconnecting': 'verbinde neu…', 'disconnected': 'getrennt', 'error': 'Fehler',
+      'device': 'Gerät', 'online': 'Gerät online', 'offline': 'Gerät offline', 'readall': 'Alle Werte lesen', 'dashboard': 'Dashboard',
+      'on': 'An', 'off': 'Aus', 'set': 'Setzen', 'setslot': 'Slot setzen', 'unknown': 'unbekannt', 'loading': 'lädt…', 'setting': 'wird gesetzt…', 'run': 'Ausführen',
+      'sec.device': 'Gerät und Hardware', 'sec.device.hint': 'Vom NEXA und vom WLAN-Dongle gemeldet, nur Anzeige. Batteriepacks erscheinen, sobald der NEXA sie zählt.',
+      'packs.title': 'Batteriepacks', 'packs.pack': 'Pack / Seriennummer', 'packs.temp': 'Temperatur', 'packs.cells': 'Zellspannung min / max', 'packs.cycles': 'Zyklen', 'packs.soh': 'Gesundheit',
+      'packs.main': 'Hauptgerät', 'packs.ext': 'Erweiterung', 'packs.reported': 'gemeldet',
+      'dongle.title': 'WLAN-Dongle (Datenlogger)', 'dongle.waiting': 'Wartet auf die Konfigurationsnachricht des Dongles (kommt beim Verbindungsaufbau).',
+      'sec.mode': 'Betriebsmodus', 'sec.mode.hint': 'Der NEXA hat kein eigenes Modus-Register, der aktive Modus ergibt sich aus dem laufenden Zeitfenster. Dieser Schalter schreibt den Modus des Slots, der den ganzen Tag abdeckt (meist Slot 1). Last zuerst speist den Haushalt, Batterie zuerst lädt bevorzugt, Smart regelt automatisch.',
+      'mode.label': 'Betriebsmodus', 'mode.desc': 'Vom Gerät gemeldet', 'mode.noslot': 'Kein ganztägiger Slot gefunden, bitte die Slot-Tabelle nutzen.',
+      'sec.battery': 'Batterie', 'sec.battery.hint': 'Grenzen für Laden und Entladen des Akkus.',
+      'sec.output': 'Ausgang und Betrieb', 'sec.output.hint': 'Grundleistung und Betriebsschalter. Default-Ausgangsleistung ist der Rückfallwert nach einem Neustart und wird im Flash gespeichert, also selten ändern. Für laufende Regelung die Slot-Leistung nutzen.',
+      'sec.slots': 'Zeitfenster (Slots)', 'sec.slots.hint': 'Zeiten in lokaler Zeit des Geräts. Leistung gilt für den Ausgang im Zeitfenster und wird nur im RAM gehalten (verschleißfrei).',
+      'slots.active': 'Aktiv', 'slots.start': 'Start', 'slots.end': 'Ende', 'slots.mode': 'Modus', 'slots.power': 'Leistung', 'slots.nochange': 'nichts geändert',
+      'sec.cloud': 'Growatt-Cloud', 'sec.cloud.hint': 'Weiterleitung der Gerätedaten über diesen Host an die Growatt-Cloud, damit ShinePhone nutzbar bleibt. Der Dongle selbst bleibt gesperrt, der Dienst cloud-gate baut die Verbindung auf und verwirft Konfigurations-Schreibbefehle der Cloud an den Dongle (Broker, Port).',
+      'cloud.switch': 'Weiterleitung zur Cloud', 'cloud.desc': 'An = Daten gehen zusätzlich an Growatt, die App zeigt Live-Werte. Aus = alles bleibt lokal.', 'cloud.status': 'Status',
+      'cloud.conns': 'Verbindungen von der Bridge', 'cloud.tocloud': 'zur Cloud', 'cloud.bytes': 'hoch / runter', 'cloud.blocked': 'verworfene Konfig-Schreibbefehle', 'cloud.since': 'seit', 'cloud.confirmoff': 'Weiterleitung zur Growatt-Cloud ausschalten? ShinePhone zeigt dann keine Live-Daten mehr.',
+      'sec.dongle': 'Dongle (Datenlogger)', 'sec.dongle.hint': 'Sendeintervall, Uhrzeit und Zeitzone des WLAN-Moduls. Broker und Port bestimmen, wohin der Dongle sendet. Falsche Werte trennen ihn von diesem System.',
+      'sec.other': 'Weitere Einstellungen', 'sec.other.hint': 'Vom Gerät gemeldet, hier nicht weiter eingeordnet.',
+      'sec.log': 'Protokoll', 'sec.log.hint': 'Befehle, Bestätigungen, Cloud-Ereignisse und Gerätemeldungen.',
+      'dev.pv': 'PV-Eingänge belegt', 'dev.pvdetail': 'PV-Eingänge (Spannung jetzt, > 5 V = Panel angeschlossen)', 'pv.free': 'frei',
+      'dev.serial': 'Seriennummer', 'dev.model': 'Modell', 'dev.fw': 'Firmware (Reg. 119/120)', 'dev.mode': 'Betriebsmodus', 'dev.systemp': 'Systemtemperatur', 'dev.packs': 'Batteriepacks erkannt', 'dev.soc': 'Gesamt-SoC', 'dev.last': 'Letzte Daten',
+      'dg.model': 'Modell-ID', 'dg.sw': 'Software', 'dg.hw': 'Hardware', 'dg.type': 'Gerätetyp / Protokoll', 'dg.wifi': 'WLAN-Signal', 'dg.broker': 'Broker laut Dongle', 'dg.dns': 'DNS laut Dongle', 'dg.tz': 'Zeitzone / Uhr', 'dg.interval': 'Sendeintervall', 'dg.mac': 'MAC laut Firmware', 'dg.ip': 'IP laut Firmware', 'dg.ipnote': '(AP-Modus, nicht die LAN-IP)', 'dg.received': 'Empfangen',
+      'log.mqtt': 'MQTT verbunden', 'log.mqtterr': 'MQTT-Fehler', 'log.discovery': 'einstellbare Werte erkannt für Gerät', 'log.readall': 'alle Werte lesen (der NEXA antwortet Register für Register, etwa eine Minute)',
+      'log.confirmed': 'bestätigt', 'log.noconfirm': 'keine Bestätigung vom Gerät, Werte neu lesen', 'log.otherdev': 'Weiteres Gerät ignoriert (Seite zeigt', 'log.dongle': 'Dongle-Konfiguration empfangen', 'log.packs': 'Anzahl Batteriepacks geändert',
+      'log.cloudset': 'Cloud-Weiterleitung', 'log.cloudconn': 'Cloud-Verbindung steht zu', 'log.cloudlost': 'Cloud-Verbindung getrennt', 'log.blocked': 'cloud-gate hat einen Konfig-Schreibbefehl der Cloud verworfen (gesamt', 'log.clouderr': 'Cloud-Fehler',
+      'log.status': 'Batterie-Status', 'log.mode': 'Betriebsmodus', 'log.lang': 'Sprache', 'log.avail': 'Gerät',
+      'L.charge_limit': ['Ladegrenze', 'Bis zu diesem Ladezustand wird geladen'], 'L.discharge_limit': ['Entladegrenze', 'Unter diesem Ladezustand wird nicht entladen'],
+      'L.default_power': ['Default-Ausgangsleistung', 'Rückfallwert nach Neustart (Flash)'], 'L.ac_always_on': ['AC immer an', 'Ausgang auch ohne Bedarf aktiv halten'],
+      'L.grid_power_allowed': ['Netzladen erlaubt', 'Batterie darf aus dem Netz laden'], 'L.island_mode': ['Inselmodus', 'Betrieb ohne Netz'], 'L.smart_mode': ['Smart-Modus (Standard)', 'Automatische Regelung als Grundmodus'],
+      'L.4': ['Sendeintervall', 'Minuten zwischen Datenpaketen'], 'L.30': ['Zeitzone', 'z. B. GMT+1 oder GMT+2 (Sommerzeit)'], 'L.31': ['Uhrzeit', 'Uhr des Dongles mit diesem Host synchronisieren'], 'L.32': ['Dongle neu starten', 'Verbindung bricht etwa 20 s ab'],
+      'L.18': ['MQTT-Port', 'Port, an den der Dongle sendet'], 'L.19': ['MQTT-Broker', 'Hostname, an den der Dongle sendet; meist per lokalem DNS umgeleitet'], 'L.17': ['MQTT-IP', 'Serveradresse aus Sicht des Dongles'],
+      'btn.sync': 'Mit Host-Zeit synchronisieren', 'btn.restart': 'Neu starten', 'confirm.run': 'wirklich ausführen?', 'confirm.set': 'setzen auf', 'confirm.danger': 'Ein falscher Wert trennt den Dongle von diesem System.',
+      'modes': { '0': 'Last zuerst', '1': 'Batterie zuerst', '2': 'Smart' }, 'status': { 'Charging': 'lädt', 'Discharging': 'entlädt', 'Idle': 'Ruhe' },
+    },
+  };
+  let lang = 'en';
+  try { lang = localStorage.getItem('grolo.lang') || 'en'; } catch {}
+  if (!I18N[lang]) lang = 'en';
+  const t = key => (I18N[lang][key] ?? I18N.en[key] ?? key);
+  const MODE_EN = { 'Load First': '0', 'Battery First': '1', 'Smart Mode': '2', 'Smart': '2' };
+  const modeText = v => { const k = MODE_EN[v] ?? String(v); return t('modes')[k] ?? v; };
+  const statusText = v => t('status')[v] ?? v;
+  const SEC = { charge_limit: 'battery', discharge_limit: 'battery', default_power: 'output', ac_always_on: 'output', grid_power_allowed: 'output', island_mode: 'output', smart_mode: 'output',
+                '4': 'dongle', '30': 'dongle', '31': 'dongle', '32': 'dongle', '17': 'dongle', '18': 'dongle', '19': 'dongle' };
+  const DANGER = new Set(['32', '17', '18', '19']);
+  const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
+
+  // ------------------------------------------------------------------ Zustand / state
+  const state = { device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const logEl = document.getElementById('log');
+  const log = (msg, cls = '') => {
+    const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
+    logEl.prepend(d); while (logEl.children.length > 300) logEl.lastChild.remove();
+  };
+  const setPill = (id, text, cls) => { const e = document.getElementById(id); e.textContent = text; e.className = 'pill ' + (cls || ''); };
+  document.getElementById('ws-url').textContent = WS_URL;
+
+  function applyStatic() {
+    document.documentElement.lang = lang;
+    for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
+    document.getElementById('readall').textContent = t('readall'); document.getElementById('grafana').textContent = t('dashboard'); document.getElementById('grafana').href = grafanaUrl();
+    for (const b of document.querySelectorAll('#lang button')) b.className = b.dataset.lang === lang ? 'on' : '';
+  }
+  for (const b of document.querySelectorAll('#lang button')) b.onclick = () => { lang = b.dataset.lang; try { localStorage.setItem('grolo.lang', lang); } catch {} applyStatic(); render(); renderAll(); log(`${t('log.lang')}: ${lang.toUpperCase()}`, 'log-info'); };
+  applyStatic();
+
+  // ------------------------------------------------------------------ MQTT
+  const client = mqtt.connect(WS_URL, { clientId: 'grolo-' + Math.random().toString(16).slice(2, 8), keepalive: 30, reconnectPeriod: 3000 });
+  setPill('conn', t('connecting'));
+  client.on('connect', () => {
+    setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
+    client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`]);
+  });
+  client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
+  client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
+  client.on('error', e => { setPill('conn', t('error'), 'bad'); log(`${t('log.mqtterr')}: ${e.message}`, 'log-err'); });
+  client.on('message', (topic, payload) => {
+    const p = payload.toString(); let m;
+    if ((m = topic.match(new RegExp(`^${BASE}/device/([^/]+)/config$`)))) return onDiscovery(m[1], p);
+    if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/availability$`)))) { if (m[1] === state.device) { setPill('avail', p === 'online' ? t('online') : t('offline'), p === 'online' ? 'ok' : 'bad'); if (state.avail !== p) log(`${t('log.avail')} ${p}`, p === 'online' ? 'log-ok' : 'log-err'); state.avail = p; } return; }
+    if (topic === `${BASE}/switch/grobro/cloud_forward/get`) return onCloudState(p);
+    if (topic === `${BASE}/grobro/cloud_forward/status`) { try { onCloudStatus(JSON.parse(p)); } catch {} return; }
+    if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/state$`)))) { if (!state.device || m[1] === state.device) { try { onState(m[1], JSON.parse(p)); } catch {} } return; }
+    if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/dongle$`)))) { if (!state.device || m[1] === state.device) { try { onDongle(JSON.parse(p)); } catch {} } return; }
+    if ((m = topic.match(new RegExp(`^${BASE}/([^/]+)/grobro/([^/]+)/([^/]+)/get$`)))) return onValue(m[1], m[2], m[3], p);
+  });
+
+  // ------------------------------------------------------------------ Discovery → Steuerelemente / controls
+  function onDiscovery(device, payload) {
+    let d; try { d = JSON.parse(payload); } catch { return; }
+    if (!d.cmps) return;
+    if (state.device && state.device !== device) { log(`${t('log.otherdev')} ${state.device})`, 'log-info'); return; }
+    state.device = device; setPill('dev', `${t('device')} ${device}`, 'ok');
+    const cmps = {};
+    for (const [uid, c] of Object.entries(d.cmps)) {
+      if (!c.command_topic) continue;
+      const m = c.command_topic.match(new RegExp(`^${BASE}/([^/]+)/grobro/[^/]+/([^/]+)/(set|read)$`));
+      if (!m) continue;
+      const topicRoot = m[1], id = m[2], platform = c.platform || topicRoot;
+      if (SKIP.has(id)) continue;
+      if (id === '31' && platform !== 'button') continue;
+      cmps[uid] = { id, uid, platform, topicRoot, name: c.name, min: c.min, max: c.max, step: c.step, unit: c.unit_of_measurement, options: c.options,
+                    payload_on: c.payload_on ?? 'ON', payload_off: c.payload_off ?? 'OFF', payload_press: c.payload_press, topic: c.command_topic };
+    }
+    const before = Object.keys(state.cmps).length;
+    state.cmps = cmps; render();
+    if (Object.keys(cmps).length !== before) { log(`${Object.keys(cmps).length} ${t('log.discovery')} ${device}`, 'log-ok'); readAll(); }
+  }
+  const cmpOf = id => Object.values(state.cmps).find(c => c.id === id);
+  const L = id => { const v = I18N[lang]['L.' + id] ?? I18N.en['L.' + id]; return Array.isArray(v) ? v : null; };
+  const labelOf = id => (L(id) || [])[0] || cmpOf(id)?.name || id;
+  const descOf = id => (L(id) || [])[1] || '';
+  const isSlot = id => /^slot\d+_/.test(id);
+  const hhmm = v => { const n = parseInt(v, 10); if (isNaN(n)) return v; return String(Math.floor(n / 100)).padStart(2, '0') + ':' + String(n % 100).padStart(2, '0'); };
+  function fmtValue(id, raw) {
+    const c = cmpOf(id); if (raw == null) return '–';
+    if (/_time$/.test(id)) return /^\d+$/.test(raw) ? hhmm(raw) : raw;
+    if (/_mode$/.test(id)) return modeText(raw);
+    if (c?.platform === 'switch') return raw === c.payload_on ? t('on').toLowerCase() : raw === c.payload_off ? t('off').toLowerCase() : raw;
+    return raw + (c?.unit ? ' ' + c.unit : '');
+  }
+  function onValue(platform, device, id, raw) {
+    if (device !== state.device) return;
+    state.values[id] = raw;
+    const wasPending = state.pending[id]; delete state.pending[id];
+    updateValue(id); updateModeControl();
+    if (wasPending) log(`✔ ${labelOf(id)} ${t('log.confirmed')}: ${fmtValue(id, raw)}`, 'log-ok');
+  }
+
+  // ------------------------------------------------------------------ Senden / send
+  function send(id, payload, opts = {}) {
+    const c = cmpOf(id); if (!c) return;
+    if (opts.confirm && !confirm(opts.confirm)) return;
+    const isButton = c.platform === 'button';
+    if (!isButton) { state.pending[id] = payload; updateValue(id); }
+    client.publish(c.topic, String(payload), { qos: 0 });
+    log(`→ ${labelOf(id)}${isButton ? '' : ' = ' + payload}   (${c.topic.replace(BASE + '/', '')})`, 'log-tx');
+    if (!isButton) setTimeout(() => { if (state.pending[id] === payload) { delete state.pending[id]; updateValue(id); log(`⚠ ${labelOf(id)}: ${t('log.noconfirm')}`, 'log-err'); } }, 15000);
+  }
+  function readAll() {
+    if (!state.device) return;
+    client.publish(`${BASE}/button/grobro/${state.device}/read_all/read`, '1');
+    log(`→ ${t('log.readall')}`, 'log-tx');
+    state.loadingUntil = Date.now() + 90000; refreshValues(); setTimeout(refreshValues, 90000);
+  }
+  const refreshValues = () => { for (const c of Object.values(state.cmps)) updateValue(c.id); };
+  document.getElementById('readall').onclick = readAll;
+
+  function payloadFor(c, inputEl) {
+    const v = inputEl.value;
+    if (/_time$/.test(c.id)) { const [h, m] = v.split(':').map(Number); if (isNaN(h) || isNaN(m)) return null; return c.platform === 'time' ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` : String(h * 100 + m); }
+    if (/_mode$/.test(c.id)) return modePayload(c, v);
+    return v;
+  }
+  // select-Plattform erwartet den Optionstext (englisch), number die Zahl
+  const modePayload = (c, v) => (c.platform === 'select' && c.options) ? (c.options.find(o => MODE_EN[o] === v) || v) : v;
+
+  // ------------------------------------------------------------------ Rendering
+  function render() {
+    for (const s of ['battery', 'output', 'dongle', 'other']) document.querySelector(`#sec-${s} .grid`).innerHTML = '';
+    document.getElementById('slots').innerHTML = '';
+    const slots = {};
+    for (const c of Object.values(state.cmps)) {
+      if (isSlot(c.id)) { const n = c.id.match(/^slot(\d+)_/)[1]; (slots[n] ||= {})[c.id.replace(/^slot\d+_/, '')] = c; continue; }
+      document.querySelector(`#sec-${SEC[c.id] || 'other'} .grid`).appendChild(renderCtl(c));
+    }
+    document.getElementById('sec-other').hidden = !document.querySelector('#sec-other .grid').children.length;
+    for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
+    renderModeControl(); refreshValues();
+  }
+  const renderAll = () => { if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+
+  function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
+  function updateValue(id) {
+    for (const el of document.querySelectorAll(`[data-cur="${id}"]`)) {
+      if (state.pending[id] !== undefined) { el.textContent = t('setting'); el.className = 'cur pending'; }
+      else if (state.values[id] === undefined) { el.textContent = Date.now() < state.loadingUntil ? t('loading') : t('unknown'); el.className = 'cur unknown'; }
+      else { el.textContent = fmtValue(id, state.values[id]); el.className = 'cur'; }
+    }
+    for (const el of document.querySelectorAll(`[data-input="${id}"]`)) {
+      if (el.dataset.touched || state.values[id] === undefined) continue;
+      const raw = state.values[id];
+      if (el.type === 'time') el.value = /^\d+$/.test(raw) ? hhmm(raw) : raw;
+      else if (el.tagName === 'SELECT') { const key = MODE_EN[raw] ?? String(raw); const opt = [...el.options].find(o => o.value === key || o.value === raw); if (opt) el.value = opt.value; }
+      else el.value = raw;
+      const rng = el.parentElement.querySelector('input[type=range]'); if (rng) rng.value = el.value;
+    }
+    for (const el of document.querySelectorAll(`[data-toggle="${id}"]`)) {
+      const c = cmpOf(id); const v = state.values[id];
+      el.querySelector('.b-on').className = 'b-on ' + (v === c.payload_on ? 'on' : ''); el.querySelector('.b-off').className = 'b-off ' + (v === c.payload_off ? 'off' : '');
+    }
+  }
+
+  function makeInput(c) {
+    let el;
+    if (/_time$/.test(c.id)) { el = document.createElement('input'); el.type = 'time'; el.step = 60; }
+    else if (/_mode$/.test(c.id)) { el = document.createElement('select'); for (const [v, txt] of Object.entries(t('modes'))) { const o = document.createElement('option'); o.value = v; o.textContent = txt; el.appendChild(o); } }
+    else if (c.platform === 'number') { el = document.createElement('input'); el.type = 'number'; if (c.min != null) el.min = c.min; if (c.max != null) el.max = c.max; el.step = c.step || 1; }
+    else if (c.platform === 'select') { el = document.createElement('select'); for (const o of c.options || []) { const x = document.createElement('option'); x.value = o; x.textContent = o; el.appendChild(x); } }
+    else { el = document.createElement('input'); el.type = 'text'; }
+    el.dataset.input = c.id; el.addEventListener('input', () => el.dataset.touched = '1');
+    return el;
+  }
+  function toggle(c) {
+    const tg = document.createElement('div'); tg.className = 'toggle'; tg.dataset.toggle = c.id;
+    const on = document.createElement('button'); on.className = 'b-on'; on.textContent = t('on'); on.onclick = () => send(c.id, c.payload_on);
+    const off = document.createElement('button'); off.className = 'b-off'; off.textContent = t('off'); off.onclick = () => send(c.id, c.payload_off);
+    tg.append(on, off); return tg;
+  }
+  function renderCtl(c) {
+    const box = document.createElement('div'); box.className = 'ctl';
+    const top = document.createElement('div'); top.className = 'top';
+    const lab = document.createElement('label'); lab.textContent = labelOf(c.id); top.appendChild(lab);
+    if (c.platform !== 'button') top.appendChild(curSpan(c.id));   // Taster haben keinen Wert, also keine "unbekannt"-Anzeige
+    box.appendChild(top);
+    const desc = descOf(c.id); if (desc) { const d = document.createElement('div'); d.className = 'desc'; d.textContent = desc; box.appendChild(d); }
+    const row = document.createElement('div'); row.className = 'row'; const danger = DANGER.has(c.id);
+    if (c.platform === 'switch') row.appendChild(toggle(c));
+    else if (c.platform === 'button') {
+      const b = document.createElement('button'); b.className = danger ? 'danger' : 'primary';
+      b.textContent = c.id === '31' ? t('btn.sync') : c.id === '32' ? t('btn.restart') : t('run');
+      b.onclick = () => send(c.id, c.payload_press ?? '1', { confirm: danger ? `${labelOf(c.id)} ${t('confirm.run')}` : null });
+      row.appendChild(b);
+    } else {
+      const inp = makeInput(c);
+      if (c.platform === 'number' && c.max != null && (c.max - (c.min || 0)) <= 1000 && !/_time$/.test(c.id)) {
+        const rng = document.createElement('input'); rng.type = 'range'; rng.min = c.min ?? 0; rng.max = c.max; rng.step = c.step || 1;
+        rng.oninput = () => { inp.value = rng.value; inp.dataset.touched = '1'; }; inp.oninput = () => { rng.value = inp.value; inp.dataset.touched = '1'; };
+        row.appendChild(rng);
+      }
+      row.appendChild(inp);
+      const b = document.createElement('button'); b.textContent = t('set'); b.className = danger ? 'danger' : '';
+      b.onclick = () => { const p = payloadFor(c, inp); if (p == null || p === '') return; delete inp.dataset.touched;
+        send(c.id, p, { confirm: danger ? `${labelOf(c.id)} ${t('confirm.set')} "${p}"? ${t('confirm.danger')}` : null }); };
+      row.appendChild(b);
+    }
+    box.appendChild(row); return box;
+  }
+  function renderSlot(n, s) {
+    const tr = document.createElement('tr');
+    const td = (el) => { const c = document.createElement('td'); if (el) c.appendChild(el); tr.appendChild(c); return c; };
+    const num = td(); num.className = 'slotno'; num.textContent = n;
+    if (s.enabled) { const w = document.createElement('div'); w.style.display = 'grid'; w.style.gap = '4px'; w.append(curSpan(s.enabled.id), toggle(s.enabled)); td(w); } else td();
+    const inputs = {};
+    for (const k of ['start_time', 'end_time', 'mode', 'power']) {
+      if (!s[k]) { td(); continue; }
+      const w = document.createElement('div'); w.style.display = 'grid'; w.style.gap = '4px'; w.appendChild(curSpan(s[k].id)); inputs[k] = makeInput(s[k]); w.appendChild(inputs[k]); td(w);
+    }
+    const b = document.createElement('button'); b.textContent = t('setslot'); b.className = 'primary';
+    b.onclick = () => { let sent = 0; for (const k of Object.keys(inputs)) { const inp = inputs[k]; if (!inp.dataset.touched) continue; const p = payloadFor(s[k], inp); if (p == null || p === '') continue; delete inp.dataset.touched; send(s[k].id, p); sent++; }
+      if (!sent) log(`Slot ${n}: ${t('slots.nochange')}`, 'log-info'); };
+    td(b); return tr;
+  }
+
+  // ------------------------------------------------------------------ Betriebsmodus / operating mode
+  function allDaySlot() {
+    const ids = Object.values(state.cmps).filter(c => /^slot\d+_mode$/.test(c.id)).map(c => c.id.match(/^slot(\d+)_/)[1]).sort((a, b) => a - b);
+    for (const n of ids) {
+      const st = state.values[`slot${n}_start_time`], en = state.values[`slot${n}_end_time`], on = state.values[`slot${n}_enabled`];
+      if (on === 'ON' && (st === '0' || st === '00:00') && (en === '2359' || en === '23:59')) return n;
+    }
+    return ids.includes('1') ? '1' : ids[0];
+  }
+  function renderModeControl() {
+    const g = document.getElementById('mode-grid'); g.innerHTML = '';
+    const n = allDaySlot(); if (!n) { g.innerHTML = `<div class="muted">${t('mode.noslot')}</div>`; return; }
+    const c = cmpOf(`slot${n}_mode`); if (!c) return;
+    const box = document.createElement('div'); box.className = 'ctl';
+    const top = document.createElement('div'); top.className = 'top';
+    const lab = document.createElement('label'); lab.textContent = `${t('mode.label')} (Slot ${n})`; top.append(lab, curSpan(c.id)); box.appendChild(top);
+    const d = document.createElement('div'); d.className = 'desc'; d.id = 'mode-reported'; box.appendChild(d);
+    const row = document.createElement('div'); row.className = 'row';
+    for (const [v, txt] of Object.entries(t('modes'))) { const b = document.createElement('button'); b.dataset.modeBtn = v; b.textContent = txt; b.onclick = () => send(c.id, modePayload(c, v)); row.appendChild(b); }
+    box.appendChild(row); g.appendChild(box); updateModeControl();
+  }
+  function updateModeControl() {
+    const n = allDaySlot(); const cur = state.values[`slot${n}_mode`]; const key = MODE_EN[cur] ?? String(cur);
+    for (const b of document.querySelectorAll('[data-mode-btn]')) b.className = b.dataset.modeBtn === key ? 'primary' : '';
+    const rep = document.getElementById('mode-reported'); if (rep && state.st) rep.textContent = `${t('mode.desc')}: ${modeText(state.st.workMode)}`;
+  }
+
+  // ------------------------------------------------------------------ Gerät, Packs, Dongle, Cloud (Anzeige)
+  const kv = (k, v, small) => `<div class="kv"><div class="k">${k}</div><div class="v${small ? ' small' : ''}">${v ?? '–'}</div></div>`;
+  const num = (v, d = 1) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+  function onState(device, st, rerender = false) {
+    state.st = st;
+    if (!rerender) {
+      if (state.lastStatus !== null && st.totalBatteryPackChargingStatus !== state.lastStatus) log(`${t('log.status')}: ${statusText(st.totalBatteryPackChargingStatus)} (${st.totalBatteryPackChargingPower} W)`, 'log-info');
+      if (state.lastMode !== null && st.workMode !== state.lastMode) log(`${t('log.mode')}: ${modeText(st.workMode)}`, 'log-info');
+      if (state.packs !== null && st.batteryPackageQuantity !== state.packs) log(`${t('log.packs')}: ${state.packs} → ${st.batteryPackageQuantity}`, 'log-info');
+      state.lastStatus = st.totalBatteryPackChargingStatus; state.lastMode = st.workMode; state.packs = st.batteryPackageQuantity;
+    }
+    const fw = [1, 2, 3, 4].map(i => st[`fw_version_part_${i}`]).filter(x => x != null);
+    document.getElementById('dev-info').innerHTML = [
+      kv(t('dev.serial'), device), kv(t('dev.model'), 'Growatt NEXA 2000'), kv(t('dev.fw'), fw.length === 4 ? fw.map(Number).join('.') : '–'),
+      kv(t('dev.mode'), modeText(st.workMode)), kv(t('dev.systemp'), num(st.systemTemp) + ' °C'), kv(t('dev.packs'), st.batteryPackageQuantity ?? '–'),
+      kv(t('dev.soc'), num(st.totalBatteryPackSoc, 0) + ' %'),
+      kv(t('dev.pv'), `${[1, 2, 3, 4].filter(i => Number(st[`pv${i}Voltage`]) > 5).length} / 4`),
+      kv(t('dev.pvdetail'), [1, 2, 3, 4].map(i => `${i}: ${Number(st[`pv${i}Voltage`]) > 5 ? num(st[`pv${i}Voltage`]) + ' V' : t('pv.free')}`).join(' · '), true),
+      kv(t('dev.last'), new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB'), true),
+    ].join('');
+    const n = Math.max(1, Number(st.batteryPackageQuantity) || 1); const rows = [];
+    for (let i = 1; i <= n; i++) {
+      const soc = st[`battery${i}Soc`], tp = st[`battery${i}Temp`];
+      const serial = i === 1 ? device : (st[`bat${i}_serial`] || [1, 2, 3, 4].map(k => st[`bat${i}_ser_part_${k}`] || '').join('') || '–');
+      const cells = i === 1 ? `${num(st.minCellVoltage, 3)} V / ${num(st.maxCellVoltage, 3)} V` : '–';
+      rows.push(`<tr><td class="slotno">${i} (${i === 1 ? t('packs.main') : t('packs.ext')})<div class="muted" style="font-weight:400">${serial}</div></td><td>${num(soc, 0)} %</td><td>${tp != null ? num(tp) + ' °C' : '–'}</td><td>${cells}</td><td>${i === 1 ? (st.batteryCycles ?? '–') : '–'}</td><td>${i === 1 ? num(st.batterySoh, 0) + ' %' : '–'}</td></tr>`);
+    }
+    for (let i = n + 1; i <= 4; i++) if (Number(st[`battery${i}Soc`]) > 0) rows.push(`<tr><td class="slotno">${i} (${t('packs.reported')})</td><td>${num(st[`battery${i}Soc`], 0)} %</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>`);
+    document.getElementById('packs').innerHTML = rows.join('');
+    updateModeControl();
+  }
+  function onDongle(d, rerender = false) {
+    if (!rerender && (!state.dongle || state.dongle.received_at !== d.received_at)) log(`${t('log.dongle')}: ${d.model_id} SW ${d.sw_version}, Wi-Fi ${d.wifi_signal} dBm`, 'log-info');
+    state.dongle = d;
+    document.getElementById('dongle-info').innerHTML = [
+      kv(t('dg.model'), d.model_id), kv(t('dg.sw'), d.sw_version), kv(t('dg.hw'), d.hw_version), kv(t('dg.type'), `${d.device_type ?? '–'} / ${d.protocol_version ?? '–'}`),
+      kv(t('dg.wifi'), d.wifi_signal != null ? `${d.wifi_signal} dBm` : '–'), kv(t('dg.broker'), `${d.remote_url ?? '–'}:${d.remote_port ?? '–'}`, true), kv(t('dg.dns'), d.dns_address, true),
+      kv(t('dg.tz'), `${d.timezone ?? '–'} · ${d.datetime ?? '–'}`, true), kv(t('dg.interval'), (d.data_interval ?? state.values['4']) != null ? `${d.data_interval ?? state.values['4']} min` : '–'),
+      kv(t('dg.mac'), d.mac_address, true), kv(t('dg.ip'), `${d.local_ip ?? '–'} ${t('dg.ipnote')}`, true), kv(t('dg.received'), d.received_at, true),
+    ].join('');
+  }
+  let cloudPending = null;
+  function onCloudState(s, rerender = false) {
+    const on = s === 'ON'; const el = document.getElementById('cloud-state');
+    if (!rerender) { if (cloudPending !== null && on === cloudPending) cloudPending = null; if (state.cloudState !== null && state.cloudState !== s) log(`${t('log.cloudset')}: ${on ? t('on') : t('off')}`, 'log-cloud'); }
+    state.cloudState = s;
+    el.textContent = on ? t('on').toLowerCase() : t('off').toLowerCase(); el.className = 'cur' + (cloudPending !== null ? ' pending' : '');
+    document.getElementById('cloud-on').className = 'b-on ' + (on ? 'on' : ''); document.getElementById('cloud-off').className = 'b-off ' + (!on ? 'off' : '');
+  }
+  function onCloudStatus(st, rerender = false) {
+    const prev = state.cloud; state.cloud = st;
+    if (!rerender && prev) {
+      if (st.cloud_connected > prev.cloud_connected) log(`${t('log.cloudconn')} ${st.cloud_host}`, 'log-cloud');
+      if (st.cloud_connected < prev.cloud_connected) log(t('log.cloudlost'), 'log-cloud');
+      if (st.blocked_config_writes > prev.blocked_config_writes) log(`⚠ ${t('log.blocked')} ${st.blocked_config_writes})`, 'log-err');
+      if (st.last_error && st.last_error !== prev.last_error) log(`${t('log.clouderr')}: ${st.last_error}`, 'log-err');
+    }
+    const kb = n => (n / 1024).toFixed(1) + ' KB';
+    document.getElementById('cloud-status').innerHTML = [`${t('cloud.conns')}: ${st.connections}`, `${t('cloud.tocloud')}: ${st.cloud_connected}${st.cloud_host ? ' (' + st.cloud_host + ')' : ''}`,
+      `${t('cloud.bytes')}: ${kb(st.bytes_up)} / ${kb(st.bytes_down)}`, `${t('cloud.blocked')}: ${st.blocked_config_writes}`,
+      st.last_error ? `<span style="color:var(--red)">${t('error')}: ${st.last_error}</span>` : '', `${t('cloud.since')} ${st.since}`].filter(Boolean).join('<br>');
+  }
+  const cloudSet = on => { cloudPending = on; const el = document.getElementById('cloud-state'); el.textContent = t('setting'); el.className = 'cur pending';
+    client.publish(`${BASE}/switch/grobro/cloud_forward/set`, on ? 'ON' : 'OFF'); log(`→ ${t('log.cloudset')} ${on ? t('on').toUpperCase() : t('off').toUpperCase()}`, 'log-tx'); };
+  document.getElementById('cloud-on').onclick = () => cloudSet(true);
+  document.getElementById('cloud-off').onclick = () => { if (confirm(t('cloud.confirmoff'))) cloudSet(false); };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+# Growatt NEXA 2000 – lokales Setup ohne Hersteller-Cloud
+#
+#   Dongle ──TLS 7006──▶ mosquitto ──▶ GroBro ──▶ mosquitto ──plain 1883──▶ mosquitto_sub / Home Assistant
+#
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: grolo-mosquitto
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PLAIN_PORT:-1883}:1883"   # Plain-Listener (Ziel)
+      - "${MQTT_TLS_PORT:-7006}:7006"     # TLS-Listener (Growatt-Dongle)
+      - "${MQTT_WS_PORT:-9001}:9001"      # Websockets (Einstellungsseite)
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/certs:/mosquitto/certs:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-p", "1883", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  grobro:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-grobro
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      # Quelle: TLS-Listener (GroBro validiert das Zertifikat nicht, nur der Dongle tut das)
+      SOURCE_MQTT_HOST: mosquitto
+      SOURCE_MQTT_PORT: "7006"
+      SOURCE_MQTT_TLS: "true"
+      # Ziel: Plain-Listener
+      TARGET_MQTT_HOST: mosquitto
+      TARGET_MQTT_PORT: "1883"
+      TARGET_MQTT_TLS: "false"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      # Cloud-Weiterleitung läuft über den schaltbaren Dienst cloud-gate (Schalter auf der Einstellungsseite).
+      # GroBro glaubt, mit mqtt.growatt.com zu sprechen; cloud-gate reicht durch oder schluckt.
+      GROWATT_CLOUD: "true"
+      GROWATT_CLOUD_CONFIG_FILTER: "true"
+      FORWARD_MQTT_HOST: cloud-gate
+      FORWARD_MQTT_PORT: "7006"
+      LOG_LEVEL: "${GROBRO_LOG_LEVEL:-INFO}"
+      DUMP_MESSAGES: "${GROBRO_DUMP_MESSAGES:-false}"
+      DEVICE_TIMEOUT: "${GROBRO_DEVICE_TIMEOUT:-300}"
+      MAX_SLOTS: "${GROBRO_MAX_SLOTS:-1}"
+      MAX_BAT: "auto"
+      TZ: "${TZ:-Europe/Berlin}"
+      # Hinweis: REGISTER_FILTER ist seit GroBro 1.7.4 entfernt – die Register-Map
+      # (NEXA/NOAH/NEO/...) wird automatisch anhand der Seriennummer erkannt.
+    volumes:
+      - ./grobro/dump:/dump
+      # Register-Map aus dem main-Branch (ergänzt Firmware-Register 119/120 und WLAN-Signal), Image :latest hinkt hinterher.
+      # Entfernen, sobald ein neues Image die Felder mitbringt.
+      - ./grobro/registers/growatt_nexa_registers.json:/app/grobro/model/growatt_nexa_registers.json:ro
+
+  # Sidecar: Dongle-Konfiguration (FE19) dekodieren und retained veröffentlichen (GroBro :latest kann das für NEXA nicht)
+  dongle-info:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-dongle-info
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/dongle_info.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      DUMP_DIR: /dump
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - ./grobro/dump:/dump:ro
+
+  # Sidecar: alle Rohregister (auch unbekannte) als JSON veröffentlichen, nur lesend (Forschungswerkzeug)
+  raw-registers:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-raw-registers
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/raw_registers.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      ONLY_UNKNOWN: "true"
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - ./grobro/registers/growatt_nexa_registers.json:/app/grobro/model/growatt_nexa_registers.json:ro
+
+  # Schaltbare Weiterleitung zur Growatt-Cloud (TLS-Relay mit Konfig-Filter), Steuerung per MQTT
+  cloud-gate:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-cloud-gate
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/cloud_gate.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      CLOUD_HOSTS: "${CLOUD_HOSTS:-8.209.71.240,47.254.130.145}"   # IPs, nicht der Name: mqtt.growatt.com zeigt im LAN auf den Mac
+      CLOUD_SNI: mqtt.growatt.com
+      CLOUD_VERIFY: "true"
+      CONFIG_FILTER: "true"
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - ./mosquitto/certs:/certs:ro
+      - cloud-gate-state:/state
+
+  # ---------------- Datenbank + Dashboard ----------------
+  influxdb:
+    image: influxdb:2.7
+    container_name: grolo-influxdb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8086:8086"          # Admin-UI/API nur lokal
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: "${INFLUX_ADMIN_USER:-admin}"
+      DOCKER_INFLUXDB_INIT_PASSWORD: "${INFLUX_ADMIN_PASSWORD}"
+      DOCKER_INFLUXDB_INIT_ORG: "${INFLUX_ORG:-growatt}"
+      DOCKER_INFLUXDB_INIT_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      DOCKER_INFLUXDB_INIT_RETENTION: "0"   # unbegrenzt aufbewahren
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: "${INFLUX_TOKEN}"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  telegraf:
+    image: telegraf:1.32
+    container_name: grolo-telegraf
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    environment:
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: grolo-grafana
+    restart: unless-stopped
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"        # Ansehen im LAN ohne Login, Bearbeiten nur als admin
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_USERS_DEFAULT_THEME: "dark"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/nexa-en.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  # Einstellungsseite: statische Seite, spricht per Websocket direkt mit Mosquitto (GroBro-Kommandotopics)
+  settings:
+    image: nginx:1.27-alpine
+    container_name: grolo-settings
+    restart: unless-stopped
+    ports:
+      - "${SETTINGS_PORT:-8080}:80"
+    volumes:
+      - ./settings-ui:/usr/share/nginx/html:ro
+
+volumes:
+  mosquitto-data:
+  influxdb-data:
+  grafana-data:
+  cloud-gate-state:
