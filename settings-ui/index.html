@@ -55,7 +55,7 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.36.2</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.36.3</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -91,7 +91,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.36.2 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.36.3 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -124,7 +124,7 @@
       'sec.dongle': 'Dongle (datalogger)', 'sec.dongle.hint': 'Reporting interval, clock and time zone of the Wi-Fi module. Broker and port decide where the dongle sends its data. Wrong values disconnect it from this system.',
       'sec.other': 'Other settings', 'sec.other.hint': 'Reported by the device, not categorised here.',
       'sec.log': 'Log', 'sec.log.hint': 'Commands, confirmations, cloud events and device messages.',
-      'dev.pv': 'PV inputs in use', 'dev.pvdetail': 'PV inputs (voltage now, > 5 V = panel connected)', 'pv.free': 'free',
+      'dev.pv': 'PV inputs in use', 'dev.pvdetail': 'PV inputs (voltage now, > 15 V = panel connected, free inputs show about 7 V)', 'pv.free': 'free',
       'dev.serial': 'Serial number', 'dev.model': 'Model', 'dev.fw': 'Firmware (reg. 119/120)', 'dev.mode': 'Operating mode', 'dev.systemp': 'System temperature', 'dev.packs': 'Battery packs detected', 'dev.soc': 'Total SoC', 'dev.last': 'Last data',
       'dg.model': 'Model ID', 'dg.sw': 'Software', 'dg.hw': 'Hardware', 'dg.type': 'Device type / protocol', 'dg.wifi': 'Wi-Fi signal', 'dg.broker': 'Broker per dongle', 'dg.dns': 'DNS per dongle', 'dg.tz': 'Time zone / clock', 'dg.interval': 'Reporting interval', 'dg.mac': 'MAC per firmware', 'dg.ip': 'IP per firmware', 'dg.ipnote': '(AP mode, not the LAN IP)', 'dg.received': 'Received',
       'log.mqtt': 'MQTT connected', 'log.mqtterr': 'MQTT error', 'log.discovery': 'writable settings detected for device', 'log.readall': 'read all values (the NEXA answers register by register, about a minute)',
@@ -159,7 +159,7 @@
       'sec.dongle': 'Dongle (Datenlogger)', 'sec.dongle.hint': 'Sendeintervall, Uhrzeit und Zeitzone des WLAN-Moduls. Broker und Port bestimmen, wohin der Dongle sendet. Falsche Werte trennen ihn von diesem System.',
       'sec.other': 'Weitere Einstellungen', 'sec.other.hint': 'Vom Gerät gemeldet, hier nicht weiter eingeordnet.',
       'sec.log': 'Protokoll', 'sec.log.hint': 'Befehle, Bestätigungen, Cloud-Ereignisse und Gerätemeldungen.',
-      'dev.pv': 'PV-Eingänge belegt', 'dev.pvdetail': 'PV-Eingänge (Spannung jetzt, > 5 V = Panel angeschlossen)', 'pv.free': 'frei',
+      'dev.pv': 'PV-Eingänge belegt', 'dev.pvdetail': 'PV-Eingänge (Spannung jetzt, > 15 V = Panel angeschlossen, freie Eingänge zeigen etwa 7 V)', 'pv.free': 'frei',
       'dev.serial': 'Seriennummer', 'dev.model': 'Modell', 'dev.fw': 'Firmware (Reg. 119/120)', 'dev.mode': 'Betriebsmodus', 'dev.systemp': 'Systemtemperatur', 'dev.packs': 'Batteriepacks erkannt', 'dev.soc': 'Gesamt-SoC', 'dev.last': 'Letzte Daten',
       'dg.model': 'Modell-ID', 'dg.sw': 'Software', 'dg.hw': 'Hardware', 'dg.type': 'Gerätetyp / Protokoll', 'dg.wifi': 'WLAN-Signal', 'dg.broker': 'Broker laut Dongle', 'dg.dns': 'DNS laut Dongle', 'dg.tz': 'Zeitzone / Uhr', 'dg.interval': 'Sendeintervall', 'dg.mac': 'MAC laut Firmware', 'dg.ip': 'IP laut Firmware', 'dg.ipnote': '(AP-Modus, nicht die LAN-IP)', 'dg.received': 'Empfangen',
       'log.mqtt': 'MQTT verbunden', 'log.mqtterr': 'MQTT-Fehler', 'log.discovery': 'einstellbare Werte erkannt für Gerät', 'log.readall': 'alle Werte lesen (der NEXA antwortet Register für Register, etwa eine Minute)',
@@ -438,8 +438,8 @@
       kv(t('dev.serial'), device), kv(t('dev.model'), 'Growatt NEXA 2000'), kv(t('dev.fw'), fw.length === 4 ? fw.map(Number).join('.') : '–'),
       kv(t('dev.mode'), modeText(st.workMode)), kv(t('dev.systemp'), num(st.systemTemp) + ' °C'), kv(t('dev.packs'), st.batteryPackageQuantity ?? '–'),
       kv(t('dev.soc'), num(st.totalBatteryPackSoc, 0) + ' %'),
-      kv(t('dev.pv'), `${[1, 2, 3, 4].filter(i => Number(st[`pv${i}Voltage`]) > 5).length} / 4`),
-      kv(t('dev.pvdetail'), [1, 2, 3, 4].map(i => `${i}: ${Number(st[`pv${i}Voltage`]) > 5 ? num(st[`pv${i}Voltage`]) + ' V' : t('pv.free')}`).join(' · '), true),
+      kv(t('dev.pv'), `${[1, 2, 3, 4].filter(i => Number(st[`pv${i}Voltage`]) > 15).length} / 4`),
+      kv(t('dev.pvdetail'), [1, 2, 3, 4].map(i => `${i}: ${Number(st[`pv${i}Voltage`]) > 15 ? num(st[`pv${i}Voltage`]) + ' V' : t('pv.free')}`).join(' · '), true),
       kv(t('dev.last'), new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB'), true),
     ].join('');
     const n = Math.max(1, Number(st.batteryPackageQuantity) || 1); const rows = [];

@@ -20,16 +20,16 @@ EN = {
     "Ausgang ins Haus": "Output to house", "AC-Ausgangsleistung des NEXA": "AC output power of the NEXA",
     "Batterie-Leistung": "Battery power", "Lade-/Entladeleistung der Batterie": "Battery charge/discharge power",
     "Ladezustand": "State of charge", "Hausverbrauch": "Household load", "Nur mit Smart Meter / GroPlug befüllt, sonst 0": "Only filled with a smart meter / GroPlug, otherwise 0",
-    "Batterie-Status": "Battery status", "Betriebsmodus": "Operating mode", "Systemtemperatur": "System temperature", "Batterietemperatur": "Battery temperature",
+    "Batterie-Status": "Battery status", "Statusregister 10 des Geräts. Auf aktueller Firmware oft „Ruhe“, obwohl die Bilanz Laden oder Entladen zeigt.": "Device status register 10. On current firmware often \"Idle\" although the balance shows charging or discharging.", "Betriebsmodus": "Operating mode", "Systemtemperatur": "System temperature", "Batterietemperatur": "Battery temperature",
     "Lädt": "Charging", "Entlädt": "Discharging", "Ruhe": "Idle", "Last zuerst": "Load first", "Batterie zuerst": "Battery first", "Smart": "Smart",
     "Leistung und Ladezustand": "Power and state of charge", "Leistungsverlauf": "Power history", "PV": "PV", "Ins Haus": "To house",
     "Batterie (+ laden / − entladen)": "Battery (+ charge / − discharge)", "Batterie: positiv = laden, negativ = entladen": "Battery: positive = charging, negative = discharging",
     "Energie": "Energy", "PV-Ertrag pro Tag (30 Tage)": "PV yield per day (30 days)", "PV-Ertrag": "PV yield",
-    "Aus den gemessenen Leistungswerten integriert (Tagesgrenzen lokale Zeit)": "Integrated from measured power (day boundaries in local time)",
+    "Aus den gemessenen Leistungswerten integriert, Tagesgrenzen lokale Zeit, Balken auf Tagesmitte. Zeitraum auf 30 Tage stellen, um alle Tage zu sehen.": "Integrated from measured power, day boundaries in local time, bars at midday. Set the time range to 30 days to see all days.",
     "Abgabe ins Haus pro Tag (30 Tage)": "Output to house per day (30 days)",
     "Wohin ging der PV-Strom heute?": "Where did today's PV energy go?", "Direkt ins Haus": "Directly to house", "In die Batterie": "Into the battery",
     "Woher kam der Hausstrom heute?": "Where did today's house energy come from?", "Direkt aus PV": "Directly from PV", "Aus der Batterie": "From the battery",
-    "PV heute (Zähler Gerät)": "PV today (device counter)", "PV Monat": "PV month", "PV Jahr": "PV year", "PV gesamt": "PV total",
+    "PV heute": "PV today", "Aus Messungen berechnet. Die Energiezähler-Register des Geräts (eacToday usw.) bleiben auf aktueller Firmware bei 0.": "Computed from measurements. The device energy counter registers (eacToday etc.) stay at 0 on current firmware.", "Aus Messungen berechnet, seit Monatsbeginn": "Computed from measurements, since start of month", "Aus Messungen berechnet, seit Jahresbeginn": "Computed from measurements, since start of year", "Aus Messungen berechnet, seit Aufzeichnungsbeginn": "Computed from measurements, since recording began", "PV Monat": "PV month", "PV Jahr": "PV year", "PV gesamt": "PV total",
     "Heute aus Messwerten": "Today from measurements", "Batterie geladen": "Battery charged", "Batterie entladen": "Battery discharged",
     "PV-Strings": "PV strings", "Leistung je String": "Power per string", "Leistung = Spannung × Strom je Eingang": "Power = voltage × current per input",
     "Spannung je String": "Voltage per string", "Strom je String": "Current per string", "String": "String",
@@ -37,7 +37,7 @@ EN = {
     "Zellspannung (min / max)": "Cell voltage (min / max)", "Ein großer Abstand deutet auf unausgeglichene Zellen hin": "A large spread indicates unbalanced cells",
     "Zyklen": "Cycles", "Gesundheit (SoH)": "Health (SoH)", "Batteriepacks": "Battery packs",
     "Entlade-Grenze": "Discharge limit", "Unter diesen SoC entlädt die Batterie nicht": "The battery does not discharge below this SoC", "Lade-Grenze": "Charge limit",
-    "Ausgangsspannung (roh)": "Output voltage (raw)", "Rohwert Register 115, Bedeutung unklar": "Raw value of register 115, meaning unclear",
+    "Netzspannung": "Grid voltage", "Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist.": "Register 115. Near 0 V when the NEXA is disconnected from the grid.",
     "Netzleistung": "Grid power", "Register 116, Offset 30000 = 0 W, Vorzeichen unbestätigt": "Register 116, offset 30000 = 0 W, sign unconfirmed",
     "Zellspannung Differenz": "Cell voltage spread", "Letzte Nachricht": "Last message", "Zeitpunkt des letzten Datensatzes vom Dongle": "Time of the last data packet from the dongle",
     "Firmware NEXA (Reg. 119/120)": "NEXA firmware (reg. 119/120)", "Rohteile aus den Registern, Zusammensetzung laut Growatt unbekannt": "Raw parts from the registers, Growatt's composition unknown",
@@ -48,16 +48,20 @@ EN = {
     "Unbekannte Register (Forschung)": "Unknown registers (research)", "Unbekannte Eingangsregister, Verlauf (nur ≠ 0)": "Unknown input registers, history (≠ 0 only)",
     "Rohwerte der Register, die die Bridge nicht kennt. 30000 = Offset für 0 bei vorzeichenbehafteten Werten.": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values.",
     "Halteregister-Dump (unbekannt, ≠ 0)": "Holding register dump (unknown, ≠ 0)", "Kommt stündlich vom Gerät (Nachricht 0x0103).": "Sent hourly by the device (message 0x0103).",
-    "Register": "Register", "Wert": "Value", "PV aus Strings": "PV from strings",
+    "Register": "Register", "Wert": "Value", "PV aus Strings": "PV from strings", "PV (Register 7)": "PV (register 7)", "Geräteregister zum Vergleich": "Device registers for comparison",
+    "AC-Ausgang aus Register 116. Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.": "AC output from register 116. Register pac (5) reports a constant 0 on current firmware.",
+    "Bilanz PV minus Ausgang: positiv = laden, negativ = entladen. Register 11 meldet auf aktueller Firmware dauerhaft 0.": "Balance PV minus output: positive = charging, negative = discharging. Register 11 reports a constant 0 on current firmware.",
+    "PV aus Spannung × Strom der Strings, Ausgang aus Register 116, Batterie als Bilanz PV minus Ausgang (positiv = laden). Gestrichelt das gerundete PV-Register des Geräts.": "PV from voltage × current of the strings, output from register 116, battery as balance PV minus output (positive = charging). Dashed: the device's rounded PV register.",
+    "Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings.": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings.",
     "Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.": "Sum of voltage × current of all strings. Finer and more current than the device register, which rounds to whole watts.", "PV-Eingänge belegt": "PV inputs in use", "belegt": "in use",
-    "Eingänge mit mehr als 5 V in den letzten 24 h, von 4 MPPT-Eingängen": "Inputs with more than 5 V in the last 24 h, out of 4 MPPT inputs",
-    "PV-Eingang 1 bis 4": "PV input 1 to 4", "Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen, rot = frei.": "Maximum voltage per input in 24 h. Green = panel connected, red = free.", "Einstellungen": "Settings", "Einstellungsseite (GroLo)": "Settings page (GroLo)",
+    "Eingänge mit mehr als 15 V in den letzten 24 h, von 4 MPPT-Eingängen. Freie Eingänge zeigen etwa 7 V.": "Inputs with more than 15 V in the last 24 h, out of 4 MPPT inputs. Free inputs show about 7 V.",
+    "PV-Eingang 1 bis 4": "PV input 1 to 4", "Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei.": "Maximum voltage per input in 24 h. Green = panel connected (> 15 V), red = free.", "Einstellungen": "Settings", "Einstellungsseite (GroLo)": "Settings page (GroLo)",
 }
 
 
 def build(lang):
     _ = (lambda s: s) if lang == "de" else (lambda s: EN.get(s, s))
-    HEAD = f'import "timezone"\nimport "math"\noption location = timezone.location(name: "{TZ}")\n'
+    HEAD = f'import "timezone"\nimport "math"\nimport "date"\noption location = timezone.location(name: "{TZ}")\n'
 
     # ------------------------------------------------------------- Flux-Bausteine
     def q_series(field, label, fn="mean"):
@@ -90,7 +94,7 @@ def build(lang):
   |> range(start: -24h)
   |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "pv1Voltage" or r._field == "pv2Voltage" or r._field == "pv3Voltage" or r._field == "pv4Voltage"))
   |> max()
-  |> map(fn: (r) => ({{ r with _value: if r._value > 5.0 then 1 else 0 }}))
+  |> map(fn: (r) => ({{ r with _value: if r._value > 15.0 then 1 else 0 }}))
   |> group()
   |> sum()
   |> keep(columns: ["_value"])
@@ -129,6 +133,100 @@ def build(lang):
   |> map(fn: (r) => ({{ r with _value: {SIGNED_BAT} }}))
   |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
   |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    PV_FIELDS = [f"pv{i}{s}" for i in range(1, 5) for s in ("Voltage", "Current")]
+    PV_EXPR = " + ".join(f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5))
+    OUT_EXPR = "(r.onGridPower - 30000.0)"
+    FLOW_FIELDS = PV_FIELDS + ["onGridPower"]
+    FLOW_FILT = " or ".join(f'r._field == "{f}"' for f in FLOW_FIELDS)
+
+    def q_flow_series(expr_map):
+        """Zeitreihen aus PV (Strings) und Ausgang (Reg. 116): expr_map Label -> Flux-Ausdruck mit pv/out."""
+        maps = ", ".join(f'"{k}": {v}' for k, v in expr_map.items())
+        keep = ", ".join(f'"{k}"' for k in expr_map)
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => {{
+      pv = {PV_EXPR}
+      out = {OUT_EXPR}
+      return {{ _time: r._time, {maps} }}
+    }})
+  |> keep(columns: ["_time", {keep}])'''
+
+    def q_flow_last(expr):
+        """Letzter Wert eines Ausdrucks aus pv/out."""
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> last(column: "onGridPower")
+  |> map(fn: (r) => {{
+      pv = {PV_EXPR}
+      out = {OUT_EXPR}
+      return {{ _time: r._time, _value: {expr} }}
+    }})
+  |> keep(columns: ["_time", "_value"])'''
+
+    def q_flow_daily(expr, label, days=30):
+        """Tagesenergie (kWh) eines Ausdrucks aus pv/out."""
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: -{days}d)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => {{
+      pv = {PV_EXPR}
+      out = {OUT_EXPR}
+      return {{ r with _value: {expr} }}
+    }})
+  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
+  |> timeShift(duration: 12h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_flow_today(expr, label):
+        """Energie heute (kWh) eines Ausdrucks aus pv/out; chg/dis = Batterie laden/entladen aus der Bilanz."""
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: today())
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => {{
+      pv = {PV_EXPR}
+      out = {OUT_EXPR}
+      chg = if pv - out > 0.0 then pv - out else 0.0
+      dis = if out - pv > 0.0 then out - pv else 0.0
+      return {{ r with _value: {expr} }}
+    }})
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_flow_range(expr, label, start):
+        """Energie (kWh) eines Ausdrucks aus pv/out über einen Zeitraum (Minutenmittel, dann Integral)."""
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: {start})
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => {{
+      pv = {PV_EXPR}
+      out = {OUT_EXPR}
+      return {{ r with _value: {expr} }}
+    }})
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
     PIE_FIELDS = ["ppv", "pac", "totalBatteryPackChargingPower", "totalBatteryPackChargingStatus"]
@@ -227,21 +325,14 @@ def build(lang):
     # ============================================================ Jetzt
     panels.append(row(_("Jetzt"), y)); y += 1
     panels += [
-        stat(_("PV-Leistung"), 0, y, 4, 5, HEAD + f'''from(bucket: "{BUCKET}")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r._measurement == "nexa" and (r._field =~ /^pv[1-4](Voltage|Current)$/))
-  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv4Current)
-  |> last(column: "pv1Voltage")
-  |> map(fn: (r) => ({{ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }}))
-  |> keep(columns: ["_time", "_value"])''', "watt", C_PV, desc=_("Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.")),
-        stat_field(_("Ausgang ins Haus"), 4, y, 4, 5, "pac", "watt", C_HOUSE, desc=_("AC-Ausgangsleistung des NEXA")),
-        stat_field(_("Batterie-Leistung"), 8, y, 4, 5, "totalBatteryPackChargingPower", "watt", C_BAT, desc=_("Lade-/Entladeleistung der Batterie")),
+        stat(_("PV-Leistung"), 0, y, 4, 5, q_flow_last("pv"), "watt", C_PV, desc=_("Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.")),
+        stat(_("Ausgang ins Haus"), 4, y, 4, 5, q_flow_last("out"), "watt", C_HOUSE, desc=_("AC-Ausgang aus Register 116. Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.")),
+        stat(_("Batterie-Leistung"), 8, y, 4, 5, q_flow_last("pv - out"), "watt", C_BAT, desc=_("Bilanz PV minus Ausgang: positiv = laden, negativ = entladen. Register 11 meldet auf aktueller Firmware dauerhaft 0.")),
         panel("gauge", _("Ladezustand"), 12, y, 6, 10, [target(q_last("totalBatteryPackSoc"))], "percent",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
               defaults={"min": 0, "max": 100, "decimals": 0, "thresholds": thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green"))}),
         stat_field(_("Hausverbrauch"), 18, y, 6, 5, "totalHouseholdLoad", "watt", "red", desc=_("Nur mit Smart Meter / GroPlug befüllt, sonst 0")),
-        stat_field(_("Batterie-Status"), 0, y + 5, 4, 5, "totalBatteryPackChargingStatus", None, "blue", mapping=status_map),
+        stat_field(_("Batterie-Status"), 0, y + 5, 4, 5, "totalBatteryPackChargingStatus", None, "blue", mapping=status_map, desc=_("Statusregister 10 des Geräts. Auf aktueller Firmware oft „Ruhe“, obwohl die Bilanz Laden oder Entladen zeigt.")),
         stat_field(_("Betriebsmodus"), 4, y + 5, 4, 5, "workMode", None, "orange", mapping=mode_map),
         stat_field(_("Systemtemperatur"), 8, y + 5, 4, 5, "systemTemp", "celsius", None, 1, thr=thresholds((None, "blue"), (35, "green"), (50, "orange"), (60, "red"))),
         stat_field(_("Batterietemperatur"), 18, y + 5, 6, 5, "battery1Temp", "celsius", None, 1, thr=temp_thr),
@@ -252,11 +343,11 @@ def build(lang):
     panels.append(row(_("Leistung und Ladezustand"), y)); y += 1
     panels += [
         ts(_("Leistungsverlauf"), 0, y, 16, 10, [
-            target(q_series("ppv", _("PV")), "A"), target(q_series("pac", _("Ins Haus")), "B"),
-            target(q_signed_battery(_("Batterie (+ laden / − entladen)")), "C"),
-            target(q_pivot_map([f"pv{i}{s}" for i in range(1, 5) for s in ("Voltage", "Current")], {_("PV aus Strings"): " + ".join(f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5))}), "D"),
-        ], "watt", overrides=[color_override(_("PV"), C_PV), color_override(_("PV aus Strings"), "light-yellow"), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie (+ laden / − entladen)"), C_BAT)],
-           desc=_("Batterie: positiv = laden, negativ = entladen")),
+            target(q_flow_series({_("PV"): "pv", _("Ins Haus"): "out", _("Batterie (+ laden / − entladen)"): "pv - out"}), "A"),
+            target(q_series("ppv", _("PV (Register 7)")), "B"),
+        ], "watt", overrides=[color_override(_("PV"), C_PV), color_override(_("PV (Register 7)"), "dark-yellow"), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie (+ laden / − entladen)"), C_BAT),
+                              {"matcher": {"id": "byName", "options": _("PV (Register 7)")}, "properties": [{"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.lineWidth", "value": 1}]}],
+           desc=_("PV aus Spannung × Strom der Strings, Ausgang aus Register 116, Batterie als Bilanz PV minus Ausgang (positiv = laden). Gestrichelt das gerundete PV-Register des Geräts.")),
         ts(_("Ladezustand"), 16, y, 8, 10, [target(q_series("totalBatteryPackSoc", "SoC"))], "percent", fill=25, overrides=[color_override("SoC", C_SOC)], mn=0, mx=100),
     ]
     y += 10
@@ -264,29 +355,29 @@ def build(lang):
     # ============================================================ Energie
     panels.append(row(_("Energie"), y)); y += 1
     panels += [
-        ts(_("PV-Ertrag pro Tag (30 Tage)"), 0, y, 12, 9, [target(q_daily_energy("ppv", _("PV-Ertrag")))], "kwatth", bars=True,
-           overrides=[color_override(_("PV-Ertrag"), C_PV)], desc=_("Aus den gemessenen Leistungswerten integriert (Tagesgrenzen lokale Zeit)")),
-        ts(_("Abgabe ins Haus pro Tag (30 Tage)"), 12, y, 12, 9, [target(q_daily_energy("pac", _("Ins Haus")))], "kwatth", bars=True, overrides=[color_override(_("Ins Haus"), C_HOUSE)]),
+        ts(_("PV-Ertrag pro Tag (30 Tage)"), 0, y, 12, 9, [target(q_flow_daily("pv", _("PV-Ertrag")))], "kwatth", bars=True,
+           overrides=[color_override(_("PV-Ertrag"), C_PV)], desc=_("Aus den gemessenen Leistungswerten integriert, Tagesgrenzen lokale Zeit, Balken auf Tagesmitte. Zeitraum auf 30 Tage stellen, um alle Tage zu sehen.")),
+        ts(_("Abgabe ins Haus pro Tag (30 Tage)"), 12, y, 12, 9, [target(q_flow_daily("out", _("Ins Haus")))], "kwatth", bars=True, overrides=[color_override(_("Ins Haus"), C_HOUSE)]),
     ]
     y += 9
     pie_opts = {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "pieType": "donut", "displayLabels": ["percent"],
                 "legend": {"displayMode": "table", "placement": "bottom", "showLegend": True, "values": ["value", "percent"]}}
     panels += [
         panel("piechart", _("Wohin ging der PV-Strom heute?"), 0, y, 6, 9, [
-            target(q_integral_today("if r.ppv - chg > 0.0 then r.ppv - chg else 0.0", _("Direkt ins Haus")), "A"),
-            target(q_integral_today("chg", _("In die Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
+            target(q_flow_today("if pv - chg > 0.0 then pv - chg else 0.0", _("Direkt ins Haus")), "A"),
+            target(q_flow_today("chg", _("In die Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
               overrides=[color_override(_("Direkt ins Haus"), C_HOUSE), color_override(_("In die Batterie"), C_BAT)]),
         panel("piechart", _("Woher kam der Hausstrom heute?"), 6, y, 6, 9, [
-            target(q_integral_today("if r.pac - dis > 0.0 then r.pac - dis else 0.0", _("Direkt aus PV")), "A"),
-            target(q_integral_today("dis", _("Aus der Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
+            target(q_flow_today("if out - dis > 0.0 then out - dis else 0.0", _("Direkt aus PV")), "A"),
+            target(q_flow_today("dis", _("Aus der Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
               overrides=[color_override(_("Direkt aus PV"), C_PV), color_override(_("Aus der Batterie"), C_BAT)]),
-        stat_field(_("PV heute (Zähler Gerät)"), 12, y, 3, 4, "eacToday", "kwatth", C_PV, 1),
-        stat_field(_("PV Monat"), 15, y, 3, 4, "eacMonth", "kwatth", C_PV, 1),
-        stat_field(_("PV Jahr"), 18, y, 3, 4, "eacYear", "kwatth", C_PV, 1),
-        stat_field(_("PV gesamt"), 21, y, 3, 4, "eacTotal", "kwatth", C_PV, 1),
+        stat(_("PV heute"), 12, y, 3, 4, q_flow_range("pv", "Value", "today()"), "kwatth", C_PV, desc=_("Aus Messungen berechnet. Die Energiezähler-Register des Geräts (eacToday usw.) bleiben auf aktueller Firmware bei 0.")),
+        stat(_("PV Monat"), 15, y, 3, 4, q_flow_range("pv", "Value", "date.truncate(t: now(), unit: 1mo)"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Monatsbeginn")),
+        stat(_("PV Jahr"), 18, y, 3, 4, q_flow_range("pv", "Value", "date.truncate(t: now(), unit: 1y)"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Jahresbeginn")),
+        stat(_("PV gesamt"), 21, y, 3, 4, q_flow_range("pv", "Value", "0"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Aufzeichnungsbeginn")),
         panel("stat", _("Heute aus Messwerten"), 12, y + 4, 12, 5, [
-            target(q_integral_today("r.ppv", _("PV-Ertrag")), "A"), target(q_integral_today("r.pac", _("Ins Haus")), "B"),
-            target(q_integral_today("chg", _("Batterie geladen")), "C"), target(q_integral_today("dis", _("Batterie entladen")), "D")], "kwatth",
+            target(q_flow_today("pv", _("PV-Ertrag")), "A"), target(q_flow_today("out", _("Ins Haus")), "B"),
+            target(q_flow_today("chg", _("Batterie geladen")), "C"), target(q_flow_today("dis", _("Batterie entladen")), "D")], "kwatth",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
               defaults={"decimals": 2, "color": {"mode": "fixed", "fixedColor": "text"}},
               overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange")]),
@@ -305,7 +396,7 @@ def build(lang):
     ]
     y += 9
     panels += [
-        stat(_("PV-Eingänge belegt"), 0, y, 4, 4, q_pv_detected(_("belegt")), None, "yellow", 0, desc=_("Eingänge mit mehr als 5 V in den letzten 24 h, von 4 MPPT-Eingängen")),
+        stat(_("PV-Eingänge belegt"), 0, y, 4, 4, q_pv_detected(_("belegt")), None, "yellow", 0, desc=_("Eingänge mit mehr als 15 V in den letzten 24 h, von 4 MPPT-Eingängen. Freie Eingänge zeigen etwa 7 V.")),
         panel("stat", _("PV-Eingang 1 bis 4"), 4, y, 20, 4, [target(f'''from(bucket: "{BUCKET}")
   |> range(start: -24h)
   |> filter(fn: (r) => r._measurement == "nexa" and r._field == "pv{i}Voltage")
@@ -313,8 +404,8 @@ def build(lang):
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{S} {i}"}})''', r) for i, r in zip(range(1, 5), "ABCD")], "volt",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
-              defaults={"decimals": 1, "color": {"mode": "thresholds"}, "thresholds": thresholds((None, "dark-red"), (5, "green"))},
-              desc=_("Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen, rot = frei.")),
+              defaults={"decimals": 1, "color": {"mode": "thresholds"}, "thresholds": thresholds((None, "dark-red"), (15, "green"))},
+              desc=_("Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei.")),
     ]
     y += 4
 
@@ -338,13 +429,10 @@ def build(lang):
     panels += [
         stat_field(_("Entlade-Grenze"), 0, y, 4, 4, "dischargeSocLimit", "percent", "orange", 0, desc=_("Unter diesen SoC entlädt die Batterie nicht")),
         stat_field(_("Lade-Grenze"), 4, y, 4, 4, "chargeSocLimit", "percent", "green", 0),
-        stat_field(_("Ausgangsspannung (roh)"), 8, y, 4, 4, "onGridVoltage", "volt", "purple", 1, desc=_("Rohwert Register 115, Bedeutung unklar")),
-        stat(_("Netzleistung"), 12, y, 4, 4, f'''from(bucket: "{BUCKET}")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r._measurement == "nexa" and r._field == "onGridPower")
-  |> last()
-  |> map(fn: (r) => ({{ _time: r._time, _value: r._value - 30000.0 }}))
-  |> keep(columns: ["_time", "_value"])''', "watt", "purple", desc=_("Register 116, Offset 30000 = 0 W, Vorzeichen unbestätigt")),
+        stat_field(_("Netzspannung"), 8, y, 4, 4, "onGridVoltage", "volt", "purple", 1, desc=_("Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist.")),
+        panel("stat", _("Geräteregister zum Vergleich"), 12, y, 4, 4, [target(q_last_named("pac", "pac (5)"), "A"), target(q_last_named("totalBatteryPackChargingPower", _("Batterie") + " (11)"), "B"), target(q_last_named("ppv", "ppv (7)"), "C")], "watt",
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
+              defaults={"color": {"mode": "fixed", "fixedColor": "purple"}}, desc=_("Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings.")),
         stat(_("Zellspannung Differenz"), 16, y, 4, 4, HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "maxCellVoltage" or r._field == "minCellVoltage"))

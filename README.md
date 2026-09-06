@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.36.2** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.36.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 | GroLo settings page | Grafana dashboard |
 |---|---|
@@ -129,9 +129,10 @@ dongle model/software/Wi-Fi signal), operating mode switch, charge/discharge lim
 confirmations from the device. Controls are generated from GroBro's Home Assistant discovery, so anything GroBro exposes appears
 automatically. Every write is confirmed by reading the register back.
 
-**Grafana**: live tiles, power history with battery ±, SoC, daily energy bars, energy split pies, device counters, per-string
-power/voltage/current, PV inputs in use, temperatures, cell voltages, packs, firmware and dongle info, and a research row with
-the raw registers GroBro does not know yet.
+**Grafana**: live tiles (PV from the strings, output from register 116, battery as balance), power history, SoC, daily energy
+bars, energy split pies, today/month/year/total energy computed from measurements, per-string power/voltage/current, PV inputs
+in use (> 15 V), temperatures, cell voltages, packs, firmware and dongle info, and a research row with the raw registers GroBro
+does not know yet. Free MPPT inputs read about 7 V on the NEXA, connected panels 30 V and more.
 
 **MQTT topics** (prefix `homeassistant/`, GroBro's namespace):
 
@@ -187,7 +188,8 @@ Things learned from the raw frames that GroBro does not (yet) expose, kept here 
 |---|---|
 | Input 33–40 / 45–52 / 57–64 | serial numbers of battery packs 2/3/4 (ASCII), SoC at 41/53/65, temperature at 42/54/66 (same layout as NOAH) |
 | Input 119/120 | firmware version, four byte-sized parts |
-| Input 116 | grid power with offset 30000 = 0 W |
+| Input 116 | **actual AC output power** with offset 30000 = 0 W. On firmware 4.0.2.6 the registers `pac` (5), battery power (11) and the energy counters (`eacToday` …) stay at 0, so the dashboard computes output from 116, PV from string voltage × current, and battery power as PV − output |
+| Input 115 | grid voltage ×0.01 (≈ 234 V when grid-tied, ≈ 0 V when disconnected) |
 | Input 367/368 | probably pack voltages ×10 (16s LFP ≈ 52 V) |
 | Input 113, 371, 372 | temperatures ×100 |
 | Holding 45–49 | device clock (year, month, day, hour, minute) |
@@ -232,7 +234,7 @@ settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
 grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots
-VERSION                      2026.36.2
+VERSION                      2026.36.3
 ```
 
 License: MIT.
