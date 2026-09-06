@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.36.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.36.4** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 ## Screenshots
 
@@ -77,6 +77,7 @@ Edit `.env`:
 | `INFLUX_ADMIN_PASSWORD`, `INFLUX_TOKEN`, `GRAFANA_ADMIN_PASSWORD` | choose your own; `openssl rand -hex 32` for the token |
 | `CLOUD_HOSTS` | IP addresses of `mqtt.growatt.com` as seen from **outside** your LAN (`dig mqtt.growatt.com @1.1.1.1`) |
 | `GROBRO_MAX_SLOTS` | number of time slots to expose (NEXA: 9) |
+| `WEATHER_LAT`, `WEATHER_LON` | plant location for the Open-Meteo weather service |
 
 ### 2. DuckDNS
 
@@ -190,6 +191,19 @@ mosquitto_pub -h <host> -t homeassistant/number/grobro/<serial>/slot1_power/set 
 mosquitto_sub -h <host> -t 'homeassistant/+/grobro/<serial>/+/get' -v
 ```
 
+## Weather (Open-Meteo)
+
+The `weather` service fetches solar-relevant weather for the plant location from [Open-Meteo](https://open-meteo.com) (free, no
+API key) every 10 minutes: temperature, cloud cover, WMO weather code, global/direct/diffuse irradiance, wind, sunrise and
+sunset, forecast sunshine hours and daily irradiation sum, plus an hourly 48-hour forecast. Set `WEATHER_LAT` / `WEATHER_LON`
+in `.env`. Current values go to `homeassistant/grolo/weather/current` (retained JSON with plain-text conditions in EN/DE),
+`.../weather/state` feeds Telegraf (measurement `weather`), and the forecast is written straight into InfluxDB as
+`weather_forecast` with the forecast hour as timestamp, so newer forecasts overwrite older ones.
+
+Grafana row **Weather**: outdoor temperature, conditions, cloud cover, global irradiance, sunrise/sunset, sunshine hours,
+irradiation sum today/tomorrow, irradiance versus PV power on two axes (shading, orientation and soiling show up here),
+cloud cover and temperature, and the 48-hour forecast of irradiance and cloud cover.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -212,6 +226,8 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `dongle-info` | grobro image + `grobro/sidecar/dongle_info.py` | decodes the dongle's 0xFE19 configuration message (GroBro ignores it for NEXA) |
 | `raw-registers` | grobro image + `grobro/sidecar/raw_registers.py` | publishes registers GroBro does not map, for research |
 | `cloud-gate` | grobro image + `grobro/sidecar/cloud_gate.py` | switchable, filtering TLS relay to the Growatt cloud |
+| `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast for the plant location |
+| `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples to the optional GroLo website (Vercel) |
 
 `grobro/registers/growatt_nexa_registers.json` is a copy of GroBro's NEXA register map extended with the firmware registers
 (119/120) and the serial/temperature registers of battery packs 2–4. It is mounted into the GroBro container and can be removed
@@ -268,10 +284,10 @@ telegraf/telegraf.conf       MQTT → InfluxDB
 grafana/build-dashboard.py   generates grafana/dashboards/nexa-en.json and nexa-de.json
 grafana/provisioning/        data source and dashboard provider
 settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
-grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py
+grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, web_push.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.36.3
+VERSION                      2026.36.4
 ```
 
 License: MIT.

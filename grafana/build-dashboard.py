@@ -48,7 +48,20 @@ EN = {
     "Unbekannte Register (Forschung)": "Unknown registers (research)", "Unbekannte Eingangsregister, Verlauf (nur ≠ 0)": "Unknown input registers, history (≠ 0 only)",
     "Rohwerte der Register, die die Bridge nicht kennt. 30000 = Offset für 0 bei vorzeichenbehafteten Werten.": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values.",
     "Halteregister-Dump (unbekannt, ≠ 0)": "Holding register dump (unknown, ≠ 0)", "Kommt stündlich vom Gerät (Nachricht 0x0103).": "Sent hourly by the device (message 0x0103).",
-    "Register": "Register", "Wert": "Value", "PV aus Strings": "PV from strings", "PV (Register 7)": "PV (register 7)", "Geräteregister zum Vergleich": "Device registers for comparison",
+    "Register": "Register", "Wert": "Value",
+    "Wetter": "Weather", "Außentemperatur": "Outdoor temperature", "Open-Meteo für den Anlagenstandort, alle 10 Minuten": "Open-Meteo for the plant location, every 10 minutes",
+    "Wetterzustand": "Conditions", "WMO-Wettercode von Open-Meteo": "WMO weather code from Open-Meteo", "Bewölkung": "Cloud cover", "Globalstrahlung": "Global irradiance",
+    "Kurzwellige Einstrahlung auf die Horizontale in W/m², Referenz für die PV-Leistung": "Shortwave irradiance on the horizontal in W/m², reference for PV power",
+    "Sonnenschein heute": "Sunshine today", "Prognostizierte Sonnenscheindauer des Tages": "Forecast sunshine duration for the day",
+    "Strahlungssumme heute / morgen": "Irradiation sum today / tomorrow", "Tagessumme der Globalstrahlung in MJ/m² laut Vorhersage (1 MJ/m² ≈ 0,28 kWh/m²)": "Daily sum of global irradiance in MJ/m² per forecast (1 MJ/m² ≈ 0.28 kWh/m²)",
+    "Globalstrahlung und PV-Leistung": "Global irradiance and PV power", "Globalstrahlung W/m²": "Irradiance W/m²", "PV-Leistung W": "PV power W",
+    "Verhältnis von PV-Leistung zu Einstrahlung zeigt Verschattung, Ausrichtung und Verschmutzung. Strahlung links (W/m²), PV rechts (W).": "The ratio of PV power to irradiance reveals shading, orientation and soiling. Irradiance left (W/m²), PV right (W).",
+    "Bewölkung und Temperatur": "Cloud cover and temperature", "Bewölkung %": "Cloud cover %", "Temperatur °C": "Temperature °C",
+    "Vorhersage 48 h: Einstrahlung und Bewölkung": "Forecast 48 h: irradiance and cloud cover",
+    "Stündliche Open-Meteo-Vorhersage ab jetzt. Zeitraum des Dashboards ist hier ohne Wirkung, das Panel zeigt immer die nächsten 48 Stunden.": "Hourly Open-Meteo forecast from now. The dashboard time range has no effect here, the panel always shows the next 48 hours.",
+    "Sonnenaufgang / -untergang": "Sunrise / sunset", "Stunde": "Hour", "So": "Sun", "Mo": "Mon", "Di": "Tue", "Mi": "Wed", "Do": "Thu", "Fr": "Fri", "Sa": "Sat", "Heute, lokale Zeit": "Today, local time", "heute": "today", "morgen": "tomorrow",
+    "Klar": "Clear", "Überwiegend klar": "Mainly clear", "Teilweise bewölkt": "Partly cloudy", "Bedeckt": "Overcast", "Nebel": "Fog", "Reifnebel": "Rime fog", "Sprühregen": "Drizzle",
+    "Leichter Regen": "Light rain", "Regen": "Rain", "Starker Regen": "Heavy rain", "Schneefall": "Snow", "Regenschauer": "Showers", "Gewitter": "Thunderstorm", "PV aus Strings": "PV from strings", "PV (Register 7)": "PV (register 7)", "Geräteregister zum Vergleich": "Device registers for comparison",
     "AC-Ausgang aus Register 116. Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.": "AC output from register 116. Register pac (5) reports a constant 0 on current firmware.",
     "Bilanz PV minus Ausgang: positiv = laden, negativ = entladen. Register 11 meldet auf aktueller Firmware dauerhaft 0.": "Balance PV minus output: positive = charging, negative = discharging. Register 11 reports a constant 0 on current firmware.",
     "PV aus Spannung × Strom der Strings, Ausgang aus Register 116, Batterie als Bilanz PV minus Ausgang (positiv = laden). Gestrichelt das gerundete PV-Register des Geräts.": "PV from voltage × current of the strings, output from register 116, battery as balance PV minus output (positive = charging). Dashed: the device's rounded PV register.",
@@ -383,6 +396,72 @@ def build(lang):
               overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange")]),
     ]
     y += 9
+
+    # ============================================================ Wetter
+    panels.append(row(_("Wetter"), y)); y += 1
+    def q_weather_last(field, rng="-2h"):
+        return f'''from(bucket: "{BUCKET}")
+  |> range(start: {rng})
+  |> filter(fn: (r) => r._measurement == "weather" and r._field == "{field}")
+  |> last()
+  |> keep(columns: ["_time", "_value"])'''
+    def q_weather_series(field, label, measurement="weather"):
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "{measurement}" and r._field == "{field}")
+  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+    cond_map = [{"type": "value", "options": {str(k): {"text": _(v)} for k, v in {0: "Klar", 1: "Überwiegend klar", 2: "Teilweise bewölkt", 3: "Bedeckt", 45: "Nebel", 48: "Reifnebel",
+                 51: "Sprühregen", 53: "Sprühregen", 55: "Sprühregen", 61: "Leichter Regen", 63: "Regen", 65: "Starker Regen", 71: "Schneefall", 73: "Schneefall", 75: "Schneefall",
+                 80: "Regenschauer", 81: "Regenschauer", 82: "Regenschauer", 95: "Gewitter", 96: "Gewitter", 99: "Gewitter"}.items()}}]
+    panels += [
+        stat(_("Außentemperatur"), 0, y, 4, 4, q_weather_last("temperature"), "celsius", None, 1, thr=thresholds((None, "blue"), (5, "light-blue"), (15, "green"), (25, "orange"), (30, "red")),
+             desc=_("Open-Meteo für den Anlagenstandort, alle 10 Minuten")),
+        stat(_("Wetterzustand"), 4, y, 4, 4, q_weather_last("weather_code"), None, "text", mapping=cond_map, desc=_("WMO-Wettercode von Open-Meteo")),
+        stat(_("Bewölkung"), 8, y, 4, 4, q_weather_last("cloud_cover"), "percent", None, 0, thr=thresholds((None, "yellow"), (40, "light-yellow"), (70, "blue"), (90, "dark-blue"))),
+        stat(_("Globalstrahlung"), 12, y, 4, 4, q_weather_last("shortwave_radiation"), "suffix: W/m²", C_PV, 0, desc=_("Kurzwellige Einstrahlung auf die Horizontale in W/m², Referenz für die PV-Leistung")),
+        panel("stat", _("Sonnenaufgang / -untergang"), 16, y, 4, 4, [target(q_last_named("sunrise", "↑", "weather", "-2h"), "A"), target(q_last_named("sunset", "↓", "weather", "-2h"), "B")], None,
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/.*/", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
+              defaults={"color": {"mode": "fixed", "fixedColor": "text"}}, desc=_("Heute, lokale Zeit")),
+        stat(_("Sonnenschein heute"), 20, y, 4, 4, q_weather_last("sunshine_hours_today"), "suffix: h", C_PV, 1, desc=_("Prognostizierte Sonnenscheindauer des Tages")),
+    ]
+    y += 4
+    panels += [
+        panel("stat", _("Strahlungssumme heute / morgen"), 0, y, 4, 9, [target(q_last_named("radiation_sum_today", _("heute"), "weather", "-2h"), "A"), target(q_last_named("radiation_sum_tomorrow", _("morgen"), "weather", "-2h"), "B")], None,
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center", "orientation": "vertical"},
+              defaults={"decimals": 1, "unit": "suffix: MJ/m²", "color": {"mode": "fixed", "fixedColor": C_PV}}, desc=_("Tagessumme der Globalstrahlung in MJ/m² laut Vorhersage (1 MJ/m² ≈ 0,28 kWh/m²)")),
+        panel("timeseries", _("Globalstrahlung und PV-Leistung"), 4, y, 10, 9, [
+            target(q_weather_series("shortwave_radiation", _("Globalstrahlung W/m²")), "A"),
+            target(q_flow_series({_("PV-Leistung W"): "pv"}), "B")], None,
+              opts={"legend": {"displayMode": "list", "placement": "bottom", "showLegend": True, "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi", "sort": "none"}},
+              defaults={"custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "gradientMode": "opacity", "showPoints": "never", "spanNulls": True}},
+              overrides=[color_override(_("Globalstrahlung W/m²"), "orange"),
+                         {"matcher": {"id": "byName", "options": _("PV-Leistung W")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": C_PV}}, {"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": "watt"}]}],
+              desc=_("Verhältnis von PV-Leistung zu Einstrahlung zeigt Verschattung, Ausrichtung und Verschmutzung. Strahlung links (W/m²), PV rechts (W).")),
+        ts(_("Bewölkung und Temperatur"), 14, y, 10, 9, [target(q_weather_series("cloud_cover", _("Bewölkung %")), "A"), target(q_weather_series("temperature", _("Temperatur °C")), "B")], None, fill=5,
+           overrides=[color_override(_("Bewölkung %"), "blue"), {"matcher": {"id": "byName", "options": _("Temperatur °C")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}, {"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": "celsius"}]}]),
+    ]
+    y += 9
+    panels += [
+        panel("barchart", _("Vorhersage 48 h: Einstrahlung und Bewölkung"), 0, y, 24, 8, [target(HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: -1h, stop: 48h)
+  |> filter(fn: (r) => r._measurement == "weather_forecast" and (r._field == "shortwave_radiation" or r._field == "cloud_cover"))
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> map(fn: (r) => {{
+      wd = date.weekDay(t: r._time, location: location)
+      names = ["{_("So")}", "{_("Mo")}", "{_("Di")}", "{_("Mi")}", "{_("Do")}", "{_("Fr")}", "{_("Sa")}"]
+      h = date.hour(t: r._time, location: location)
+      return {{ _time: r._time, "{_("Stunde")}": names[wd] + " " + (if h < 10 then "0" else "") + string(v: h) + ":00", "{_("Globalstrahlung W/m²")}": r.shortwave_radiation, "{_("Bewölkung %")}": r.cloud_cover }}
+    }})
+  |> keep(columns: ["{_("Stunde")}", "{_("Globalstrahlung W/m²")}", "{_("Bewölkung %")}"])''')], None,
+              opts={"xField": _("Stunde"), "orientation": "auto", "barWidth": 0.8, "groupWidth": 0.7, "showValue": "never", "stacking": "none",
+                    "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True}, "tooltip": {"mode": "multi", "sort": "none"}, "xTickLabelRotation": -45, "xTickLabelSpacing": 100},
+              defaults={"color": {"mode": "palette-classic"}, "custom": {"fillOpacity": 80, "lineWidth": 1}},
+              overrides=[color_override(_("Globalstrahlung W/m²"), "orange"), color_override(_("Bewölkung %"), "blue")],
+              desc=_("Stündliche Open-Meteo-Vorhersage ab jetzt. Zeitraum des Dashboards ist hier ohne Wirkung, das Panel zeigt immer die nächsten 48 Stunden.")),
+    ]
+    y += 8
 
     # ============================================================ PV-Strings
     panels.append(row(_("PV-Strings"), y)); y += 1

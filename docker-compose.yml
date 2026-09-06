@@ -126,6 +126,55 @@ services:
       - ./mosquitto/certs:/certs:ro
       - cloud-gate-state:/state
 
+  # Push der bereinigten Messwerte an die GroLo-Website (Vercel), nur wenn WEB_URL/WEB_TOKEN gesetzt sind
+  web-push:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-web-push
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/web_push.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      WEB_URL: "${WEB_URL:-}"
+      WEB_TOKEN: "${WEB_TOKEN:-}"
+      PUSH_INTERVAL: "${WEB_PUSH_INTERVAL:-30}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
+  # Wetter für den Anlagenstandort (Open-Meteo, kostenlos, ohne Schlüssel): aktuell + 48 h Vorhersage
+  weather:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-weather
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/weather.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      WEATHER_LAT: "${WEATHER_LAT:-}"
+      WEATHER_LON: "${WEATHER_LON:-}"
+      WEATHER_INTERVAL: "${WEATHER_INTERVAL:-600}"
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
   # ---------------- Datenbank + Dashboard ----------------
   influxdb:
     image: influxdb:2.7

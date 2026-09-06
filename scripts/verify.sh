@@ -162,6 +162,14 @@ if [[ -n "$cs" ]]; then
 else bad "kein Status von cloud-gate"; fi
 docker compose logs --no-log-prefix --since 10m grobro 2>/dev/null | grep -q "Forwarding to Growatt Cloud failed" && bad "GroBro meldet Forwarding-Fehler (docker compose logs grobro)" || ok "keine Forwarding-Fehler bei GroBro (10 min)"
 
+step 15 "Wetter (Open-Meteo)"
+st=$(docker compose ps --format '{{.Service}} {{.State}}' 2>/dev/null | awk '$1=="weather"{print $2}')
+[[ "$st" == running* ]] && ok "weather: $st" || bad "weather: ${st:-nicht gestartet}"
+wc=$(mosquitto_sub -h 127.0.0.1 -p $PLAIN_PORT -t 'homeassistant/grolo/weather/current' --retained-only -C 1 -W 3 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["condition_de"], d["temperature"], "°C, Strahlung", d["shortwave_radiation"], "W/m², Sonne", d["sunrise"], "-", d["sunset"])' 2>/dev/null)
+[[ -n "$wc" ]] && ok "aktuelles Wetter: $wc" || bad "kein retained Wetter (WEATHER_LAT/LON gesetzt? docker compose logs weather)"
+wf=$(docker compose exec -T influxdb influx query --org "${INFLUX_ORG:-growatt}" --token "${INFLUX_TOKEN:-}" 'from(bucket:"'"${INFLUX_BUCKET:-nexa}"'") |> range(start:-1h, stop: 48h) |> filter(fn:(r)=> r._measurement=="weather_forecast" and r._field=="shortwave_radiation") |> count() |> group() |> sum()' 2>/dev/null | grep -E "^\s+[0-9]+" | awk '{print $1}')
+[[ -n "$wf" && "$wf" -gt 0 ]] && ok "Vorhersage in InfluxDB: $wf Stunden" || bad "keine Vorhersagedaten (Measurement weather_forecast)"
+
 echo
 [[ $fail -eq 0 ]] && printf '\033[32mAlle Checks bestanden.\033[0m\n' || printf '\033[31mMindestens ein Check fehlgeschlagen.\033[0m\n'
 exit $fail

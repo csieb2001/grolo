@@ -1521,7 +1521,7 @@
     {
       "id": 24,
       "type": "row",
-      "title": "PV strings",
+      "title": "Weather",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1533,11 +1533,794 @@
     },
     {
       "id": 25,
+      "type": "stat",
+      "title": "Outdoor temperature",
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"temperature\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "light-blue",
+                "value": 5
+              },
+              {
+                "color": "green",
+                "value": 15
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Open-Meteo for the plant location, every 10 minutes"
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Conditions",
+      "gridPos": {
+        "x": 4,
+        "y": 42,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"weather_code\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Clear"
+                },
+                "1": {
+                  "text": "Mainly clear"
+                },
+                "2": {
+                  "text": "Partly cloudy"
+                },
+                "3": {
+                  "text": "Overcast"
+                },
+                "45": {
+                  "text": "Fog"
+                },
+                "48": {
+                  "text": "Rime fog"
+                },
+                "51": {
+                  "text": "Drizzle"
+                },
+                "53": {
+                  "text": "Drizzle"
+                },
+                "55": {
+                  "text": "Drizzle"
+                },
+                "61": {
+                  "text": "Light rain"
+                },
+                "63": {
+                  "text": "Rain"
+                },
+                "65": {
+                  "text": "Heavy rain"
+                },
+                "71": {
+                  "text": "Snow"
+                },
+                "73": {
+                  "text": "Snow"
+                },
+                "75": {
+                  "text": "Snow"
+                },
+                "80": {
+                  "text": "Showers"
+                },
+                "81": {
+                  "text": "Showers"
+                },
+                "82": {
+                  "text": "Showers"
+                },
+                "95": {
+                  "text": "Thunderstorm"
+                },
+                "96": {
+                  "text": "Thunderstorm"
+                },
+                "99": {
+                  "text": "Thunderstorm"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "WMO weather code from Open-Meteo"
+    },
+    {
+      "id": 27,
+      "type": "stat",
+      "title": "Cloud cover",
+      "gridPos": {
+        "x": 8,
+        "y": 42,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"cloud_cover\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              },
+              {
+                "color": "light-yellow",
+                "value": 40
+              },
+              {
+                "color": "blue",
+                "value": 70
+              },
+              {
+                "color": "dark-blue",
+                "value": 90
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 28,
+      "type": "stat",
+      "title": "Global irradiance",
+      "gridPos": {
+        "x": 12,
+        "y": 42,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"shortwave_radiation\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: W/m²",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Shortwave irradiance on the horizontal in W/m², reference for PV power"
+    },
+    {
+      "id": 29,
+      "type": "stat",
+      "title": "Sunrise / sunset",
+      "gridPos": {
+        "x": 16,
+        "y": 42,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"sunrise\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"↑\"})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"sunset\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"↓\"})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center"
+      },
+      "description": "Today, local time"
+    },
+    {
+      "id": 30,
+      "type": "stat",
+      "title": "Sunshine today",
+      "gridPos": {
+        "x": 20,
+        "y": 42,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"sunshine_hours_today\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: h",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Forecast sunshine duration for the day"
+    },
+    {
+      "id": 31,
+      "type": "stat",
+      "title": "Irradiation sum today / tomorrow",
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 4,
+        "h": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"radiation_sum_today\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"today\"})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"radiation_sum_tomorrow\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"tomorrow\"})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "unit": "suffix: MJ/m²",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "orientation": "vertical"
+      },
+      "description": "Daily sum of global irradiance in MJ/m² per forecast (1 MJ/m² ≈ 0.28 kWh/m²)"
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Global irradiance and PV power",
+      "gridPos": {
+        "x": 4,
+        "y": 46,
+        "w": 10,
+        "h": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"shortwave_radiation\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Irradiance W/m²\"})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => {\n      pv = r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current\n      out = (r.onGridPower - 30000.0)\n      return { _time: r._time, \"PV power W\": pv }\n    })\n  |> keep(columns: [\"_time\", \"PV power W\"])",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Irradiance W/m²"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PV power W"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "watt"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "The ratio of PV power to irradiance reveals shading, orientation and soiling. Irradiance left (W/m²), PV right (W)."
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Cloud cover and temperature",
+      "gridPos": {
+        "x": 14,
+        "y": 46,
+        "w": 10,
+        "h": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"cloud_cover\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Cloud cover %\"})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather\" and r._field == \"temperature\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Temperature °C\"})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cloud cover %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Temperature °C"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "celsius"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "type": "barchart",
+      "title": "Forecast 48 h: irradiance and cloud cover",
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: -1h, stop: 48h)\n  |> filter(fn: (r) => r._measurement == \"weather_forecast\" and (r._field == \"shortwave_radiation\" or r._field == \"cloud_cover\"))\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => {\n      wd = date.weekDay(t: r._time, location: location)\n      names = [\"Sun\", \"Mon\", \"Tue\", \"Wed\", \"Thu\", \"Fri\", \"Sat\"]\n      h = date.hour(t: r._time, location: location)\n      return { _time: r._time, \"Hour\": names[wd] + \" \" + (if h < 10 then \"0\" else \"\") + string(v: h) + \":00\", \"Irradiance W/m²\": r.shortwave_radiation, \"Cloud cover %\": r.cloud_cover }\n    })\n  |> keep(columns: [\"Hour\", \"Irradiance W/m²\", \"Cloud cover %\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Irradiance W/m²"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cloud cover %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Hour",
+        "orientation": "auto",
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "showValue": "never",
+        "stacking": "none",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 100
+      },
+      "description": "Hourly Open-Meteo forecast from now. The dashboard time range has no effect here, the panel always shows the next 48 hours."
+    },
+    {
+      "id": 35,
+      "type": "row",
+      "title": "PV strings",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 63,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 36,
       "type": "timeseries",
       "title": "Power per string",
       "gridPos": {
         "x": 0,
-        "y": 42,
+        "y": 64,
         "w": 12,
         "h": 9
       },
@@ -1592,12 +2375,12 @@
       "description": "Power = voltage × current per input"
     },
     {
-      "id": 26,
+      "id": 37,
       "type": "timeseries",
       "title": "Voltage per string",
       "gridPos": {
         "x": 12,
-        "y": 42,
+        "y": 64,
         "w": 6,
         "h": 9
       },
@@ -1651,12 +2434,12 @@
       }
     },
     {
-      "id": 27,
+      "id": 38,
       "type": "timeseries",
       "title": "Current per string",
       "gridPos": {
         "x": 18,
-        "y": 42,
+        "y": 64,
         "w": 6,
         "h": 9
       },
@@ -1710,12 +2493,12 @@
       }
     },
     {
-      "id": 28,
+      "id": 39,
       "type": "stat",
       "title": "PV inputs in use",
       "gridPos": {
         "x": 0,
-        "y": 51,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -1759,12 +2542,12 @@
       "description": "Inputs with more than 15 V in the last 24 h, out of 4 MPPT inputs. Free inputs show about 7 V."
     },
     {
-      "id": 29,
+      "id": 40,
       "type": "stat",
       "title": "PV input 1 to 4",
       "gridPos": {
         "x": 4,
-        "y": 51,
+        "y": 73,
         "w": 20,
         "h": 4
       },
@@ -1845,25 +2628,25 @@
       "description": "Maximum voltage per input in 24 h. Green = panel connected (> 15 V), red = free."
     },
     {
-      "id": 30,
+      "id": 41,
       "type": "row",
       "title": "Battery and technical",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 77,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 31,
+      "id": 42,
       "type": "timeseries",
       "title": "Temperatures",
       "gridPos": {
         "x": 0,
-        "y": 56,
+        "y": 78,
         "w": 12,
         "h": 9
       },
@@ -1981,12 +2764,12 @@
       }
     },
     {
-      "id": 32,
+      "id": 43,
       "type": "timeseries",
       "title": "Cell voltage (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 56,
+        "y": 78,
         "w": 8,
         "h": 9
       },
@@ -2049,12 +2832,12 @@
       "description": "A large spread indicates unbalanced cells"
     },
     {
-      "id": 33,
+      "id": 44,
       "type": "stat",
       "title": "Cycles",
       "gridPos": {
         "x": 20,
-        "y": 56,
+        "y": 78,
         "w": 4,
         "h": 3
       },
@@ -2097,12 +2880,12 @@
       }
     },
     {
-      "id": 34,
+      "id": 45,
       "type": "stat",
       "title": "Health (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 59,
+        "y": 81,
         "w": 4,
         "h": 3
       },
@@ -2162,12 +2945,12 @@
       }
     },
     {
-      "id": 35,
+      "id": 46,
       "type": "stat",
       "title": "Battery packs",
       "gridPos": {
         "x": 20,
-        "y": 62,
+        "y": 84,
         "w": 4,
         "h": 3
       },
@@ -2210,12 +2993,12 @@
       }
     },
     {
-      "id": 36,
+      "id": 47,
       "type": "stat",
       "title": "Discharge limit",
       "gridPos": {
         "x": 0,
-        "y": 65,
+        "y": 87,
         "w": 4,
         "h": 4
       },
@@ -2260,12 +3043,12 @@
       "description": "The battery does not discharge below this SoC"
     },
     {
-      "id": 37,
+      "id": 48,
       "type": "stat",
       "title": "Charge limit",
       "gridPos": {
         "x": 4,
-        "y": 65,
+        "y": 87,
         "w": 4,
         "h": 4
       },
@@ -2309,12 +3092,12 @@
       }
     },
     {
-      "id": 38,
+      "id": 49,
       "type": "stat",
       "title": "Grid voltage",
       "gridPos": {
         "x": 8,
-        "y": 65,
+        "y": 87,
         "w": 4,
         "h": 4
       },
@@ -2359,12 +3142,12 @@
       "description": "Register 115. Near 0 V when the NEXA is disconnected from the grid."
     },
     {
-      "id": 39,
+      "id": 50,
       "type": "stat",
       "title": "Device registers for comparison",
       "gridPos": {
         "x": 12,
-        "y": 65,
+        "y": 87,
         "w": 4,
         "h": 4
       },
@@ -2424,12 +3207,12 @@
       "description": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings."
     },
     {
-      "id": 40,
+      "id": 51,
       "type": "stat",
       "title": "Cell voltage spread",
       "gridPos": {
         "x": 16,
-        "y": 65,
+        "y": 87,
         "w": 4,
         "h": 4
       },
@@ -2489,12 +3272,12 @@
       }
     },
     {
-      "id": 41,
+      "id": 52,
       "type": "stat",
       "title": "Last message",
       "gridPos": {
         "x": 20,
-        "y": 65,
+        "y": 87,
         "w": 4,
         "h": 4
       },
@@ -2538,12 +3321,12 @@
       "description": "Time of the last data packet from the dongle"
     },
     {
-      "id": 42,
+      "id": 53,
       "type": "stat",
       "title": "NEXA firmware (reg. 119/120)",
       "gridPos": {
         "x": 0,
-        "y": 69,
+        "y": 91,
         "w": 6,
         "h": 4
       },
@@ -2586,12 +3369,12 @@
       "description": "Raw parts from the registers, Growatt's composition unknown"
     },
     {
-      "id": 43,
+      "id": 54,
       "type": "stat",
       "title": "Dongle firmware / model",
       "gridPos": {
         "x": 6,
-        "y": 69,
+        "y": 91,
         "w": 6,
         "h": 4
       },
@@ -2633,12 +3416,12 @@
       }
     },
     {
-      "id": 44,
+      "id": 55,
       "type": "stat",
       "title": "Dongle Wi-Fi signal",
       "gridPos": {
         "x": 12,
-        "y": 69,
+        "y": 91,
         "w": 4,
         "h": 4
       },
@@ -2699,12 +3482,12 @@
       "description": "Only reported when the dongle connects"
     },
     {
-      "id": 45,
+      "id": 56,
       "type": "stat",
       "title": "Battery packs detected",
       "gridPos": {
         "x": 16,
-        "y": 69,
+        "y": 91,
         "w": 4,
         "h": 4
       },
@@ -2747,12 +3530,12 @@
       }
     },
     {
-      "id": 46,
+      "id": 57,
       "type": "stat",
       "title": "Cell voltage min",
       "gridPos": {
         "x": 20,
-        "y": 69,
+        "y": 91,
         "w": 4,
         "h": 4
       },
@@ -2796,12 +3579,12 @@
       }
     },
     {
-      "id": 47,
+      "id": 58,
       "type": "timeseries",
       "title": "SoC per battery pack",
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 95,
         "w": 12,
         "h": 8
       },
@@ -2881,12 +3664,12 @@
       }
     },
     {
-      "id": 48,
+      "id": 59,
       "type": "stat",
       "title": "Temperature per pack",
       "gridPos": {
         "x": 12,
-        "y": 73,
+        "y": 95,
         "w": 12,
         "h": 4
       },
@@ -2974,12 +3757,12 @@
       }
     },
     {
-      "id": 49,
+      "id": 60,
       "type": "stat",
       "title": "Serial numbers of expansion packs",
       "gridPos": {
         "x": 12,
-        "y": 77,
+        "y": 99,
         "w": 12,
         "h": 4
       },
@@ -3038,25 +3821,25 @@
       "description": "Pack 1 is the main unit with the device serial. Empty = no expansion pack."
     },
     {
-      "id": 50,
+      "id": 61,
       "type": "row",
       "title": "Unknown registers (research)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 103,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 51,
+      "id": 62,
       "type": "timeseries",
       "title": "Unknown input registers, history (≠ 0 only)",
       "gridPos": {
         "x": 0,
-        "y": 82,
+        "y": 104,
         "w": 16,
         "h": 10
       },
@@ -3111,12 +3894,12 @@
       "description": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values."
     },
     {
-      "id": 52,
+      "id": 63,
       "type": "table",
       "title": "Holding register dump (unknown, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 82,
+        "y": 104,
         "w": 8,
         "h": 10
       },
