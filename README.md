@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.36.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.36.2** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 | GroLo settings page | Grafana dashboard |
 |---|---|
@@ -232,7 +232,7 @@ settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
 grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots
-VERSION                      2026.36.1
+VERSION                      2026.36.2
 ```
 
 License: MIT.

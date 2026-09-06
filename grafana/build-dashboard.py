@@ -48,7 +48,8 @@ EN = {
     "Unbekannte Register (Forschung)": "Unknown registers (research)", "Unbekannte Eingangsregister, Verlauf (nur ≠ 0)": "Unknown input registers, history (≠ 0 only)",
     "Rohwerte der Register, die die Bridge nicht kennt. 30000 = Offset für 0 bei vorzeichenbehafteten Werten.": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values.",
     "Halteregister-Dump (unbekannt, ≠ 0)": "Holding register dump (unknown, ≠ 0)", "Kommt stündlich vom Gerät (Nachricht 0x0103).": "Sent hourly by the device (message 0x0103).",
-    "Register": "Register", "Wert": "Value", "PV-Eingänge belegt": "PV inputs in use", "belegt": "in use",
+    "Register": "Register", "Wert": "Value", "PV aus Strings": "PV from strings",
+    "Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.": "Sum of voltage × current of all strings. Finer and more current than the device register, which rounds to whole watts.", "PV-Eingänge belegt": "PV inputs in use", "belegt": "in use",
     "Eingänge mit mehr als 5 V in den letzten 24 h, von 4 MPPT-Eingängen": "Inputs with more than 5 V in the last 24 h, out of 4 MPPT inputs",
     "PV-Eingang 1 bis 4": "PV input 1 to 4", "Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen, rot = frei.": "Maximum voltage per input in 24 h. Green = panel connected, red = free.", "Einstellungen": "Settings", "Einstellungsseite (GroLo)": "Settings page (GroLo)",
 }
@@ -226,13 +227,20 @@ def build(lang):
     # ============================================================ Jetzt
     panels.append(row(_("Jetzt"), y)); y += 1
     panels += [
-        stat_field(_("PV-Leistung"), 0, y, 4, 5, "ppv", "watt", C_PV, 0, desc=_("Aktuelle Leistung aller PV-Strings")),
-        stat_field(_("Ausgang ins Haus"), 4, y, 4, 5, "pac", "watt", C_HOUSE, 0, desc=_("AC-Ausgangsleistung des NEXA")),
-        stat_field(_("Batterie-Leistung"), 8, y, 4, 5, "totalBatteryPackChargingPower", "watt", C_BAT, 0, desc=_("Lade-/Entladeleistung der Batterie")),
+        stat(_("PV-Leistung"), 0, y, 4, 5, HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "nexa" and (r._field =~ /^pv[1-4](Voltage|Current)$/))
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv4Current)
+  |> last(column: "pv1Voltage")
+  |> map(fn: (r) => ({{ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }}))
+  |> keep(columns: ["_time", "_value"])''', "watt", C_PV, desc=_("Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.")),
+        stat_field(_("Ausgang ins Haus"), 4, y, 4, 5, "pac", "watt", C_HOUSE, desc=_("AC-Ausgangsleistung des NEXA")),
+        stat_field(_("Batterie-Leistung"), 8, y, 4, 5, "totalBatteryPackChargingPower", "watt", C_BAT, desc=_("Lade-/Entladeleistung der Batterie")),
         panel("gauge", _("Ladezustand"), 12, y, 6, 10, [target(q_last("totalBatteryPackSoc"))], "percent",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
               defaults={"min": 0, "max": 100, "decimals": 0, "thresholds": thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green"))}),
-        stat_field(_("Hausverbrauch"), 18, y, 6, 5, "totalHouseholdLoad", "watt", "red", 0, desc=_("Nur mit Smart Meter / GroPlug befüllt, sonst 0")),
+        stat_field(_("Hausverbrauch"), 18, y, 6, 5, "totalHouseholdLoad", "watt", "red", desc=_("Nur mit Smart Meter / GroPlug befüllt, sonst 0")),
         stat_field(_("Batterie-Status"), 0, y + 5, 4, 5, "totalBatteryPackChargingStatus", None, "blue", mapping=status_map),
         stat_field(_("Betriebsmodus"), 4, y + 5, 4, 5, "workMode", None, "orange", mapping=mode_map),
         stat_field(_("Systemtemperatur"), 8, y + 5, 4, 5, "systemTemp", "celsius", None, 1, thr=thresholds((None, "blue"), (35, "green"), (50, "orange"), (60, "red"))),
@@ -246,7 +254,8 @@ def build(lang):
         ts(_("Leistungsverlauf"), 0, y, 16, 10, [
             target(q_series("ppv", _("PV")), "A"), target(q_series("pac", _("Ins Haus")), "B"),
             target(q_signed_battery(_("Batterie (+ laden / − entladen)")), "C"),
-        ], "watt", overrides=[color_override(_("PV"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie (+ laden / − entladen)"), C_BAT)],
+            target(q_pivot_map([f"pv{i}{s}" for i in range(1, 5) for s in ("Voltage", "Current")], {_("PV aus Strings"): " + ".join(f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5))}), "D"),
+        ], "watt", overrides=[color_override(_("PV"), C_PV), color_override(_("PV aus Strings"), "light-yellow"), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie (+ laden / − entladen)"), C_BAT)],
            desc=_("Batterie: positiv = laden, negativ = entladen")),
         ts(_("Ladezustand"), 16, y, 8, 10, [target(q_series("totalBatteryPackSoc", "SoC"))], "percent", fill=25, overrides=[color_override("SoC", C_SOC)], mn=0, mx=100),
     ]
@@ -335,7 +344,7 @@ def build(lang):
   |> filter(fn: (r) => r._measurement == "nexa" and r._field == "onGridPower")
   |> last()
   |> map(fn: (r) => ({{ _time: r._time, _value: r._value - 30000.0 }}))
-  |> keep(columns: ["_time", "_value"])''', "watt", "purple", 0, desc=_("Register 116, Offset 30000 = 0 W, Vorzeichen unbestätigt")),
+  |> keep(columns: ["_time", "_value"])''', "watt", "purple", desc=_("Register 116, Offset 30000 = 0 W, Vorzeichen unbestätigt")),
         stat(_("Zellspannung Differenz"), 16, y, 4, 4, HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "maxCellVoltage" or r._field == "minCellVoltage"))

@@ -82,7 +82,7 @@
             "type": "influxdb",
             "uid": "influx-nexa"
           },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"ppv\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "query": "import \"timezone\"\nimport \"math\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field =~ /^pv[1-4](Voltage|Current)$/))\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv4Current)\n  |> last(column: \"pv1Voltage\")\n  |> map(fn: (r) => ({ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }))\n  |> keep(columns: [\"_time\", \"_value\"])",
           "refId": "A"
         }
       ],
@@ -92,8 +92,7 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "yellow"
-          },
-          "decimals": 0
+          }
         },
         "overrides": []
       },
@@ -110,7 +109,7 @@
         "textMode": "value",
         "justifyMode": "center"
       },
-      "description": "Current power of all PV strings"
+      "description": "Sum of voltage × current of all strings. Finer and more current than the device register, which rounds to whole watts."
     },
     {
       "id": 3,
@@ -142,8 +141,7 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "orange"
-          },
-          "decimals": 0
+          }
         },
         "overrides": []
       },
@@ -192,8 +190,7 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "green"
-          },
-          "decimals": 0
+          }
         },
         "overrides": []
       },
@@ -308,8 +305,7 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "red"
-          },
-          "decimals": 0
+          }
         },
         "overrides": []
       },
@@ -649,6 +645,14 @@
           },
           "query": "import \"timezone\"\nimport \"math\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"totalBatteryPackChargingPower\" or r._field == \"totalBatteryPackChargingStatus\"))\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.totalBatteryPackChargingPower and exists r.totalBatteryPackChargingStatus)\n  |> map(fn: (r) => ({ r with _value: if r.totalBatteryPackChargingStatus == \"Discharging\" then -1.0 * math.abs(x: r.totalBatteryPackChargingPower) else math.abs(x: r.totalBatteryPackChargingPower) }))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Battery (+ charge / − discharge)\"})",
           "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ _time: r._time, \"PV from strings\": r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }))\n  |> keep(columns: [\"_time\", \"PV from strings\"])",
+          "refId": "D"
         }
       ],
       "fieldConfig": {
@@ -679,6 +683,21 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PV from strings"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-yellow"
                 }
               }
             ]
@@ -2362,8 +2381,7 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "purple"
-          },
-          "decimals": 0
+          }
         },
         "overrides": []
       },
