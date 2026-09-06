@@ -141,6 +141,23 @@ External, source the dongle client, action Block.
 | Grafana | `http://<host>:3000` | English dashboard is the home page, German via the link at the top; viewing without login, editing as `admin` |
 | InfluxDB | `http://127.0.0.1:8086` | bound to localhost only |
 
+### Running on Proxmox (LXC)
+
+The stack runs fine in an unprivileged Debian 12 container with Docker inside. Create it with nesting and keyctl enabled,
+install Docker from the official repository, clone the repo to `/opt/growatt` (the directory name becomes the Compose
+project name and thus the volume prefix) and continue with the steps above. Give the container a fixed IP in your router so
+the DNS records stay valid.
+
+```bash
+pct create 103 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst --hostname grolo --unprivileged 1 \
+  --features nesting=1,keyctl=1 --cores 2 --memory 3072 --rootfs local-lvm:24 \
+  --net0 name=eth0,bridge=vmbr0,ip=dhcp --onboot 1
+```
+
+Moving an existing installation: `influx backup` / `influx restore --full` for the database, `tar` the small volumes
+(`grafana-data`, `mosquitto-data`, `cloud-gate-state`), copy `.env`, `mosquitto/certs/` and `~/.acme.sh/`, then switch the
+two DNS records. The dongle reconnects within seconds; the gap in our move was a single 5-second sample.
+
 ## What you get
 
 **Settings page (GroLo)**: device and hardware (serial, firmware register, packs with serial/SoC/temperature, PV inputs in use,
