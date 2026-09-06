@@ -7,11 +7,31 @@ an optional, switchable relay to the Growatt cloud.
 
 Version **2026.36.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
-| GroLo settings page | Grafana dashboard |
-|---|---|
-| ![GroLo device and hardware](docs/screenshot-grolo-device.png) | ![Grafana](docs/screenshot-grafana.png) |
+## Screenshots
 
-![GroLo settings](docs/screenshot-grolo-settings.png)
+**Grafana dashboard** (English, German available): live tiles, power history and state of charge.
+
+![Grafana: live tiles and power history](docs/screenshot-grafana-live.png)
+
+Energy per day, where today's PV energy went and where the house energy came from.
+
+![Grafana: energy](docs/screenshot-grafana-energy.png)
+
+PV strings with detected inputs, temperatures, cell voltages, packs, firmware and dongle.
+
+![Grafana: strings, battery and technical](docs/screenshot-grafana-strings-battery.png)
+
+**GroLo settings page**: device and hardware, battery packs, dongle.
+
+![GroLo: device and hardware](docs/screenshot-grolo-device.png)
+
+Operating mode, battery limits, output and operating switches.
+
+![GroLo: settings](docs/screenshot-grolo-settings.png)
+
+Time slots, cloud relay with status, dongle settings and log.
+
+![GroLo: slots, cloud, dongle](docs/screenshot-grolo-slots-cloud.png)
 
 ## How it works
 
@@ -233,7 +253,7 @@ grafana/provisioning/        data source and dashboard provider
 settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
 grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py
 grobro/registers/            extended NEXA register map
-docs/                        screenshots
+docs/                        screenshots (serial numbers masked)
 VERSION                      2026.36.3
 ```
 
