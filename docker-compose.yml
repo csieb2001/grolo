@@ -257,6 +257,7 @@ services:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./settings-ui:/usr/share/grafana/public/grolo:ro   # Einstellungsseite auch unter Grafana /public/grolo/ (Dashboard-Link)
 
   # Einstellungsseite: statische Seite, spricht per Websocket direkt mit Mosquitto (GroBro-Kommandotopics)
   settings:

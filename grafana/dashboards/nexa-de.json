@@ -29,7 +29,7 @@
     {
       "title": "Einstellungen",
       "type": "link",
-      "url": "http://${__url.params:hostname}:8080/",
+      "url": "/public/grolo/index.html",
       "icon": "external link",
       "tooltip": "Einstellungsseite (GroLo)",
       "targetBlank": true,

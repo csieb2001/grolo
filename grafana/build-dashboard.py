@@ -797,7 +797,7 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
         "timezone": "browser", "editable": True, "graphTooltip": 1, "refresh": "30s",
         "time": {"from": "now-24h", "to": "now"}, "timepicker": {"refresh_intervals": ["10s", "30s", "1m", "5m", "15m"]},
         "links": [
-            {"title": _("Einstellungen"), "type": "link", "url": "http://${__url.params:hostname}:8080/", "icon": "external link", "tooltip": _("Einstellungsseite (GroLo)"), "targetBlank": True, "asDropdown": False},
+            {"title": _("Einstellungen"), "type": "link", "url": "/public/grolo/index.html", "icon": "external link", "tooltip": _("Einstellungsseite (GroLo)"), "targetBlank": True, "asDropdown": False},
             {"title": "Deutsch" if lang == "en" else "English", "type": "link", "url": "/d/nexa2000-de" if lang == "en" else "/d/nexa2000", "icon": "external link", "tooltip": "", "targetBlank": False, "asDropdown": False, "keepTime": True},
         ],
         "schemaVersion": 39, "version": 1, "panels": panels, "annotations": {"list": []},

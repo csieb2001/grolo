@@ -139,7 +139,7 @@ External, source the dongle client, action Block.
 
 | Service | URL | Notes |
 |---|---|---|
-| GroLo settings page | `http://<host>:8080` | EN/DE toggle, no login |
+| GroLo settings page | `http://<host>:8080` (also `http://<host>:3000/public/grolo/index.html`, the *Settings* link in Grafana) | EN/DE toggle, no login |
 | Grafana | `http://<host>:3000` | English dashboard is the home page, German via the link at the top; viewing without login, editing as `admin` |
 | InfluxDB | `http://127.0.0.1:8086` | bound to localhost only |
 
