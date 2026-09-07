@@ -38,7 +38,7 @@ EN = {
     "Zyklen": "Cycles", "Gesundheit (SoH)": "Health (SoH)", "Batteriepacks": "Battery packs",
     "Entlade-Grenze": "Discharge limit", "Unter diesen SoC entlädt die Batterie nicht": "The battery does not discharge below this SoC", "Lade-Grenze": "Charge limit",
     "Netzspannung": "Grid voltage", "Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist.": "Register 115. Near 0 V when the NEXA is disconnected from the grid.",
-    "Netzleistung": "Grid power", "Register 116, Offset 30000 = 0 W, Vorzeichen unbestätigt": "Register 116, offset 30000 = 0 W, sign unconfirmed",
+    "Netzleistung": "Grid power", "Register 116, Offset 30000 = 0, Schritt 0,1 W (38000 = 800 W)": "Register 116, offset 30000 = 0, step 0.1 W (38000 = 800 W)",
     "Zellspannung Differenz": "Cell voltage spread", "Letzte Nachricht": "Last message", "Zeitpunkt des letzten Datensatzes vom Dongle": "Time of the last data packet from the dongle",
     "Firmware NEXA (Reg. 119/120)": "NEXA firmware (reg. 119/120)", "Rohteile aus den Registern, Zusammensetzung laut Growatt unbekannt": "Raw parts from the registers, Growatt's composition unknown",
     "Dongle Firmware / Modell": "Dongle firmware / model", "WLAN-Signal Dongle": "Dongle Wi-Fi signal", "Wird nur beim Verbindungsaufbau des Dongles gemeldet": "Only reported when the dongle connects",
@@ -62,7 +62,7 @@ EN = {
     "Sonnenaufgang / -untergang": "Sunrise / sunset", "Stunde": "Hour", "So": "Sun", "Mo": "Mon", "Di": "Tue", "Mi": "Wed", "Do": "Thu", "Fr": "Fri", "Sa": "Sat", "Heute, lokale Zeit": "Today, local time", "heute": "today", "morgen": "tomorrow",
     "Klar": "Clear", "Überwiegend klar": "Mainly clear", "Teilweise bewölkt": "Partly cloudy", "Bedeckt": "Overcast", "Nebel": "Fog", "Reifnebel": "Rime fog", "Sprühregen": "Drizzle",
     "Leichter Regen": "Light rain", "Regen": "Rain", "Starker Regen": "Heavy rain", "Schneefall": "Snow", "Regenschauer": "Showers", "Gewitter": "Thunderstorm", "PV aus Strings": "PV from strings", "PV (Register 7)": "PV (register 7)", "Geräteregister zum Vergleich": "Device registers for comparison",
-    "AC-Ausgang aus Register 116. Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.": "AC output from register 116. Register pac (5) reports a constant 0 on current firmware.",
+    "AC-Ausgang aus Register 116 (0,1-W-Schritte, Offset 30000). Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.": "AC output from register 116 (0.1 W steps, offset 30000). Register pac (5) reports a constant 0 on current firmware.",
     "Bilanz PV minus Ausgang: positiv = laden, negativ = entladen. Register 11 meldet auf aktueller Firmware dauerhaft 0.": "Balance PV minus output: positive = charging, negative = discharging. Register 11 reports a constant 0 on current firmware.",
     "PV aus Spannung × Strom der Strings, Ausgang aus Register 116, Batterie als Bilanz PV minus Ausgang (positiv = laden). Gestrichelt das gerundete PV-Register des Geräts.": "PV from voltage × current of the strings, output from register 116, battery as balance PV minus output (positive = charging). Dashed: the device's rounded PV register.",
     "Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings.": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings.",
@@ -150,7 +150,7 @@ def build(lang):
 
     PV_FIELDS = [f"pv{i}{s}" for i in range(1, 5) for s in ("Voltage", "Current")]
     PV_EXPR = " + ".join(f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5))
-    OUT_EXPR = "(r.onGridPower - 30000.0)"
+    OUT_EXPR = "(r.onGridPower - 30000.0) / 10.0"  # Register 116 in 0,1-W-Schritten
     FLOW_FIELDS = PV_FIELDS + ["onGridPower"]
     FLOW_FILT = " or ".join(f'r._field == "{f}"' for f in FLOW_FIELDS)
 
@@ -339,7 +339,7 @@ def build(lang):
     panels.append(row(_("Jetzt"), y)); y += 1
     panels += [
         stat(_("PV-Leistung"), 0, y, 4, 5, q_flow_last("pv"), "watt", C_PV, desc=_("Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.")),
-        stat(_("Ausgang ins Haus"), 4, y, 4, 5, q_flow_last("out"), "watt", C_HOUSE, desc=_("AC-Ausgang aus Register 116. Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.")),
+        stat(_("Ausgang ins Haus"), 4, y, 4, 5, q_flow_last("out"), "watt", C_HOUSE, desc=_("AC-Ausgang aus Register 116 (0,1-W-Schritte, Offset 30000). Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.")),
         stat(_("Batterie-Leistung"), 8, y, 4, 5, q_flow_last("pv - out"), "watt", C_BAT, desc=_("Bilanz PV minus Ausgang: positiv = laden, negativ = entladen. Register 11 meldet auf aktueller Firmware dauerhaft 0.")),
         panel("gauge", _("Ladezustand"), 12, y, 6, 10, [target(q_last("totalBatteryPackSoc"))], "percent",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},

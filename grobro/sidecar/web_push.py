@@ -2,7 +2,7 @@
 """web-push: schickt die bereinigten Messwerte alle 30 s an die GroLo-Website (Vercel).
 
 Bildet aus dem GroBro-State dieselben Größen wie das Grafana-Dashboard:
-  pv_w  = Summe Spannung × Strom der Strings          out_w = Register 116 − 30000
+  pv_w  = Summe Spannung × Strom der Strings          out_w = (Register 116 − 30000) / 10, Register zählt in 0,1 W
   bat_w = pv_w − out_w (positiv = laden)              soc, Packs, Temperaturen, Modus, Status
 Mittelt über das Intervall, puffert bei Ausfall (bis 24 h) und schickt nach.
 
@@ -74,7 +74,7 @@ def weather_payload():
 
 def derive(st):
     pv = sum(float(st.get(f"pv{i}Voltage", 0) or 0) * float(st.get(f"pv{i}Current", 0) or 0) for i in range(1, 5))
-    out = float(st.get("onGridPower", 30000) or 30000) - 30000.0
+    out = (float(st.get("onGridPower", 30000) or 30000) - 30000.0) / 10.0  # 0,1-W-Schritte, 38000 = 800 W
     return {
         "pv_w": pv, "out_w": out, "bat_w": pv - out, "soc": float(st.get("totalBatteryPackSoc", 0) or 0),
         "soc1": st.get("battery1Soc"), "soc2": st.get("battery2Soc"), "soc3": st.get("battery3Soc"), "soc4": st.get("battery4Soc"),
