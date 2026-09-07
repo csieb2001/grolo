@@ -14,9 +14,9 @@ ok = bad = 0; errs = []
 for p in d["panels"]:
     if p["type"] == "row":
         continue
-    for t in p["targets"]:
+    for t in p.get("targets", []):
         body = {"from": str(frm), "to": str(now), "queries": [{"refId": t["refId"], "datasource": {"type": "influxdb", "uid": "influx-nexa"},
-                                                              "query": t["query"], "intervalMs": 60000, "maxDataPoints": 500}]}
+                                                              "query": t["query"].replace("${string}", "1"), "intervalMs": 60000, "maxDataPoints": 500}]}
         req = urllib.request.Request(f"http://127.0.0.1:{port}/api/ds/query", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json", "Authorization": "Basic " + auth})
         try:

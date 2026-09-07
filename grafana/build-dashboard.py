@@ -33,6 +33,34 @@ EN = {
     "Heute aus Messwerten": "Today from measurements", "Batterie geladen": "Battery charged", "Batterie entladen": "Battery discharged",
     "PV-Strings": "PV strings", "Leistung je String": "Power per string", "Leistung = Spannung × Strom je Eingang": "Power = voltage × current per input",
     "Spannung je String": "Voltage per string", "Strom je String": "Current per string", "String": "String",
+    "Tagesspitzen, Sonnenstand und Modell": "Daily peaks, sun position and model",
+    "Tagesspitze je String (30 Tage)": "Daily peak per string (30 days)",
+    "Tag": "Day",
+    "Spitze": "Peak",
+    "Uhrzeit": "Time",
+    "Sonnenazimut": "Sun azimuth",
+    "Sonnenhöhe": "Sun elevation",
+    "Höchste Minutenleistung je String und Tag mit Uhrzeit und Sonnenstand in diesem Moment. Nur Strings mit mehr als 5 W.": "Highest one-minute power per string and day with the time and the sun position at that moment. Only strings above 5 W.",
+    "Tagesspitzen je String (30 Tage)": "Daily peaks per string (30 days)",
+    "Höchste Minutenleistung je Tag, Balken auf Tagesmitte.": "Highest one-minute power per day, bars on midday.",
+    "PV gesamt: Stunde × Tag (30 Tage)": "PV total: hour × day (30 days)",
+    "String $string: Stunde × Tag (30 Tage)": "String $string: hour × day (30 days)",
+    "Stundenmittel der Leistung, Zeile = Tag, Spalte = Stunde (lokale Zeit). Dunkel = wenig, hell = viel. Wandernde Muster zeigen Ausrichtung und Verschattung.": "Hourly mean power, row = day, column = hour (local time). Dark = little, bright = much. Shifting patterns reveal orientation and shading.",
+    "Stärkster String je Stunde": "Strongest string per hour",
+    "Welcher String im Stundenmittel am meisten liefert. Ost-Strings führen morgens, West-Strings nachmittags. Grau = unter 5 W.": "Which string delivers the most in the hourly mean. East strings lead in the morning, west strings in the afternoon. Grey = below 5 W.",
+    "Nacht": "Night",
+    "Gemessen vs. erwartet je String": "Measured vs. expected per string",
+    "Erwartet": "Expected",
+    "Gemessen: Spannung × Strom je String. Erwartet: Open-Meteo-Strahlung (DNI/DHI/GHI) auf die konfigurierte Modulfläche umgerechnet, mal Wp mal Performance-Ratio (Sidecar weather). Ohne Neigung/Ausrichtung auf der Einstellungsseite bleibt „Erwartet“ leer. Wiederkehrende Einbrüche zur gleichen Uhrzeit = Verschattung.": "Measured: voltage × current per string. Expected: Open-Meteo irradiance (DNI/DHI/GHI) transposed onto the configured panel plane, times Wp times performance ratio (weather sidecar). Without tilt/azimuth on the settings page, “Expected” stays empty. Recurring dips at the same time of day = shading.",
+    "Sonnenstand": "Sun position",
+    "Azimut": "Azimuth",
+    "Höhe": "Elevation",
+    "Sonne jetzt": "Sun now",
+    "Azimut 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Höhe über dem Horizont, jede Minute vom Sidecar weather berechnet (NOAA).": "Azimuth 0 = north, 90 = east, 180 = south, 270 = west. Elevation above the horizon, computed every minute by the weather sidecar (NOAA).",
+    "Leistung über Sonnenazimut": "Power vs. sun azimuth",
+    "Jeder Punkt ein 5-Minuten-Mittel im gewählten Zeitraum. Der Schwerpunkt der Punktwolke zeigt, wohin ein String schaut; ein Einbruch bei einem festen Azimut ist ein Hindernis. Für ein Sonnenbahn-Polardiagramm siehe die GroLo-Website.": "Each point is a 5-minute mean in the selected range. The centre of the cloud shows where a string faces; a dip at a fixed azimuth is an obstacle. For a sun-path polar chart see the GroLo website.",
+    "Ausrichtung schätzen": "Estimating orientation",
+    "**Neigung und Ausrichtung** je String auf der [Einstellungsseite](http://${__url.params:hostname}:8080/#sec-site) eintragen, dann füllt sich „Erwartet“.\n\nUnbekannt? `python3 scripts/fit-orientation.py` vergleicht die gemessenen Stundenkurven der letzten Wochen mit dem Modell für alle Ausrichtungen und schlägt Werte vor (braucht einige sonnige Tage).": "**Enter tilt and azimuth** per string on the [settings page](http://${__url.params:hostname}:8080/#sec-site), then “Expected” fills in.\n\nUnknown? `python3 scripts/fit-orientation.py` compares the measured hourly curves of the last weeks with the model for every orientation and proposes values (needs a few sunny days).",
     "Batterie und Technik": "Battery and technical", "Temperaturen": "Temperatures", "System": "System", "Batterie": "Battery",
     "Zellspannung (min / max)": "Cell voltage (min / max)", "Ein großer Abstand deutet auf unausgeglichene Zellen hin": "A large spread indicates unbalanced cells",
     "Zyklen": "Cycles", "Gesundheit (SoH)": "Health (SoH)", "Batteriepacks": "Battery packs",
@@ -74,7 +102,7 @@ EN = {
 
 def build(lang):
     _ = (lambda s: s) if lang == "de" else (lambda s: EN.get(s, s))
-    HEAD = f'import "timezone"\nimport "math"\nimport "date"\noption location = timezone.location(name: "{TZ}")\n'
+    HEAD = f'import "timezone"\nimport "math"\nimport "date"\nimport "join"\noption location = timezone.location(name: "{TZ}")\n'
 
     # ------------------------------------------------------------- Flux-Bausteine
     def q_series(field, label, fn="mean"):
@@ -488,6 +516,172 @@ def build(lang):
     ]
     y += 4
 
+    # ============================================================ Tagesspitzen, Sonnenstand, Modell
+    panels.append(row(_("Tagesspitzen, Sonnenstand und Modell"), y)); y += 1
+    S_COL = {1: "yellow", 2: "orange", 3: "light-blue", 4: "purple"}
+    PV_FILT = " or ".join(f'r._field == "{f}"' for f in sf)
+
+    def q_string_union(start, stop, every):
+        """Leistung je String als eine Tabelle pro String (Spalte string = "1".."4")."""
+        maps = ", ".join(f'b |> map(fn: (r) => ({{_time: r._time, string: "{i}", _value: r.pv{i}Voltage * r.pv{i}Current}}))' for i in range(1, 5))
+        return HEAD + f'''b = from(bucket: "{BUCKET}")
+  |> range(start: {start}, stop: {stop})
+  |> filter(fn: (r) => r._measurement == "nexa" and ({PV_FILT}))
+  |> aggregateWindow(every: {every}, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
+u = union(tables: [{maps}])
+  |> group(columns: ["string"])
+'''
+
+    q_peaks_table = q_string_union("-30d", "now()", "1m") + f'''sun = from(bucket: "{BUCKET}")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r._measurement == "sun")
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> keep(columns: ["_time", "azimuth", "elevation"])
+  |> group()
+peaks = u
+  |> window(every: 1d)
+  |> max()
+  |> filter(fn: (r) => r._value > 5.0)
+  |> group()
+join.left(left: peaks, right: sun, on: (l, r) => l._time == r._time, as: (l, r) => ({{
+    "{_("Tag")}": l._start, "{_("String")}": "{_("String")} " + l.string, "{_("Spitze")}": l._value, "{_("Uhrzeit")}": l._time,
+    "{_("Sonnenazimut")}": r.azimuth, "{_("Sonnenhöhe")}": r.elevation }}))
+  |> sort(columns: ["{_("Tag")}", "{_("String")}"], desc: true)'''
+
+    q_peaks_bars = q_string_union("-30d", "now()", "1m") + '''u
+  |> aggregateWindow(every: 1d, fn: max, createEmpty: false, timeSrc: "_start")
+  |> timeShift(duration: 12h)
+  |> keep(columns: ["_time", "_value", "string"])'''
+
+    def q_heat(expr):
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({PV_FILT}))
+  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: "_start")
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
+  |> map(fn: (r) => ({{ _time: date.truncate(t: r._time, unit: 1d), hour: string(v: date.hour(t: r._time)), _value: {expr} }}))
+  |> filter(fn: (r) => r._value > 2.0)
+  |> group()
+  |> pivot(rowKey: ["_time"], columnKey: ["hour"], valueColumn: "_value")
+  |> sort(columns: ["_time"])'''
+    heat_tf = [{"id": "organize", "options": {"indexByName": {"_time": 0, **{str(h): h + 1 for h in range(24)}}}}]
+
+    q_strongest = HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({PV_FILT}))
+  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: "_start")
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
+  |> map(fn: (r) => {{
+      p1 = r.pv1Voltage * r.pv1Current
+      p2 = r.pv2Voltage * r.pv2Current
+      p3 = r.pv3Voltage * r.pv3Current
+      p4 = r.pv4Voltage * r.pv4Current
+      best = if p1 >= p2 and p1 >= p3 and p1 >= p4 then "1" else if p2 >= p3 and p2 >= p4 then "2" else if p3 >= p4 then "3" else "4"
+      top = if p1 >= p2 and p1 >= p3 and p1 >= p4 then p1 else if p2 >= p3 and p2 >= p4 then p2 else if p3 >= p4 then p3 else p4
+      return {{ _time: r._time, _value: if top > 5.0 then best else "-" }}
+    }})
+  |> keep(columns: ["_time", "_value"])'''
+
+    q_expected = HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "pv_model" and r._field == "expected_w")
+  |> keep(columns: ["_time", "_value", "string"])'''
+
+    def q_sun(field, label):
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "sun" and r._field == "{field}")
+  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_xy(i):
+        return HEAD + f'''sun = from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "sun" and r._field == "azimuth")
+  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "azimuth"}})
+pv = from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "pv{i}Voltage" or r._field == "pv{i}Current"))
+  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv{i}Voltage and exists r.pv{i}Current)
+  |> map(fn: (r) => ({{ _time: r._time, power: r.pv{i}Voltage * r.pv{i}Current }}))
+  |> keep(columns: ["_time", "power"])
+join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) => ({{ azimuth: l.azimuth, power: r.power }}))
+  |> filter(fn: (r) => r.power > 1.0)'''
+
+    heat_opts = {"calculate": False, "cellGap": 1, "cellValues": {"unit": "watt"}, "color": {"mode": "scheme", "scheme": "YlOrRd", "steps": 48, "fill": "dark-orange", "reverse": False, "exponent": 0.6, "min": 0},
+                 "yAxis": {"axisPlacement": "left", "reverse": False, "unit": "none", "decimals": 0}, "rowsFrame": {"layout": "ge", "value": "W"}, "tooltip": {"mode": "single", "yHistogram": False, "showColorScale": False},
+                 "legend": {"show": True}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "showValue": "never"}
+    string_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{S} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}}]} for i, c in S_COL.items()]
+    expected_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{_('Erwartet')} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}},
+                     {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.fillOpacity", "value": 0}, {"id": "custom.lineWidth", "value": 1}]} for i, c in S_COL.items()]
+    panels += [
+        panel("table", _("Tagesspitze je String (30 Tage)"), 0, y, 10, 10, [target(q_peaks_table)], None,
+              opts={"showHeader": True, "cellHeight": "sm", "sortBy": [{"displayName": _("Tag"), "desc": True}]},
+              defaults={"custom": {"align": "auto", "cellOptions": {"type": "auto"}}},
+              overrides=[{"matcher": {"id": "byName", "options": _("Tag")}, "properties": [{"id": "unit", "value": "time: DD.MM."}, {"id": "custom.width", "value": 70}]},
+                         {"matcher": {"id": "byName", "options": _("Uhrzeit")}, "properties": [{"id": "unit", "value": "time: HH:mm"}, {"id": "custom.width", "value": 70}]},
+                         {"matcher": {"id": "byName", "options": _("Spitze")}, "properties": [{"id": "unit", "value": "watt"}, {"id": "decimals", "value": 0}, {"id": "custom.cellOptions", "value": {"type": "gauge", "mode": "gradient"}}, {"id": "color", "value": {"mode": "fixed", "fixedColor": C_PV}}, {"id": "min", "value": 0}]},
+                         {"matcher": {"id": "byName", "options": _("Sonnenazimut")}, "properties": [{"id": "unit", "value": "degree"}, {"id": "decimals", "value": 0}]},
+                         {"matcher": {"id": "byName", "options": _("Sonnenhöhe")}, "properties": [{"id": "unit", "value": "degree"}, {"id": "decimals", "value": 0}]}],
+              desc=_("Höchste Minutenleistung je String und Tag mit Uhrzeit und Sonnenstand in diesem Moment. Nur Strings mit mehr als 5 W.")),
+        ts(_("Tagesspitzen je String (30 Tage)"), 10, y, 14, 10, [target(q_peaks_bars)], "watt", bars=True, overrides=string_ovr,
+           defaults_extra={"displayName": S + " ${__field.labels.string}"}, desc=_("Höchste Minutenleistung je Tag, Balken auf Tagesmitte.")),
+    ]
+    y += 10
+    heat_desc = _("Stundenmittel der Leistung, Zeile = Tag, Spalte = Stunde (lokale Zeit). Dunkel = wenig, hell = viel. Wandernde Muster zeigen Ausrichtung und Verschattung.")
+    heat_def = {"custom": {"hideFrom": {"legend": False, "tooltip": False, "viz": False}, "scaleDistribution": {"type": "linear"}}}
+    panels += [
+        {**panel("heatmap", _("PV gesamt: Stunde × Tag (30 Tage)"), 0, y, 12, 9, [target(q_heat(PV_EXPR))], "watt", opts=heat_opts, defaults=heat_def, desc=heat_desc), "transformations": heat_tf},
+        {**panel("heatmap", _("String $string: Stunde × Tag (30 Tage)"), 12, y, 12, 9, [target(q_heat("r.pv${string}Voltage * r.pv${string}Current"))], "watt", opts=heat_opts, defaults=heat_def, desc=heat_desc), "transformations": heat_tf},
+    ]
+    y += 9
+    panels += [
+        panel("state-timeline", _("Stärkster String je Stunde"), 0, y, 24, 5, [target(q_strongest)], None,
+              opts={"showValue": "auto", "rowHeight": 0.9, "mergeValues": True, "alignValue": "center", "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True}, "tooltip": {"mode": "single"}},
+              defaults={"displayName": S, "color": {"mode": "thresholds"}, "custom": {"fillOpacity": 80, "lineWidth": 0},
+                        "mappings": [{"type": "value", "options": {**{str(i): {"text": f"{S} {i}", "color": c, "index": i} for i, c in S_COL.items()}, "-": {"text": _("Nacht"), "color": "dark-gray", "index": 0}}}]},
+              desc=_("Welcher String im Stundenmittel am meisten liefert. Ost-Strings führen morgens, West-Strings nachmittags. Grau = unter 5 W.")),
+    ]
+    y += 5
+    panels += [
+        ts(_("Gemessen vs. erwartet je String"), 0, y, 16, 10, [
+            target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5)}), "A"),
+            target(q_expected, "B")], "watt", fill=8,
+           overrides=string_ovr + expected_ovr + [{"matcher": {"id": "byFrameRefID", "options": "B"}, "properties": [{"id": "displayName", "value": _("Erwartet") + " ${__field.labels.string}"}]}],
+           desc=_("Gemessen: Spannung × Strom je String. Erwartet: Open-Meteo-Strahlung (DNI/DHI/GHI) auf die konfigurierte Modulfläche umgerechnet, mal Wp mal Performance-Ratio (Sidecar weather). Ohne Neigung/Ausrichtung auf der Einstellungsseite bleibt „Erwartet“ leer. Wiederkehrende Einbrüche zur gleichen Uhrzeit = Verschattung.")),
+        ts(_("Sonnenstand"), 16, y, 8, 10, [target(q_sun("elevation", _("Höhe")), "A"), target(q_sun("azimuth", _("Azimut")), "B")], "degree", fill=15,
+           overrides=[color_override(_("Höhe"), C_PV), color_override(_("Azimut"), "blue"),
+                      {"matcher": {"id": "byName", "options": _("Azimut")}, "properties": [{"id": "custom.axisPlacement", "value": "right"}, {"id": "custom.fillOpacity", "value": 0}, {"id": "min", "value": 0}, {"id": "max", "value": 360}]},
+                      {"matcher": {"id": "byName", "options": _("Höhe")}, "properties": [{"id": "min", "value": -20}, {"id": "max", "value": 70}]}],
+           desc=_("Azimut 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Höhe über dem Horizont, jede Minute vom Sidecar weather berechnet (NOAA).")),
+    ]
+    y += 10
+    panels += [
+        panel("xychart", _("Leistung über Sonnenazimut"), 0, y, 16, 10, [target(q_xy(i), r) for i, r in zip(range(1, 5), "ABCD")], None,
+              opts={"mapping": "auto", "series": [{"x": {"matcher": {"id": "byName", "options": "azimuth"}}, "y": {"matcher": {"id": "byName", "options": "power"}}}],
+                    "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True}, "tooltip": {"mode": "single"}},
+              defaults={"custom": {"show": "points", "pointSize": {"fixed": 4}, "pointShape": "circle", "pointStrokeWidth": 1, "fillOpacity": 60, "axisPlacement": "auto", "axisLabel": "", "axisGridShow": True}},
+              overrides=[{"matcher": {"id": "byFrameRefID", "options": r}, "properties": [{"id": "displayName", "value": f"{S} {i}"}, {"id": "color", "value": {"mode": "fixed", "fixedColor": c}}]} for i, r, c in zip(range(1, 5), "ABCD", S_COL.values())]
+                        + [{"matcher": {"id": "byName", "options": "azimuth"}, "properties": [{"id": "unit", "value": "degree"}, {"id": "min", "value": 60}, {"id": "max", "value": 300}, {"id": "displayName", "value": _("Sonnenazimut")}]},
+                           {"matcher": {"id": "byName", "options": "power"}, "properties": [{"id": "unit", "value": "watt"}, {"id": "min", "value": 0}]}],
+              desc=_("Jeder Punkt ein 5-Minuten-Mittel im gewählten Zeitraum. Der Schwerpunkt der Punktwolke zeigt, wohin ein String schaut; ein Einbruch bei einem festen Azimut ist ein Hindernis. Für ein Sonnenbahn-Polardiagramm siehe die GroLo-Website.")),
+        panel("stat", _("Sonne jetzt"), 16, y, 8, 4, [target(q_last_named("azimuth", _("Azimut"), "sun", "-10m"), "A"), target(q_last_named("elevation", _("Höhe"), "sun", "-10m"), "B")], "degree",
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
+              defaults={"decimals": 1, "color": {"mode": "fixed", "fixedColor": C_PV}}, overrides=[color_override(_("Azimut"), "blue")]),
+        {"id": nid(), "type": "text", "title": _("Ausrichtung schätzen"), "gridPos": {"x": 16, "y": y + 4, "w": 8, "h": 6},
+         "options": {"mode": "markdown", "content": _("**Neigung und Ausrichtung** je String auf der [Einstellungsseite](http://${__url.params:hostname}:8080/#sec-site) eintragen, dann füllt sich „Erwartet“.\n\nUnbekannt? `python3 scripts/fit-orientation.py` vergleicht die gemessenen Stundenkurven der letzten Wochen mit dem Modell für alle Ausrichtungen und schlägt Werte vor (braucht einige sonnige Tage).")}},
+    ]
+    y += 10
+
     # ============================================================ Batterie und Technik
     panels.append(row(_("Batterie und Technik"), y)); y += 1
     B = _("Batterie")
@@ -592,7 +786,9 @@ def build(lang):
             {"title": _("Einstellungen"), "type": "link", "url": "http://${__url.params:hostname}:8080/", "icon": "external link", "tooltip": _("Einstellungsseite (GroLo)"), "targetBlank": True, "asDropdown": False},
             {"title": "Deutsch" if lang == "en" else "English", "type": "link", "url": "/d/nexa2000-de" if lang == "en" else "/d/nexa2000", "icon": "external link", "tooltip": "", "targetBlank": False, "asDropdown": False, "keepTime": True},
         ],
-        "schemaVersion": 39, "version": 1, "panels": panels, "templating": {"list": []}, "annotations": {"list": []},
+        "schemaVersion": 39, "version": 1, "panels": panels, "annotations": {"list": []},
+        "templating": {"list": [{"type": "custom", "name": "string", "label": _("String") + " (Heatmap)", "query": "1,2,3,4", "current": {"text": "1", "value": "1", "selected": True},
+                                 "options": [{"text": str(i), "value": str(i), "selected": i == 1} for i in range(1, 5)], "hide": 0, "includeAll": False, "multi": False}]},
     }
 
 

@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.36.5** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.37.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 ## Screenshots
 
@@ -77,7 +77,8 @@ Edit `.env`:
 | `INFLUX_ADMIN_PASSWORD`, `INFLUX_TOKEN`, `GRAFANA_ADMIN_PASSWORD` | choose your own; `openssl rand -hex 32` for the token |
 | `CLOUD_HOSTS` | IP addresses of `mqtt.growatt.com` as seen from **outside** your LAN (`dig mqtt.growatt.com @1.1.1.1`) |
 | `GROBRO_MAX_SLOTS` | number of time slots to expose (NEXA: 9) |
-| `WEATHER_LAT`, `WEATHER_LON` | plant location for the Open-Meteo weather service |
+| `WEATHER_LAT`, `WEATHER_LON` | plant location for weather and sun position (starting value; the settings page can change it later) |
+| `STRING1_TILT`, `STRING1_AZIMUTH`, `STRING1_WP` … | panel tilt/azimuth/Wp per string for the expected-yield model (optional, also editable on the settings page) |
 
 ### 2. DuckDNS
 
@@ -165,11 +166,13 @@ two DNS records. The dongle reconnects within seconds; the gap in our move was a
 dongle model/software/Wi-Fi signal), operating mode switch, charge/discharge limits, output power, operating switches, all
 9 time slots, cloud relay switch with status, dongle settings (interval, time zone, clock sync, restart), and a log with
 confirmations from the device. Controls are generated from GroBro's Home Assistant discovery, so anything GroBro exposes appears
-automatically. Every write is confirmed by reading the register back.
+automatically. Every write is confirmed by reading the register back. A **Location and panels** section sets the plant location
+by place or postcode search (Open-Meteo geocoding) and tilt/azimuth/Wp per string; it is stored as a retained MQTT message
+(`homeassistant/grolo/config/site`) and picked up by the weather service immediately.
 
 **Grafana**: live tiles (PV from the strings, output from register 116, battery as balance), power history, SoC, daily energy
 bars, energy split pies, today/month/year/total energy computed from measurements, per-string power/voltage/current, PV inputs
-in use (> 15 V), temperatures, cell voltages, packs, firmware and dongle info, and a research row with the raw registers GroBro
+in use (> 15 V), a **Daily peaks, sun position and model** row (see below), temperatures, cell voltages, packs, firmware and dongle info, and a research row with the raw registers GroBro
 does not know yet. Free MPPT inputs read about 7 V on the NEXA, connected panels 30 V and more.
 
 **MQTT topics** (prefix `homeassistant/`, GroBro's namespace):
@@ -204,6 +207,30 @@ Grafana row **Weather**: outdoor temperature, conditions, cloud cover, global ir
 irradiation sum today/tomorrow, irradiance versus PV power on two axes (shading, orientation and soiling show up here),
 cloud cover and temperature, and the 48-hour forecast of irradiance and cloud cover.
 
+## Daily peaks, sun position and expected yield
+
+The weather service also computes the **sun position** (azimuth/elevation, NOAA algorithm in `grobro/sidecar/solar.py`) every
+minute (`homeassistant/grolo/sun`, measurement `sun`) and, for every string with tilt/azimuth configured, the **expected power**
+per hour for the last 24 h and the next 48 h: Open-Meteo direct-normal, diffuse and global irradiance transposed onto the panel
+plane (isotropic sky model), times Wp times a performance ratio (`STRING_PR`, default 0.85). Rows go to `homeassistant/grolo/pv_model`
+and measurement `pv_model` (tag `string`).
+
+Grafana row **Daily peaks, sun position and model**: table of the highest one-minute power per string and day with the time and
+the sun position at that moment, daily peak bars per string, hour × day heatmaps (total PV and a selectable string; shifting
+patterns reveal orientation and shading), the strongest string per hour as a state timeline, measured vs. expected per string,
+sun elevation/azimuth, and power plotted against sun azimuth (the centre of the cloud shows where a string faces, a dip at a
+fixed azimuth is an obstacle).
+
+Do not know tilt and azimuth? `python3 scripts/fit-orientation.py` pulls the hourly string power of the last 30 days from
+InfluxDB and the matching irradiance from Open-Meteo, fits the model for every orientation in 5° steps and prints the best
+match per string with the effective Wp; `--apply` writes the result to the settings topic. It needs a few sunny days and says
+so when the data cannot distinguish orientations yet.
+
+The optional [GroLo website](https://github.com/csieb2001/grolo-web) receives location, sun position and the model and shows a
+**sun-path polar chart** (paths for solstices, equinox and the selected day, the daily peak of each string as a dot at the sun
+position of that moment, panel orientations as squares), a day slider that animates the sun and lets the strings glow with their
+power, an hour × day heatmap per string, and measured vs. expected for the selected day.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -226,7 +253,7 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `dongle-info` | grobro image + `grobro/sidecar/dongle_info.py` | decodes the dongle's 0xFE19 configuration message (GroBro ignores it for NEXA) |
 | `raw-registers` | grobro image + `grobro/sidecar/raw_registers.py` | publishes registers GroBro does not map, for research |
 | `cloud-gate` | grobro image + `grobro/sidecar/cloud_gate.py` | switchable, filtering TLS relay to the Growatt cloud |
-| `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast for the plant location |
+| `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast, sun position every minute, expected power per string (`solar.py`) |
 | `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples to the optional GroLo website (Vercel) |
 
 `grobro/registers/growatt_nexa_registers.json` is a copy of GroBro's NEXA register map extended with the firmware registers
@@ -280,14 +307,15 @@ scripts/setup-certs.sh       Let's Encrypt via acme.sh + DuckDNS
 scripts/build-chain.sh       assemble and verify the full chain
 scripts/verify.sh            14-step health check
 scripts/test-panels.py       run every Grafana panel query
+scripts/fit-orientation.py   estimate tilt/azimuth per string from the measurements
 telegraf/telegraf.conf       MQTT → InfluxDB
 grafana/build-dashboard.py   generates grafana/dashboards/nexa-en.json and nexa-de.json
 grafana/provisioning/        data source and dashboard provider
 settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
-grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, web_push.py
+grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.36.5
+VERSION                      2026.37.1
 ```
 
 License: MIT.

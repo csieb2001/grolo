@@ -55,7 +55,7 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.36.5</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.37.1</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -79,6 +79,20 @@
   <section id="sec-slots"><h2 data-t="sec.slots"></h2><p class="hint" data-t="sec.slots.hint"></p>
     <div class="tablewrap"><table><thead><tr><th>Slot</th><th data-t="slots.active"></th><th data-t="slots.start"></th><th data-t="slots.end"></th><th data-t="slots.mode"></th><th data-t="slots.power"></th><th></th></tr></thead><tbody id="slots"></tbody></table></div>
   </section>
+  <section id="sec-site"><h2 data-t="sec.site"></h2><p class="hint" data-t="sec.site.hint"></p>
+    <div class="grid">
+      <div class="ctl"><div class="top"><label data-t="site.place"></label><span class="cur unknown" id="site-cur">–</span></div>
+        <div class="desc" data-t="site.place.desc"></div>
+        <div class="row"><input type="text" id="site-q" placeholder="25421 Pinneberg"><button id="site-search" data-t="site.search"></button></div>
+        <div class="row"><select id="site-results" hidden></select></div>
+        <div class="row"><span class="muted" style="min-width:60px" data-t="site.coords"></span><input type="number" id="site-lat" step="0.0001" min="-90" max="90" placeholder="53.66"><input type="number" id="site-lon" step="0.0001" min="-180" max="180" placeholder="9.80"></div>
+      </div>
+      <div class="ctl"><div class="top"><label data-t="site.sun"></label></div><div class="desc" id="site-sun" data-t="site.sun.waiting"></div></div>
+    </div>
+    <h3 data-t="site.strings"></h3><p class="hint" data-t="site.strings.hint"></p>
+    <div class="tablewrap"><table><thead><tr><th>String</th><th data-t="site.tilt"></th><th data-t="site.azimuth"></th><th data-t="site.wp"></th><th data-t="site.now"></th></tr></thead><tbody id="site-strings"></tbody></table></div>
+    <div class="row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="site-save" class="primary" data-t="site.save"></button><span class="muted" id="site-status"></span></div>
+  </section>
   <section id="sec-cloud"><h2 data-t="sec.cloud"></h2><p class="hint" data-t="sec.cloud.hint"></p>
     <div class="grid">
       <div class="ctl"><div class="top"><label data-t="cloud.switch"></label><span class="cur unknown" id="cloud-state">–</span></div>
@@ -91,7 +105,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.36.5 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.37.1 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -118,6 +132,13 @@
       'sec.output': 'Output and operation', 'sec.output.hint': 'Base output and operating switches. Default output power is the fallback after a restart and is stored in flash, so change it rarely. Use the slot power for continuous control.',
       'sec.slots': 'Time slots', 'sec.slots.hint': 'Times in the device\'s local time. Power applies to the output within the slot and is held in RAM only (no flash wear).',
       'slots.active': 'Active', 'slots.start': 'Start', 'slots.end': 'End', 'slots.mode': 'Mode', 'slots.power': 'Power', 'slots.nochange': 'nothing changed',
+      'sec.site': 'Location and panels', 'sec.site.hint': 'Used by the weather service, the sun position, the expected-yield model and the sun-path chart. Stored on the local broker (retained), takes effect immediately, no restart needed.',
+      'site.place': 'Location', 'site.place.desc': 'Search by town or postcode (Open-Meteo geocoding, no key) or enter coordinates directly.', 'site.search': 'Search', 'site.coords': 'Lat / Lon',
+      'site.sun': 'Sun now', 'site.sun.waiting': 'Waiting for the weather service…', 'site.azimuthNow': 'azimuth', 'site.elevationNow': 'elevation', 'site.uses': 'weather service uses',
+      'site.strings': 'Panels per string', 'site.strings.hint': 'Tilt 0° = flat, 90° = vertical (balcony railing). Azimuth is the direction the panel faces: 0 = north, 90 = east, 180 = south, 270 = west. Wp = nominal power of the panels on that input. Leave empty for unused inputs.',
+      'site.tilt': 'Tilt °', 'site.azimuth': 'Azimuth °', 'site.wp': 'Wp', 'site.now': 'Now', 'site.save': 'Save location and panels', 'site.saved': 'saved, weather service is recalculating', 'site.invalid': 'Enter a valid location first',
+      'site.nohit': 'no place found', 'site.searcherr': 'geocoding not reachable', 'site.free': 'free', 'log.site': 'Location/panels saved',
+      'compass': { 'N': 'N', 'NE': 'NE', 'E': 'E', 'SE': 'SE', 'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW' },
       'sec.cloud': 'Growatt cloud', 'sec.cloud.hint': 'Forward the device data through this host to the Growatt cloud so ShinePhone keeps working. The dongle itself stays blocked; the cloud-gate service opens the connection and drops configuration writes from the cloud to the dongle (broker, port).',
       'cloud.switch': 'Forward to cloud', 'cloud.desc': 'On = data also goes to Growatt and the app shows live values. Off = everything stays local.', 'cloud.status': 'Status',
       'cloud.conns': 'connections from the bridge', 'cloud.tocloud': 'to the cloud', 'cloud.bytes': 'up / down', 'cloud.blocked': 'dropped config writes', 'cloud.since': 'since', 'cloud.confirmoff': 'Switch off cloud forwarding? ShinePhone will stop showing live data.',
@@ -153,6 +174,13 @@
       'sec.output': 'Ausgang und Betrieb', 'sec.output.hint': 'Grundleistung und Betriebsschalter. Default-Ausgangsleistung ist der Rückfallwert nach einem Neustart und wird im Flash gespeichert, also selten ändern. Für laufende Regelung die Slot-Leistung nutzen.',
       'sec.slots': 'Zeitfenster (Slots)', 'sec.slots.hint': 'Zeiten in lokaler Zeit des Geräts. Leistung gilt für den Ausgang im Zeitfenster und wird nur im RAM gehalten (verschleißfrei).',
       'slots.active': 'Aktiv', 'slots.start': 'Start', 'slots.end': 'Ende', 'slots.mode': 'Modus', 'slots.power': 'Leistung', 'slots.nochange': 'nichts geändert',
+      'sec.site': 'Standort und Module', 'sec.site.hint': 'Wird vom Wetterdienst, für den Sonnenstand, das Erwartungsmodell und das Sonnenbahn-Diagramm genutzt. Liegt auf dem lokalen Broker (retained), gilt sofort, kein Neustart nötig.',
+      'site.place': 'Standort', 'site.place.desc': 'Ort oder Postleitzahl suchen (Open-Meteo-Geocoding, ohne Schlüssel) oder Koordinaten direkt eintragen.', 'site.search': 'Suchen', 'site.coords': 'Lat / Lon',
+      'site.sun': 'Sonne jetzt', 'site.sun.waiting': 'Wartet auf den Wetterdienst…', 'site.azimuthNow': 'Azimut', 'site.elevationNow': 'Höhe', 'site.uses': 'Wetterdienst rechnet mit',
+      'site.strings': 'Module je String', 'site.strings.hint': 'Neigung 0° = flach, 90° = senkrecht (Balkongeländer). Azimut ist die Blickrichtung des Moduls: 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Wp = Nennleistung der Module an diesem Eingang. Ungenutzte Eingänge leer lassen.',
+      'site.tilt': 'Neigung °', 'site.azimuth': 'Azimut °', 'site.wp': 'Wp', 'site.now': 'Jetzt', 'site.save': 'Standort und Module speichern', 'site.saved': 'gespeichert, Wetterdienst rechnet neu', 'site.invalid': 'Bitte zuerst einen gültigen Standort wählen',
+      'site.nohit': 'kein Ort gefunden', 'site.searcherr': 'Geocoding nicht erreichbar', 'site.free': 'frei', 'log.site': 'Standort/Module gespeichert',
+      'compass': { 'N': 'N', 'NE': 'NO', 'E': 'O', 'SE': 'SO', 'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW' },
       'sec.cloud': 'Growatt-Cloud', 'sec.cloud.hint': 'Weiterleitung der Gerätedaten über diesen Host an die Growatt-Cloud, damit ShinePhone nutzbar bleibt. Der Dongle selbst bleibt gesperrt, der Dienst cloud-gate baut die Verbindung auf und verwirft Konfigurations-Schreibbefehle der Cloud an den Dongle (Broker, Port).',
       'cloud.switch': 'Weiterleitung zur Cloud', 'cloud.desc': 'An = Daten gehen zusätzlich an Growatt, die App zeigt Live-Werte. Aus = alles bleibt lokal.', 'cloud.status': 'Status',
       'cloud.conns': 'Verbindungen von der Bridge', 'cloud.tocloud': 'zur Cloud', 'cloud.bytes': 'hoch / runter', 'cloud.blocked': 'verworfene Konfig-Schreibbefehle', 'cloud.since': 'seit', 'cloud.confirmoff': 'Weiterleitung zur Growatt-Cloud ausschalten? ShinePhone zeigt dann keine Live-Daten mehr.',
@@ -188,7 +216,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, siteDirty: false, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -212,7 +240,7 @@
   client.on('connect', () => {
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
-                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`]);
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -223,6 +251,8 @@
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/availability$`)))) { if (m[1] === state.device) { setPill('avail', p === 'online' ? t('online') : t('offline'), p === 'online' ? 'ok' : 'bad'); if (state.avail !== p) log(`${t('log.avail')} ${p}`, p === 'online' ? 'log-ok' : 'log-err'); state.avail = p; } return; }
     if (topic === `${BASE}/switch/grobro/cloud_forward/get`) return onCloudState(p);
     if (topic === `${BASE}/grobro/cloud_forward/status`) { try { onCloudStatus(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/config/site`) { try { onSiteConfig(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/state$`)))) { if (!state.device || m[1] === state.device) { try { onState(m[1], JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/dongle$`)))) { if (!state.device || m[1] === state.device) { try { onDongle(JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/([^/]+)/grobro/([^/]+)/([^/]+)/get$`)))) return onValue(m[1], m[2], m[3], p);
@@ -311,7 +341,7 @@
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
   }
-  const renderAll = () => { if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
 
   function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
   function updateValue(id) {
@@ -452,6 +482,8 @@
     for (let i = n + 1; i <= 4; i++) if (Number(st[`battery${i}Soc`]) > 0) rows.push(`<tr><td class="slotno">${i} (${t('packs.reported')})</td><td>${num(st[`battery${i}Soc`], 0)} %</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>`);
     document.getElementById('packs').innerHTML = rows.join('');
     updateModeControl();
+    for (let i = 1; i <= 4; i++) { const el = document.getElementById(`site-s${i}-now`); if (!el) continue; const v = Number(st[`pv${i}Voltage`]), a = Number(st[`pv${i}Current`]);
+      el.textContent = v > 15 ? `${(v * a).toFixed(0)} W · ${v.toFixed(1)} V` : t('site.free'); el.style.color = v > 15 ? 'var(--accent)' : 'var(--muted)'; }
   }
   function onDongle(d, rerender = false) {
     if (!rerender && (!state.dongle || state.dongle.received_at !== d.received_at)) log(`${t('log.dongle')}: ${d.model_id} SW ${d.sw_version}, Wi-Fi ${d.wifi_signal} dBm`, 'log-info');
@@ -488,6 +520,66 @@
     client.publish(`${BASE}/switch/grobro/cloud_forward/set`, on ? 'ON' : 'OFF'); log(`→ ${t('log.cloudset')} ${on ? t('on').toUpperCase() : t('off').toUpperCase()}`, 'log-tx'); };
   document.getElementById('cloud-on').onclick = () => cloudSet(true);
   document.getElementById('cloud-off').onclick = () => { if (confirm(t('cloud.confirmoff'))) cloudSet(false); };
+
+  // ------------------------------------------------------------------ Standort und Module / location and panels
+  const COMPASS = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
+  const $ = id => document.getElementById(id);
+  const markDirty = () => { state.siteDirty = true; $('site-status').textContent = ''; };
+  function renderSiteStrings() {
+    const tb = $('site-strings'); const keep = {}; for (let i = 1; i <= 4; i++) keep[i] = { tilt: $(`site-s${i}-tilt`)?.value, az: $(`site-s${i}-az`)?.value, wp: $(`site-s${i}-wp`)?.value };
+    tb.innerHTML = [1, 2, 3, 4].map(i => `<tr><td class="slotno">${i}</td>
+      <td><input type="number" id="site-s${i}-tilt" min="0" max="90" step="1" placeholder="–"></td>
+      <td style="display:flex;gap:4px"><input type="number" id="site-s${i}-az" min="0" max="359" step="1" placeholder="–" style="min-width:70px"><select id="site-s${i}-dir" style="flex:0 0 auto"><option value="">…</option>${Object.keys(COMPASS).map(k => `<option value="${k}">${t('compass')[k]}</option>`).join('')}</select></td>
+      <td><input type="number" id="site-s${i}-wp" min="0" max="5000" step="5" placeholder="–"></td>
+      <td id="site-s${i}-now" class="muted">–</td></tr>`).join('');
+    for (let i = 1; i <= 4; i++) {
+      if (keep[i].tilt != null) { $(`site-s${i}-tilt`).value = keep[i].tilt; $(`site-s${i}-az`).value = keep[i].az; $(`site-s${i}-wp`).value = keep[i].wp; }
+      $(`site-s${i}-dir`).onchange = e => { if (e.target.value) { $(`site-s${i}-az`).value = COMPASS[e.target.value]; markDirty(); } };
+      for (const k of ['tilt', 'az', 'wp']) $(`site-s${i}-${k}`).oninput = markDirty;
+    }
+    if (state.st) onState(state.device, state.st, true);
+  }
+  renderSiteStrings();
+  for (const id of ['site-lat', 'site-lon']) $(id).oninput = () => { markDirty(); $('site-q').dataset.name = ''; };
+  function onSiteConfig(cfg, rerender = false) {
+    state.site = cfg;
+    $('site-cur').textContent = cfg.name ? `${cfg.name} (${Number(cfg.lat).toFixed(3)}, ${Number(cfg.lon).toFixed(3)})` : `${Number(cfg.lat).toFixed(3)}, ${Number(cfg.lon).toFixed(3)}`; $('site-cur').className = 'cur';
+    if (state.siteDirty && !rerender) return;   // eigene Eingabe nicht überschreiben
+    $('site-lat').value = cfg.lat ?? ''; $('site-lon').value = cfg.lon ?? ''; $('site-q').value = cfg.name || ''; $('site-q').dataset.name = cfg.name || '';
+    for (let i = 1; i <= 4; i++) { const c = (cfg.strings || {})[String(i)] || {}; $(`site-s${i}-tilt`).value = c.tilt ?? ''; $(`site-s${i}-az`).value = c.azimuth ?? ''; $(`site-s${i}-wp`).value = c.wp || ''; }
+  }
+  function onWeatherCurrent(w) {
+    state.wx = w;
+    const site = w.site || {}; const strs = Object.entries(w.strings || {}).map(([k, c]) => `${k}: ${Number(c.tilt).toFixed(0)}°/${Number(c.azimuth).toFixed(0)}°${c.wp ? '/' + Number(c.wp).toFixed(0) + ' Wp' : ''}`).join(', ');
+    $('site-sun').innerHTML = [w.sun_azimuth != null ? `${t('site.azimuthNow')} ${Number(w.sun_azimuth).toFixed(1)}° · ${t('site.elevationNow')} ${Number(w.sun_elevation).toFixed(1)}°` : '',
+      `${t('site.uses')}: ${site.name ? site.name + ' ' : ''}${site.lat != null ? '(' + Number(site.lat).toFixed(3) + ', ' + Number(site.lon).toFixed(3) + ')' : (w.latitude ?? '–') + ', ' + (w.longitude ?? '–')}${strs ? ' · ' + strs : ''}`,
+      `${w.condition_de && lang === 'de' ? w.condition_de : (w.condition_en || '')} ${w.temperature != null ? w.temperature + ' °C' : ''} · ${w.shortwave_radiation ?? '–'} W/m²`].filter(Boolean).join('<br>');
+    if (!state.site && !state.siteDirty && site.lat != null) { $('site-lat').value = site.lat; $('site-lon').value = site.lon; }
+  }
+  async function siteSearch() {
+    const q = $('site-q').value.trim(); if (!q) return;
+    const sel = $('site-results'); sel.hidden = true; $('site-status').textContent = '…';
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=${lang}&format=json`);
+      const d = await r.json(); const res = d.results || [];
+      if (!res.length) { $('site-status').textContent = t('site.nohit'); return; }
+      sel.innerHTML = res.map((x, i) => `<option value="${i}">${[x.name, x.postcodes?.[0], x.admin1, x.country].filter(Boolean).join(', ')} (${x.latitude.toFixed(3)}, ${x.longitude.toFixed(3)})</option>`).join('');
+      sel.hidden = false; $('site-status').textContent = '';
+      const pick = () => { const x = res[Number(sel.value)]; $('site-lat').value = x.latitude.toFixed(4); $('site-lon').value = x.longitude.toFixed(4); $('site-q').dataset.name = [x.postcodes?.[0], x.name].filter(Boolean).join(' '); markDirty(); };
+      sel.onchange = pick; pick();
+    } catch (e) { $('site-status').textContent = t('site.searcherr'); }
+  }
+  $('site-search').onclick = siteSearch; $('site-q').onkeydown = e => { if (e.key === 'Enter') siteSearch(); };
+  $('site-save').onclick = () => {
+    const lat = parseFloat($('site-lat').value), lon = parseFloat($('site-lon').value);
+    if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { $('site-status').textContent = t('site.invalid'); return; }
+    const strings = {};
+    for (let i = 1; i <= 4; i++) { const tilt = parseFloat($(`site-s${i}-tilt`).value), az = parseFloat($(`site-s${i}-az`).value), wp = parseFloat($(`site-s${i}-wp`).value);
+      if (!isNaN(tilt) && !isNaN(az)) strings[i] = { tilt, azimuth: az, wp: isNaN(wp) ? 0 : wp }; }
+    const cfg = { name: $('site-q').dataset.name || $('site-q').value.trim(), lat, lon, strings, updated: Math.floor(Date.now() / 1000) };
+    client.publish(`${BASE}/grolo/config/site`, JSON.stringify(cfg), { qos: 0, retain: true });
+    state.siteDirty = false; $('site-status').textContent = t('site.saved'); log(`→ ${t('log.site')}: ${cfg.name || ''} (${lat}, ${lon}), ${Object.keys(strings).length} Strings`, 'log-tx');
+  };
 })();
 </script>
 </body>

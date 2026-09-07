@@ -13,11 +13,22 @@ Veröffentlicht per MQTT (retained):
 Schreibt die Vorhersage zusätzlich direkt nach InfluxDB (Measurement "weather_forecast", Zeitstempel = Vorhersagestunde,
 neuere Vorhersagen überschreiben ältere).
 
+Sonnenstand und Erwartungsmodell (solar.py):
+  <BASE>/grolo/sun        Azimut/Höhe der Sonne, jede Minute, zusätzlich Measurement "sun" in InfluxDB
+  <BASE>/grolo/pv_model   erwartete Leistung je konfiguriertem String (STRING<n>_TILT/_AZIMUTH/_WP) für die letzten 24 h
+                          und die nächsten 48 h, stündlich aus DNI/DHI/GHI; zusätzlich Measurement "pv_model" (Tag string)
+
+Standort und Strings kommen aus der Umgebung (WEATHER_LAT/LON, STRING<n>_*) und werden von der retained Nachricht
+<BASE>/grolo/config/site (Einstellungsseite: Ortssuche, Neigung/Ausrichtung/Wp je String) überschrieben.
+
 Umgebung: WEATHER_LAT, WEATHER_LON, WEATHER_INTERVAL (s, Standard 600), MQTT_HOST, MQTT_PORT, HA_BASE_TOPIC,
-          INFLUX_URL (Standard http://influxdb:8086), INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET
+          INFLUX_URL (Standard http://influxdb:8086), INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET,
+          STRING1_TILT … STRING4_AZIMUTH/_WP, STRING_PR (Performance-Ratio, Standard 0,85)
 """
-import json, logging, os, time, urllib.parse, urllib.request
+import json, logging, os, sys, threading, time, urllib.parse, urllib.request
 import paho.mqtt.client as mqtt
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from solar import sun_position, poa_irradiance, expected_w, string_config
 
 BASE = os.getenv("HA_BASE_TOPIC", "homeassistant")
 HOST = os.getenv("MQTT_HOST", "mosquitto"); PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -42,9 +53,40 @@ WMO = {
 
 URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
        "&current=temperature_2m,cloud_cover,weather_code,shortwave_radiation,direct_radiation,diffuse_radiation,wind_speed_10m,is_day"
-       "&hourly=shortwave_radiation,cloud_cover,temperature_2m,weather_code"
+       "&hourly=shortwave_radiation,direct_normal_irradiance,diffuse_radiation,cloud_cover,temperature_2m,weather_code"
        "&daily=sunrise,sunset,sunshine_duration,shortwave_radiation_sum"
-       "&forecast_days=3&timezone=auto&timeformat=unixtime")
+       "&past_days=1&forecast_days=3&timezone=auto&timeformat=unixtime")
+STRINGS = string_config()
+SITE = {"name": os.getenv("WEATHER_NAME", ""), "lat": float(LAT) if LAT else None, "lon": float(LON) if LON else None}
+refresh = threading.Event()   # wird gesetzt, wenn die Konfiguration sich ändert -> sofort neu rechnen
+
+
+def apply_site(cfg):
+    """Konfiguration von der Einstellungsseite übernehmen (retained <BASE>/grolo/config/site)."""
+    global LAT, LON, STRINGS
+    changed = False
+    try:
+        lat = float(cfg.get("lat")); lon = float(cfg.get("lon"))
+        if (LAT, LON) != (str(lat), str(lon)):
+            LAT, LON = str(lat), str(lon); changed = True
+        SITE.update({"name": cfg.get("name") or "", "lat": lat, "lon": lon})
+    except (TypeError, ValueError):
+        pass
+    strings = {}
+    pr = float(cfg.get("pr") or os.getenv("STRING_PR", 0.85) or 0.85)
+    for k, v in (cfg.get("strings") or {}).items():
+        try:
+            if v.get("tilt") is None or v.get("azimuth") is None:
+                continue
+            strings[int(k)] = {"tilt": float(v["tilt"]), "azimuth": float(v["azimuth"]), "wp": float(v.get("wp") or 0.0), "pr": pr}
+        except (TypeError, ValueError):
+            continue
+    if strings != STRINGS:
+        STRINGS = strings; changed = True
+    if changed:
+        LOG.info("Konfiguration übernommen: %s (%s, %s), Strings %s", SITE["name"] or "-", LAT, LON,
+                 ", ".join(f"{i}: {c['tilt']:.0f}°/{c['azimuth']:.0f}°/{c['wp']:.0f} Wp" for i, c in STRINGS.items()) or "keine")
+        refresh.set()
 
 
 def fetch():
@@ -72,7 +114,9 @@ def build(d):
         "sunrise_tomorrow": hhmm(daily["sunrise"][1], off), "sunset_tomorrow": hhmm(daily["sunset"][1], off),
         "radiation_sum_tomorrow": daily["shortwave_radiation_sum"][1], "sunshine_hours_tomorrow": round(daily["sunshine_duration"][1] / 3600.0, 2),
         "latitude": d.get("latitude"), "longitude": d.get("longitude"), "timezone": d.get("timezone"), "fetched": now,
+        "strings": {str(i): c for i, c in STRINGS.items()}, "site": dict(SITE),
     }
+    current["sun_azimuth"], current["sun_elevation"] = (round(v, 2) for v in sun_position(now, float(LAT), float(LON)))
     forecast = []
     for i, ts in enumerate(hourly["time"]):
         if ts < now - 3600 or ts > now + 48 * 3600:
@@ -81,7 +125,63 @@ def build(d):
                          "temperature": hourly["temperature_2m"][i], "weather_code": hourly["weather_code"][i]})
     state = {k: current[k] for k in ("temperature", "cloud_cover", "weather_code", "shortwave_radiation", "direct_radiation", "diffuse_radiation",
                                      "wind_speed", "is_day", "sunshine_hours_today", "radiation_sum_today", "radiation_sum_tomorrow", "sunrise", "sunset")}
-    return current, forecast, state
+    return current, forecast, state, model_rows(hourly, now)
+
+
+def model_rows(hourly, now):
+    """Erwartete Leistung je konfiguriertem String, stündlich von −24 h bis +48 h.
+
+    Open-Meteo-Stundenwerte der Strahlung sind Mittel der vorangehenden Stunde, deshalb Sonnenstand zur Stundenmitte
+    und Zeitstempel der Zeile ebenfalls Stundenmitte."""
+    rows = []
+    if not STRINGS:
+        return rows
+    lat, lon = float(LAT), float(LON)
+    for i, ts in enumerate(hourly["time"]):
+        if ts < now - 24 * 3600 or ts > now + 48 * 3600:
+            continue
+        ghi = hourly["shortwave_radiation"][i]; dni = hourly["direct_normal_irradiance"][i]; dhi = hourly["diffuse_radiation"][i]
+        if ghi is None or dni is None or dhi is None:
+            continue
+        mid = ts - 1800
+        az, el = sun_position(mid, lat, lon)
+        for n, c in STRINGS.items():
+            gti = poa_irradiance(ghi, dni, dhi, az, el, c["tilt"], c["azimuth"])
+            rows.append({"time": mid, "string": n, "gti": round(gti, 1), "expected_w": round(expected_w(gti, c["wp"], c["pr"]), 1) if c["wp"] else None})
+    return rows
+
+
+def influx_write(lines):
+    if not INFLUX_TOKEN or not lines:
+        return
+    q = urllib.parse.urlencode({"org": INFLUX_ORG, "bucket": INFLUX_BUCKET, "precision": "s"})
+    req = urllib.request.Request(f"{INFLUX_URL}/api/v2/write?{q}", data="\n".join(lines).encode(), method="POST",
+                                 headers={"Authorization": f"Token {INFLUX_TOKEN}", "Content-Type": "text/plain; charset=utf-8"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        r.read()
+
+
+def write_model(rows):
+    lines = []
+    for r in rows:
+        vals = f"gti={float(r['gti'])}" + (f",expected_w={float(r['expected_w'])}" if r["expected_w"] is not None else "")
+        lines.append(f"pv_model,string={int(r['string'])} {vals} {int(r['time'])}")
+    influx_write(lines)
+    if lines:
+        LOG.info("Modell: %d Stundenwerte für %d Strings nach InfluxDB geschrieben", len(lines), len(STRINGS))
+
+
+def sun_loop(client):
+    """Jede Minute: Sonnenstand per MQTT (retained) und nach InfluxDB."""
+    while True:
+        now = int(time.time())
+        try:
+            az, el = sun_position(now, float(LAT), float(LON))
+            client.publish(f"{BASE}/grolo/sun", json.dumps({"time": now, "azimuth": round(az, 2), "elevation": round(el, 2)}), retain=True)
+            influx_write([f"sun azimuth={az:.3f},elevation={el:.3f} {now}"])
+        except Exception as e:
+            LOG.debug("Sonnenstand: %s", e)
+        time.sleep(60 - (time.time() % 60))
 
 
 def write_forecast(forecast):
@@ -91,40 +191,46 @@ def write_forecast(forecast):
     for f in forecast:
         vals = ",".join(f"{k}={float(f[k])}" for k in ("shortwave_radiation", "cloud_cover", "temperature") if f.get(k) is not None)
         lines.append(f"weather_forecast {vals},weather_code={int(f['weather_code'])}i {int(f['time'])}")
-    q = urllib.parse.urlencode({"org": INFLUX_ORG, "bucket": INFLUX_BUCKET, "precision": "s"})
-    req = urllib.request.Request(f"{INFLUX_URL}/api/v2/write?{q}", data="\n".join(lines).encode(), method="POST",
-                                 headers={"Authorization": f"Token {INFLUX_TOKEN}", "Content-Type": "text/plain; charset=utf-8"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        r.read()
+    influx_write(lines)
     LOG.info("Vorhersage: %d Stunden nach InfluxDB geschrieben", len(lines))
 
 
 def main():
-    if not LAT or not LON:
-        LOG.error("WEATHER_LAT/WEATHER_LON fehlen"); time.sleep(3600); return
     client = mqtt.Client(client_id="grolo-weather", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+    client.on_connect = lambda c, u, f, rc, p=None: c.subscribe(f"{BASE}/grolo/config/site")
+    def on_message(c, u, msg):
+        try:
+            apply_site(json.loads(msg.payload))
+        except Exception as e:
+            LOG.warning("Konfiguration unlesbar: %s", e)
+    client.on_message = on_message
     while True:
         try:
             client.connect(HOST, PORT, 60); break
         except Exception as e:
             LOG.warning("MQTT nicht erreichbar (%s)", e); time.sleep(5)
     client.loop_start()
-    LOG.info("Standort %s, %s; Intervall %ss", LAT, LON, INTERVAL)
+    LOG.info("Standort %s, %s; Intervall %ss; Strings mit Ausrichtung: %s", LAT, LON, INTERVAL,
+             ", ".join(f"{i}: {c['tilt']:.0f}°/{c['azimuth']:.0f}°/{c['wp']:.0f} Wp" for i, c in STRINGS.items()) or "keine (STRING<n>_TILT/_AZIMUTH setzen)")
+    threading.Thread(target=sun_loop, args=(client,), daemon=True).start()
     while True:
+        if not LAT or not LON:
+            LOG.warning("Kein Standort: WEATHER_LAT/WEATHER_LON setzen oder Ort auf der Einstellungsseite wählen"); refresh.wait(60); refresh.clear(); continue
         try:
-            current, forecast, state = build(fetch())
+            current, forecast, state, model = build(fetch())
             client.publish(f"{BASE}/grolo/weather/current", json.dumps(current, ensure_ascii=False), retain=True)
             client.publish(f"{BASE}/grolo/weather/forecast", json.dumps(forecast), retain=True)
             client.publish(f"{BASE}/grolo/weather/state", json.dumps(state), retain=True)
+            client.publish(f"{BASE}/grolo/pv_model", json.dumps({"strings": current["strings"], "hours": model}), retain=True)
             LOG.info("%s, %.1f °C, Bewölkung %s %%, Strahlung %s W/m², Sonne %s-%s", current["condition_de"], current["temperature"],
                      current["cloud_cover"], current["shortwave_radiation"], current["sunrise"], current["sunset"])
             try:
-                write_forecast(forecast)
+                write_forecast(forecast); write_model(model)
             except Exception as e:
                 LOG.warning("InfluxDB-Schreiben fehlgeschlagen: %s", e)
         except Exception as e:
             LOG.warning("Abruf fehlgeschlagen: %s", e)
-        time.sleep(INTERVAL)
+        refresh.wait(INTERVAL); refresh.clear()
 
 
 main()
