@@ -18,6 +18,10 @@ Sonnenstand und Erwartungsmodell (solar.py):
   <BASE>/grolo/pv_model   erwartete Leistung je konfiguriertem String (STRING<n>_TILT/_AZIMUTH/_WP) für die letzten 24 h
                           und die nächsten 48 h, stündlich aus DNI/DHI/GHI; zusätzlich Measurement "pv_model" (Tag string)
 
+Ausrichtungsschätzung (fit.py): alle FIT_INTERVAL Sekunden (Standard 24 h) und auf Kommando (<BASE>/grolo/fit/run) werden
+Neigung/Azimut/Wp je String aus den letzten FIT_DAYS Tagen geschätzt; Ergebnis retained unter <BASE>/grolo/fit und als
+Measurement "pv_fit" (Tag string) in InfluxDB.
+
 Standort und Strings kommen aus der Umgebung (WEATHER_LAT/LON, STRING<n>_*) und werden von der retained Nachricht
 <BASE>/grolo/config/site (Einstellungsseite: Ortssuche, Neigung/Ausrichtung/Wp je String) überschrieben.
 
@@ -29,6 +33,7 @@ import json, logging, os, sys, threading, time, urllib.parse, urllib.request
 import paho.mqtt.client as mqtt
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from solar import sun_position, poa_irradiance, expected_w, string_config
+from fit import run_fit
 
 BASE = os.getenv("HA_BASE_TOPIC", "homeassistant")
 HOST = os.getenv("MQTT_HOST", "mosquitto"); PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -59,6 +64,8 @@ URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
 STRINGS = string_config()
 SITE = {"name": os.getenv("WEATHER_NAME", ""), "lat": float(LAT) if LAT else None, "lon": float(LON) if LON else None}
 refresh = threading.Event()   # wird gesetzt, wenn die Konfiguration sich ändert -> sofort neu rechnen
+fit_request = threading.Event()
+FIT_INTERVAL = int(os.getenv("FIT_INTERVAL", "86400")); FIT_DAYS = int(os.getenv("FIT_DAYS", "30"))
 
 
 def apply_site(cfg):
@@ -171,6 +178,30 @@ def write_model(rows):
         LOG.info("Modell: %d Stundenwerte für %d Strings nach InfluxDB geschrieben", len(lines), len(STRINGS))
 
 
+def fit_loop(client):
+    """Ausrichtung schätzen: kurz nach dem Start, dann alle FIT_INTERVAL s oder auf Kommando."""
+    fit_request.wait(120)
+    while True:
+        fit_request.clear()
+        if LAT and LON and INFLUX_TOKEN:
+            try:
+                pr = float(os.getenv("STRING_PR", 0.85) or 0.85)
+                res = run_fit(INFLUX_URL, INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET, float(LAT), float(LON), FIT_DAYS, 150.0, pr)
+                client.publish(f"{BASE}/grolo/fit", json.dumps(res), retain=True)
+                lines = []
+                for k, v in res["strings"].items():
+                    if v.get("status") in ("ok", "uncertain"):
+                        lines.append(f'pv_fit,string={k} azimuth={float(v["azimuth"])},tilt={float(v["tilt"])},wp={float(v["wp"])},r2={float(v["r2"])},hours={int(v["hours"])}i,quality="{v["status"]}" {res["updated"]}')
+                    else:
+                        lines.append(f'pv_fit,string={k} hours={int(v.get("hours", 0))}i,quality="{v["status"]}" {res["updated"]}')
+                influx_write(lines)
+                LOG.info("Ausrichtung geschätzt: %s", "; ".join(f"{k}: {v['status']}" + (f" {v['azimuth']:.0f}°/{v['tilt']:.0f}°/{v['wp']:.0f} Wp R²={v['r2']:.2f}" if v.get("status") in ("ok", "uncertain") else "") for k, v in res["strings"].items()))
+            except Exception as e:
+                LOG.warning("Ausrichtungsschätzung fehlgeschlagen: %s", e)
+                client.publish(f"{BASE}/grolo/fit/status", json.dumps({"error": str(e), "time": int(time.time())}), retain=False)
+        fit_request.wait(FIT_INTERVAL)
+
+
 def sun_loop(client):
     """Jede Minute: Sonnenstand per MQTT (retained) und nach InfluxDB."""
     while True:
@@ -197,9 +228,11 @@ def write_forecast(forecast):
 
 def main():
     client = mqtt.Client(client_id="grolo-weather", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-    client.on_connect = lambda c, u, f, rc, p=None: c.subscribe(f"{BASE}/grolo/config/site")
+    client.on_connect = lambda c, u, f, rc, p=None: c.subscribe([(f"{BASE}/grolo/config/site", 0), (f"{BASE}/grolo/fit/run", 0)])
     def on_message(c, u, msg):
         try:
+            if msg.topic.endswith("/fit/run"):
+                LOG.info("Ausrichtungsschätzung angefordert"); fit_request.set(); return
             apply_site(json.loads(msg.payload))
         except Exception as e:
             LOG.warning("Konfiguration unlesbar: %s", e)
@@ -213,6 +246,7 @@ def main():
     LOG.info("Standort %s, %s; Intervall %ss; Strings mit Ausrichtung: %s", LAT, LON, INTERVAL,
              ", ".join(f"{i}: {c['tilt']:.0f}°/{c['azimuth']:.0f}°/{c['wp']:.0f} Wp" for i, c in STRINGS.items()) or "keine (STRING<n>_TILT/_AZIMUTH setzen)")
     threading.Thread(target=sun_loop, args=(client,), daemon=True).start()
+    threading.Thread(target=fit_loop, args=(client,), daemon=True).start()
     while True:
         if not LAT or not LON:
             LOG.warning("Kein Standort: WEATHER_LAT/WEATHER_LON setzen oder Ort auf der Einstellungsseite wählen"); refresh.wait(60); refresh.clear(); continue

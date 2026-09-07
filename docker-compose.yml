@@ -180,6 +180,8 @@ services:
       STRING4_AZIMUTH: "${STRING4_AZIMUTH:-}"
       STRING4_WP: "${STRING4_WP:-}"
       STRING_PR: "${STRING_PR:-0.85}"
+      FIT_INTERVAL: "${FIT_INTERVAL:-86400}"
+      FIT_DAYS: "${FIT_DAYS:-30}"
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: "${INFLUX_TOKEN}"
       INFLUX_ORG: "${INFLUX_ORG:-growatt}"

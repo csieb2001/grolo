@@ -59,8 +59,9 @@ EN = {
     "Azimut 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Höhe über dem Horizont, jede Minute vom Sidecar weather berechnet (NOAA).": "Azimuth 0 = north, 90 = east, 180 = south, 270 = west. Elevation above the horizon, computed every minute by the weather sidecar (NOAA).",
     "Leistung über Sonnenazimut": "Power vs. sun azimuth",
     "Jeder Punkt ein 5-Minuten-Mittel im gewählten Zeitraum. Der Schwerpunkt der Punktwolke zeigt, wohin ein String schaut; ein Einbruch bei einem festen Azimut ist ein Hindernis. Für ein Sonnenbahn-Polardiagramm siehe die GroLo-Website.": "Each point is a 5-minute mean in the selected range. The centre of the cloud shows where a string faces; a dip at a fixed azimuth is an obstacle. For a sun-path polar chart see the GroLo website.",
-    "Ausrichtung schätzen": "Estimating orientation",
-    "**Neigung und Ausrichtung** je String auf der [Einstellungsseite](http://${__url.params:hostname}:8080/#sec-site) eintragen, dann füllt sich „Erwartet“.\n\nUnbekannt? `python3 scripts/fit-orientation.py` vergleicht die gemessenen Stundenkurven der letzten Wochen mit dem Modell für alle Ausrichtungen und schlägt Werte vor (braucht einige sonnige Tage).": "**Enter tilt and azimuth** per string on the [settings page](http://${__url.params:hostname}:8080/#sec-site), then “Expected” fills in.\n\nUnknown? `python3 scripts/fit-orientation.py` compares the measured hourly curves of the last weeks with the model for every orientation and proposes values (needs a few sunny days).",
+    "Geschätzte Ausrichtung je String": "Estimated orientation per string", "Neigung": "Tilt", "Stunden": "Hours", "Güte": "Quality", "Stand": "As of",
+    "gut": "good", "unsicher": "uncertain", "noch nicht bestimmbar": "not determinable yet", "kein Modul": "no panel",
+    "Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“.": "Once a day (and on request from the settings page) the weather sidecar estimates tilt, azimuth and Wp of every string from the hourly curves of the last 30 days against the irradiance model. Needs several sunny days. Apply it on the settings page under “Location and panels”, then “Expected” fills in.",
     "Batterie und Technik": "Battery and technical", "Temperaturen": "Temperatures", "System": "System", "Batterie": "Battery",
     "Zellspannung (min / max)": "Cell voltage (min / max)", "Ein großer Abstand deutet auf unausgeglichene Zellen hin": "A large spread indicates unbalanced cells",
     "Zyklen": "Cycles", "Gesundheit (SoH)": "Health (SoH)", "Batteriepacks": "Battery packs",
@@ -677,8 +678,21 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
         panel("stat", _("Sonne jetzt"), 16, y, 8, 4, [target(q_last_named("azimuth", _("Azimut"), "sun", "-10m"), "A"), target(q_last_named("elevation", _("Höhe"), "sun", "-10m"), "B")], "degree",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
               defaults={"decimals": 1, "color": {"mode": "fixed", "fixedColor": C_PV}}, overrides=[color_override(_("Azimut"), "blue")]),
-        {"id": nid(), "type": "text", "title": _("Ausrichtung schätzen"), "gridPos": {"x": 16, "y": y + 4, "w": 8, "h": 6},
-         "options": {"mode": "markdown", "content": _("**Neigung und Ausrichtung** je String auf der [Einstellungsseite](http://${__url.params:hostname}:8080/#sec-site) eintragen, dann füllt sich „Erwartet“.\n\nUnbekannt? `python3 scripts/fit-orientation.py` vergleicht die gemessenen Stundenkurven der letzten Wochen mit dem Modell für alle Ausrichtungen und schlägt Werte vor (braucht einige sonnige Tage).")}},
+        panel("table", _("Geschätzte Ausrichtung je String"), 16, y + 4, 8, 6, [target(f'''from(bucket: "{BUCKET}")
+  |> range(start: -3d)
+  |> filter(fn: (r) => r._measurement == "pv_fit")
+  |> last()
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> group()
+  |> map(fn: (r) => ({{ "{S}": r.string, "{_("Azimut")}": r.azimuth, "{_("Neigung")}": r.tilt, "Wp": r.wp, "R²": r.r2, "{_("Stunden")}": r.hours, "{_("Güte")}": r.quality, "{_("Stand")}": r._time }}))
+  |> sort(columns: ["{S}"])''')], None,
+              opts={"showHeader": True, "cellHeight": "sm"},
+              overrides=[{"matcher": {"id": "byName", "options": _("Azimut")}, "properties": [{"id": "unit", "value": "degree"}, {"id": "decimals", "value": 0}]},
+                         {"matcher": {"id": "byName", "options": _("Neigung")}, "properties": [{"id": "unit", "value": "degree"}, {"id": "decimals", "value": 0}]},
+                         {"matcher": {"id": "byName", "options": "R²"}, "properties": [{"id": "decimals", "value": 2}]},
+                         {"matcher": {"id": "byName", "options": _("Stand")}, "properties": [{"id": "unit", "value": "time: DD.MM. HH:mm"}]},
+                         {"matcher": {"id": "byName", "options": _("Güte")}, "properties": [{"id": "mappings", "value": [{"type": "value", "options": {"ok": {"text": _("gut"), "color": "green"}, "uncertain": {"text": _("unsicher"), "color": "orange"}, "insufficient": {"text": _("noch nicht bestimmbar"), "color": "dark-gray"}, "unused": {"text": _("kein Modul"), "color": "dark-gray"}}}]}, {"id": "custom.cellOptions", "value": {"type": "color-text"}}]}],
+              desc=_("Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“.")),
     ]
     y += 10
 

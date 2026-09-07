@@ -55,7 +55,7 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.37.1</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.37.2</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -90,8 +90,9 @@
       <div class="ctl"><div class="top"><label data-t="site.sun"></label></div><div class="desc" id="site-sun" data-t="site.sun.waiting"></div></div>
     </div>
     <h3 data-t="site.strings"></h3><p class="hint" data-t="site.strings.hint"></p>
-    <div class="tablewrap"><table><thead><tr><th>String</th><th data-t="site.tilt"></th><th data-t="site.azimuth"></th><th data-t="site.wp"></th><th data-t="site.now"></th></tr></thead><tbody id="site-strings"></tbody></table></div>
-    <div class="row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="site-save" class="primary" data-t="site.save"></button><span class="muted" id="site-status"></span></div>
+    <div class="tablewrap"><table><thead><tr><th>String</th><th data-t="site.tilt"></th><th data-t="site.azimuth"></th><th data-t="site.wp"></th><th data-t="site.now"></th><th data-t="site.fit"></th></tr></thead><tbody id="site-strings"></tbody></table></div>
+    <div class="row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="site-save" class="primary" data-t="site.save"></button><span class="muted" id="site-status"></span>
+      <span class="spacer"></span><button id="fit-run" data-t="fit.run"></button><span class="muted" id="fit-status" data-t="fit.none"></span></div>
   </section>
   <section id="sec-cloud"><h2 data-t="sec.cloud"></h2><p class="hint" data-t="sec.cloud.hint"></p>
     <div class="grid">
@@ -105,7 +106,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.37.1 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.37.2 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -139,6 +140,9 @@
       'site.tilt': 'Tilt °', 'site.azimuth': 'Azimuth °', 'site.wp': 'Wp', 'site.now': 'Now', 'site.save': 'Save location and panels', 'site.saved': 'saved, weather service is recalculating', 'site.invalid': 'Enter a valid location first',
       'site.nohit': 'no place found', 'site.searcherr': 'geocoding not reachable', 'site.free': 'free', 'log.site': 'Location/panels saved',
       'compass': { 'N': 'N', 'NE': 'NE', 'E': 'E', 'SE': 'SE', 'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW' },
+      'site.fit': 'Estimate from measurements', 'fit.run': 'Estimate orientation now', 'fit.none': 'no estimate yet (runs once a day and on request)', 'fit.running': 'estimating… (about a minute)',
+      'fit.last': 'last estimate', 'fit.days': 'days', 'fit.apply': 'Apply', 'fit.ok': 'good', 'fit.uncertain': 'uncertain', 'fit.insufficient': 'not determinable yet', 'fit.unused': 'no panel',
+      'fit.hours': 'sunny hours', 'fit.hint': 'Needs several sunny days with direct sun; the range shows equally good solutions.', 'fit.error': 'estimate failed', 'log.fitrun': 'orientation estimate requested', 'log.fit': 'Orientation estimate received',
       'sec.cloud': 'Growatt cloud', 'sec.cloud.hint': 'Forward the device data through this host to the Growatt cloud so ShinePhone keeps working. The dongle itself stays blocked; the cloud-gate service opens the connection and drops configuration writes from the cloud to the dongle (broker, port).',
       'cloud.switch': 'Forward to cloud', 'cloud.desc': 'On = data also goes to Growatt and the app shows live values. Off = everything stays local.', 'cloud.status': 'Status',
       'cloud.conns': 'connections from the bridge', 'cloud.tocloud': 'to the cloud', 'cloud.bytes': 'up / down', 'cloud.blocked': 'dropped config writes', 'cloud.since': 'since', 'cloud.confirmoff': 'Switch off cloud forwarding? ShinePhone will stop showing live data.',
@@ -181,6 +185,9 @@
       'site.tilt': 'Neigung °', 'site.azimuth': 'Azimut °', 'site.wp': 'Wp', 'site.now': 'Jetzt', 'site.save': 'Standort und Module speichern', 'site.saved': 'gespeichert, Wetterdienst rechnet neu', 'site.invalid': 'Bitte zuerst einen gültigen Standort wählen',
       'site.nohit': 'kein Ort gefunden', 'site.searcherr': 'Geocoding nicht erreichbar', 'site.free': 'frei', 'log.site': 'Standort/Module gespeichert',
       'compass': { 'N': 'N', 'NE': 'NO', 'E': 'O', 'SE': 'SO', 'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW' },
+      'site.fit': 'Schätzung aus Messdaten', 'fit.run': 'Ausrichtung jetzt schätzen', 'fit.none': 'noch keine Schätzung (läuft täglich und auf Anforderung)', 'fit.running': 'schätzt… (etwa eine Minute)',
+      'fit.last': 'letzte Schätzung', 'fit.days': 'Tage', 'fit.apply': 'Übernehmen', 'fit.ok': 'gut', 'fit.uncertain': 'unsicher', 'fit.insufficient': 'noch nicht bestimmbar', 'fit.unused': 'kein Modul',
+      'fit.hours': 'Sonnenstunden', 'fit.hint': 'Braucht mehrere sonnige Tage mit direkter Sonne; die Spanne zeigt gleich gute Lösungen.', 'fit.error': 'Schätzung fehlgeschlagen', 'log.fitrun': 'Ausrichtungsschätzung angefordert', 'log.fit': 'Ausrichtungsschätzung empfangen',
       'sec.cloud': 'Growatt-Cloud', 'sec.cloud.hint': 'Weiterleitung der Gerätedaten über diesen Host an die Growatt-Cloud, damit ShinePhone nutzbar bleibt. Der Dongle selbst bleibt gesperrt, der Dienst cloud-gate baut die Verbindung auf und verwirft Konfigurations-Schreibbefehle der Cloud an den Dongle (Broker, Port).',
       'cloud.switch': 'Weiterleitung zur Cloud', 'cloud.desc': 'An = Daten gehen zusätzlich an Growatt, die App zeigt Live-Werte. Aus = alles bleibt lokal.', 'cloud.status': 'Status',
       'cloud.conns': 'Verbindungen von der Bridge', 'cloud.tocloud': 'zur Cloud', 'cloud.bytes': 'hoch / runter', 'cloud.blocked': 'verworfene Konfig-Schreibbefehle', 'cloud.since': 'seit', 'cloud.confirmoff': 'Weiterleitung zur Growatt-Cloud ausschalten? ShinePhone zeigt dann keine Live-Daten mehr.',
@@ -216,7 +223,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { site: null, wx: null, siteDirty: false, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, fit: null, siteDirty: false, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -240,7 +247,7 @@
   client.on('connect', () => {
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
-                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`]);
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -253,6 +260,8 @@
     if (topic === `${BASE}/grobro/cloud_forward/status`) { try { onCloudStatus(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/site`) { try { onSiteConfig(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/fit/status`) { try { const st = JSON.parse(p); if (st.error) { fitPending = false; $('fit-status').textContent = `${t('fit.error')}: ${st.error}`; log(`${t('fit.error')}: ${st.error}`, 'log-err'); } } catch {} return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/state$`)))) { if (!state.device || m[1] === state.device) { try { onState(m[1], JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/dongle$`)))) { if (!state.device || m[1] === state.device) { try { onDongle(JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/([^/]+)/grobro/([^/]+)/([^/]+)/get$`)))) return onValue(m[1], m[2], m[3], p);
@@ -341,7 +350,7 @@
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
   }
-  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
 
   function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
   function updateValue(id) {
@@ -531,15 +540,36 @@
       <td><input type="number" id="site-s${i}-tilt" min="0" max="90" step="1" placeholder="–"></td>
       <td style="display:flex;gap:4px"><input type="number" id="site-s${i}-az" min="0" max="359" step="1" placeholder="–" style="min-width:70px"><select id="site-s${i}-dir" style="flex:0 0 auto"><option value="">…</option>${Object.keys(COMPASS).map(k => `<option value="${k}">${t('compass')[k]}</option>`).join('')}</select></td>
       <td><input type="number" id="site-s${i}-wp" min="0" max="5000" step="5" placeholder="–"></td>
-      <td id="site-s${i}-now" class="muted">–</td></tr>`).join('');
+      <td id="site-s${i}-now" class="muted">–</td><td id="site-s${i}-fit" class="muted">–</td></tr>`).join('');
     for (let i = 1; i <= 4; i++) {
       if (keep[i].tilt != null) { $(`site-s${i}-tilt`).value = keep[i].tilt; $(`site-s${i}-az`).value = keep[i].az; $(`site-s${i}-wp`).value = keep[i].wp; }
       $(`site-s${i}-dir`).onchange = e => { if (e.target.value) { $(`site-s${i}-az`).value = COMPASS[e.target.value]; markDirty(); } };
       for (const k of ['tilt', 'az', 'wp']) $(`site-s${i}-${k}`).oninput = markDirty;
     }
     if (state.st) onState(state.device, state.st, true);
+    if (state.fit) onFit(state.fit, true);
   }
   renderSiteStrings();
+  let fitPending = false;
+  const compassName = az => { const keys = Object.keys(COMPASS); return t('compass')[keys[Math.round(((az % 360) + 360) % 360 / 45) % 8]]; };
+  function onFit(f, rerender = false) {
+    if (!rerender && state.fit && state.fit.updated !== f.updated) log(`${t('log.fit')}`, 'log-info');
+    state.fit = f; fitPending = false;
+    $('fit-status').textContent = `${t('fit.last')} ${new Date(f.updated * 1000).toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB')} · ${f.days} ${t('fit.days')}. ${t('fit.hint')}`;
+    for (let i = 1; i <= 4; i++) {
+      const v = (f.strings || {})[String(i)]; const el = $(`site-s${i}-fit`); if (!el) continue;
+      if (!v || v.status === 'unused') { el.textContent = t('fit.unused'); el.className = 'muted'; continue; }
+      if (v.status === 'insufficient') { el.textContent = `${t('fit.insufficient')} (${v.hours ?? 0} ${t('fit.hours')})`; el.className = 'muted'; continue; }
+      el.className = ''; el.innerHTML = '';
+      const txt = document.createElement('span'); txt.style.color = v.status === 'ok' ? 'var(--green)' : 'var(--orange)';
+      txt.textContent = `${compassName(v.azimuth)} ${v.azimuth}° / ${v.tilt}° / ${v.wp} Wp · R² ${v.r2.toFixed(2)} (${t('fit.' + v.status)}, ${v.hours} ${t('fit.hours')})`;
+      txt.title = `${t('site.azimuth')} ${v.az_range[0]}–${v.az_range[1]}°, ${t('site.tilt')} ${v.tilt_range[0]}–${v.tilt_range[1]}°`;
+      const b = document.createElement('button'); b.textContent = t('fit.apply'); b.style.marginLeft = '6px'; b.style.padding = '2px 8px';
+      b.onclick = () => { $(`site-s${i}-tilt`).value = v.tilt; $(`site-s${i}-az`).value = v.azimuth; if (!$(`site-s${i}-wp`).value) $(`site-s${i}-wp`).value = v.wp; markDirty(); };
+      el.appendChild(txt); el.appendChild(b);
+    }
+  }
+  $('fit-run').onclick = () => { fitPending = true; client.publish(`${BASE}/grolo/fit/run`, '1'); $('fit-status').textContent = t('fit.running'); log(`→ ${t('log.fitrun')}`, 'log-tx'); };
   for (const id of ['site-lat', 'site-lon']) $(id).oninput = () => { markDirty(); $('site-q').dataset.name = ''; };
   function onSiteConfig(cfg, rerender = false) {
     state.site = cfg;

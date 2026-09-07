@@ -24,7 +24,7 @@ lock = threading.Lock()
 acc = {}            # device -> {"n": int, sums: {...}, last: state}
 queue = deque(maxlen=2880)   # gepufferte Samples (24 h bei 30 s)
 info_pending = {}   # device -> info dict
-weather = {"current": None, "forecast": None, "model": None, "dirty": False}
+weather = {"current": None, "forecast": None, "model": None, "fit": None, "dirty": False}
 
 
 def pick(d, *keys, default=None):
@@ -78,7 +78,7 @@ def weather_payload():
     for h in (fc or [])[:48]:
         fcl.append({"t": iso(pick(h, "t", "time")), "shortwave_radiation": pick(h, "shortwave_radiation"), "cloud_cover": pick(h, "cloud_cover"),
                     "temperature": pick(h, "temperature", "temperature_2m"), "weather_code": pick(h, "weather_code")})
-    return {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "current": cur, "forecast": fcl, "site": site, "model": model}
+    return {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "current": cur, "forecast": fcl, "site": site, "model": model, "fit": weather["fit"]}
 
 
 def derive(st):
@@ -110,6 +110,9 @@ def on_message(client, userdata, msg):
         elif parts[-2:] == ["grolo", "pv_model"]:
             with lock:
                 weather["model"] = json.loads(msg.payload); weather["dirty"] = True
+        elif parts[-2:] == ["grolo", "fit"]:
+            with lock:
+                weather["fit"] = json.loads(msg.payload); weather["dirty"] = True
         elif parts[-1] == "dongle":
             d = json.loads(msg.payload); device = parts[-2]
             with lock:
@@ -162,7 +165,7 @@ def main():
         LOG.error("WEB_URL oder WEB_TOKEN fehlt"); time.sleep(3600); return
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
-                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0)]))
+                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0)]))
     client.on_message = on_message
     while True:
         try:

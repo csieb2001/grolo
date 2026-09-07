@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.37.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.37.2** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 ## Screenshots
 
@@ -221,10 +221,14 @@ patterns reveal orientation and shading), the strongest string per hour as a sta
 sun elevation/azimuth, and power plotted against sun azimuth (the centre of the cloud shows where a string faces, a dip at a
 fixed azimuth is an obstacle).
 
-Do not know tilt and azimuth? `python3 scripts/fit-orientation.py` pulls the hourly string power of the last 30 days from
-InfluxDB and the matching irradiance from Open-Meteo, fits the model for every orientation in 5° steps and prints the best
-match per string with the effective Wp; `--apply` writes the result to the settings topic. It needs a few sunny days and says
-so when the data cannot distinguish orientations yet.
+Do not know tilt and azimuth? The weather service **estimates the orientation** once a day (`FIT_INTERVAL`, default 24 h) and
+whenever you press *Estimate orientation now* on the settings page (topic `homeassistant/grolo/fit/run`): it pulls the hourly
+string power of the last `FIT_DAYS` days from InfluxDB and the matching irradiance from Open-Meteo, fits the model for every
+orientation in 5° steps and publishes the best match per string with quality (R², sunny hours, range of equally good solutions)
+as retained `homeassistant/grolo/fit` and measurement `pv_fit`. The settings page shows it next to the inputs with an *Apply*
+button, Grafana in the table *Estimated orientation per string*, the website as chips and as a hollow diamond in the sun-path
+chart. It needs a few sunny days with direct sun and says "not determinable yet" until then. `scripts/fit-orientation.py` runs
+the same estimate from the shell (`--apply` writes the result to the settings topic).
 
 The optional [GroLo website](https://github.com/csieb2001/grolo-web) receives location, sun position and the model and shows a
 **sun-path polar chart** (paths for solstices, equinox and the selected day, the daily peak of each string as a dot at the sun
@@ -315,7 +319,7 @@ settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
 grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.37.1
+VERSION                      2026.37.2
 ```
 
 License: MIT.

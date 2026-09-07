@@ -3926,18 +3926,134 @@
     },
     {
       "id": 51,
-      "type": "text",
-      "title": "Estimating orientation",
+      "type": "table",
+      "title": "Estimated orientation per string",
       "gridPos": {
         "x": 16,
         "y": 116,
         "w": 8,
         "h": 6
       },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -3d)\n  |> filter(fn: (r) => r._measurement == \"pv_fit\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({ \"String\": r.string, \"Azimuth\": r.azimuth, \"Tilt\": r.tilt, \"Wp\": r.wp, \"R²\": r.r2, \"Hours\": r.hours, \"Quality\": r.quality, \"As of\": r._time }))\n  |> sort(columns: [\"String\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Azimuth"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Tilt"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "R²"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "As of"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD.MM. HH:mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Quality"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "ok": {
+                        "text": "good",
+                        "color": "green"
+                      },
+                      "uncertain": {
+                        "text": "uncertain",
+                        "color": "orange"
+                      },
+                      "insufficient": {
+                        "text": "not determinable yet",
+                        "color": "dark-gray"
+                      },
+                      "unused": {
+                        "text": "no panel",
+                        "color": "dark-gray"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
       "options": {
-        "mode": "markdown",
-        "content": "**Enter tilt and azimuth** per string on the [settings page](http://${__url.params:hostname}:8080/#sec-site), then “Expected” fills in.\n\nUnknown? `python3 scripts/fit-orientation.py` compares the measured hourly curves of the last weeks with the model for every orientation and proposes values (needs a few sunny days)."
-      }
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "Once a day (and on request from the settings page) the weather sidecar estimates tilt, azimuth and Wp of every string from the hourly curves of the last 30 days against the irradiance model. Needs several sunny days. Apply it on the settings page under “Location and panels”, then “Expected” fills in."
     },
     {
       "id": 52,

@@ -3926,18 +3926,134 @@
     },
     {
       "id": 51,
-      "type": "text",
-      "title": "Ausrichtung schätzen",
+      "type": "table",
+      "title": "Geschätzte Ausrichtung je String",
       "gridPos": {
         "x": 16,
         "y": 116,
         "w": 8,
         "h": 6
       },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -3d)\n  |> filter(fn: (r) => r._measurement == \"pv_fit\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({ \"String\": r.string, \"Azimut\": r.azimuth, \"Neigung\": r.tilt, \"Wp\": r.wp, \"R²\": r.r2, \"Stunden\": r.hours, \"Güte\": r.quality, \"Stand\": r._time }))\n  |> sort(columns: [\"String\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Azimut"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Neigung"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "R²"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Stand"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD.MM. HH:mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Güte"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "ok": {
+                        "text": "gut",
+                        "color": "green"
+                      },
+                      "uncertain": {
+                        "text": "unsicher",
+                        "color": "orange"
+                      },
+                      "insufficient": {
+                        "text": "noch nicht bestimmbar",
+                        "color": "dark-gray"
+                      },
+                      "unused": {
+                        "text": "kein Modul",
+                        "color": "dark-gray"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
       "options": {
-        "mode": "markdown",
-        "content": "**Neigung und Ausrichtung** je String auf der [Einstellungsseite](http://${__url.params:hostname}:8080/#sec-site) eintragen, dann füllt sich „Erwartet“.\n\nUnbekannt? `python3 scripts/fit-orientation.py` vergleicht die gemessenen Stundenkurven der letzten Wochen mit dem Modell für alle Ausrichtungen und schlägt Werte vor (braucht einige sonnige Tage)."
-      }
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“."
     },
     {
       "id": 52,
