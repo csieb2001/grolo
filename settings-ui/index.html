@@ -25,6 +25,9 @@
   .ctl label { font-weight:600; font-size:13px }
   .cur { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; white-space:nowrap }
   .cur.pending { color:var(--orange) } .cur.unknown { color:var(--muted); font-weight:400 }
+  #site-cur { white-space:normal; text-align:right; font-size:12.5px; overflow-wrap:anywhere }
+  #sec-site .ctl { min-width:0 } #sec-site .row input[type=text] { min-width:120px }
+  #site-strings td.az { display:flex; gap:4px; align-items:center } #site-strings td.az input { flex:1 1 60px; min-width:60px } #site-strings td.az select { flex:0 0 auto; width:auto; padding:4px 4px }
   .ctl .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap }
   .desc, .muted { color:var(--muted); font-size:12px }
   input[type=number], input[type=time], input[type=text], select {
@@ -538,7 +541,7 @@
     const tb = $('site-strings'); const keep = {}; for (let i = 1; i <= 4; i++) keep[i] = { tilt: $(`site-s${i}-tilt`)?.value, az: $(`site-s${i}-az`)?.value, wp: $(`site-s${i}-wp`)?.value };
     tb.innerHTML = [1, 2, 3, 4].map(i => `<tr><td class="slotno">${i}</td>
       <td><input type="number" id="site-s${i}-tilt" min="0" max="90" step="1" placeholder="–"></td>
-      <td style="display:flex;gap:4px"><input type="number" id="site-s${i}-az" min="0" max="359" step="1" placeholder="–" style="min-width:70px"><select id="site-s${i}-dir" style="flex:0 0 auto"><option value="">…</option>${Object.keys(COMPASS).map(k => `<option value="${k}">${t('compass')[k]}</option>`).join('')}</select></td>
+      <td class="az"><input type="number" id="site-s${i}-az" min="0" max="359" step="1" placeholder="–"><select id="site-s${i}-dir" title="N / NE / E …"><option value="">…</option>${Object.keys(COMPASS).map(k => `<option value="${k}">${t('compass')[k]}</option>`).join('')}</select></td>
       <td><input type="number" id="site-s${i}-wp" min="0" max="5000" step="5" placeholder="–"></td>
       <td id="site-s${i}-now" class="muted">–</td><td id="site-s${i}-fit" class="muted">–</td></tr>`).join('');
     for (let i = 1; i <= 4; i++) {
