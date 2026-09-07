@@ -59,7 +59,11 @@ EN = {
     "Azimut 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Höhe über dem Horizont, jede Minute vom Sidecar weather berechnet (NOAA).": "Azimuth 0 = north, 90 = east, 180 = south, 270 = west. Elevation above the horizon, computed every minute by the weather sidecar (NOAA).",
     "Leistung über Sonnenazimut": "Power vs. sun azimuth",
     "Jeder Punkt ein 5-Minuten-Mittel im gewählten Zeitraum. Der Schwerpunkt der Punktwolke zeigt, wohin ein String schaut; ein Einbruch bei einem festen Azimut ist ein Hindernis. Für ein Sonnenbahn-Polardiagramm siehe die GroLo-Website.": "Each point is a 5-minute mean in the selected range. The centre of the cloud shows where a string faces; a dip at a fixed azimuth is an obstacle. For a sun-path polar chart see the GroLo website.",
-    "Geschätzte Ausrichtung je String": "Estimated orientation per string", "Neigung": "Tilt", "Stunden": "Hours", "Güte": "Quality", "Stand": "As of",
+    "Geschätzte Ausrichtung je String": "Estimated orientation per string",
+    "Empfehlungen je String (Jahresmodell und Verschattung)": "Recommendations per string (year model and shading)", "Basis": "Basis", "vom Optimum": "of optimum", "Optimum": "Optimum", "Gewinn Optimum": "Gain optimum",
+    "Gleiche Richtung, Neigung": "Same direction, tilt", "Gewinn": "Gain", "Senkrecht nach": "Vertical facing", "Gewinn senkrecht": "Gain vertical", "Gewinn flach": "Gain flat", "Winteranteil": "Winter share", "Verschattung": "Shading", "Zonen": "Zones",
+    "konfiguriert": "configured", "geschätzt": "estimated",
+    "Täglich mit der Schätzung berechnet. Jahresmodell aus dem Open-Meteo-Archiv für den Standort: Ertrag der aktuellen Ausrichtung (konfiguriert, sonst geschätzt) in kWh je kWp, Anteil am Optimum und Gewinn durch Alternativen (gleiche Richtung mit bester Neigung, senkrecht mit bestem Azimut, flach, Optimum). Verschattung: Anteil der Sonnenstunden-Energie, der in Sonnenrichtungen fehlt, in denen die Messung weit unter dem Modell bleibt; Zonen mit Uhrzeiten auf der Einstellungsseite und der Website.": "Computed daily with the estimate. Year model from the Open-Meteo archive for the location: yield of the current orientation (configured, else estimated) in kWh per kWp, share of the optimum and gain from alternatives (same direction with best tilt, vertical with best azimuth, flat, optimum). Shading: share of sunny-hour energy missing in sun directions where the measurement stays far below the model; zones with times on the settings page and the website.", "Neigung": "Tilt", "Stunden": "Hours", "Güte": "Quality", "Stand": "As of",
     "gut": "good", "unsicher": "uncertain", "noch nicht bestimmbar": "not determinable yet", "kein Modul": "no panel",
     "Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“.": "Once a day (and on request from the settings page) the weather sidecar estimates tilt, azimuth and Wp of every string from the hourly curves of the last 30 days against the irradiance model. Needs several sunny days. Apply it on the settings page under “Location and panels”, then “Expected” fills in.",
     "Batterie und Technik": "Battery and technical", "Temperaturen": "Temperatures", "System": "System", "Batterie": "Battery",
@@ -695,6 +699,29 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
               desc=_("Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“.")),
     ]
     y += 10
+    panels += [
+        panel("table", _("Empfehlungen je String (Jahresmodell und Verschattung)"), 0, y, 24, 6, [target(f'''from(bucket: "{BUCKET}")
+  |> range(start: -3d)
+  |> filter(fn: (r) => r._measurement == "pv_advice")
+  |> last()
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> group()
+  |> map(fn: (r) => ({{ "{S}": r.string, "{_("Basis")}": r.basis, "{_("Azimut")}": r.azimuth, "{_("Neigung")}": r.tilt, "kWh/kWp": r.kwh_kwp, "{_("vom Optimum")}": r.pct_of_best,
+      "{_("Optimum")}": string(v: int(v: r.best_azimuth)) + "° / " + string(v: int(v: r.best_tilt)) + "°", "{_("Gewinn Optimum")}": r.best_gain_pct,
+      "{_("Gleiche Richtung, Neigung")}": string(v: int(v: r.same_azimuth_tilt)) + "°", "{_("Gewinn")}": r.same_azimuth_gain_pct,
+      "{_("Senkrecht nach")}": string(v: int(v: r.vertical_azimuth)) + "°", "{_("Gewinn senkrecht")}": r.vertical_gain_pct, "{_("Gewinn flach")}": r.flat_gain_pct,
+      "{_("Winteranteil")}": r.winter_share_pct, "{_("Verschattung")}": r.shading_loss_pct, "{_("Zonen")}": r.shading_zones, "{_("Stand")}": r._time }}))
+  |> sort(columns: ["{S}"])''')], None,
+              opts={"showHeader": True, "cellHeight": "sm"},
+              overrides=[{"matcher": {"id": "byRegexp", "options": f"^({_('Azimut')}|{_('Neigung')})$"}, "properties": [{"id": "unit", "value": "degree"}, {"id": "decimals", "value": 0}]},
+                         {"matcher": {"id": "byRegexp", "options": f"^({_('vom Optimum')}|{_('Winteranteil')}|{_('Verschattung')})$"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 0}]},
+                         {"matcher": {"id": "byRegexp", "options": f"^{_('Gewinn')}.*"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 0}, {"id": "custom.cellOptions", "value": {"type": "color-text"}}, {"id": "color", "value": {"mode": "thresholds"}}, {"id": "thresholds", "value": thresholds((None, "text"), (5, "yellow"), (20, "green"))}]},
+                         {"matcher": {"id": "byName", "options": _("Verschattung")}, "properties": [{"id": "custom.cellOptions", "value": {"type": "color-text"}}, {"id": "color", "value": {"mode": "thresholds"}}, {"id": "thresholds", "value": thresholds((None, "green"), (5, "orange"), (15, "red"))}]},
+                         {"matcher": {"id": "byName", "options": _("Stand")}, "properties": [{"id": "unit", "value": "time: DD.MM. HH:mm"}]},
+                         {"matcher": {"id": "byName", "options": _("Basis")}, "properties": [{"id": "mappings", "value": [{"type": "value", "options": {"config": {"text": _("konfiguriert")}, "fit": {"text": _("geschätzt")}}}]}]}],
+              desc=_("Täglich mit der Schätzung berechnet. Jahresmodell aus dem Open-Meteo-Archiv für den Standort: Ertrag der aktuellen Ausrichtung (konfiguriert, sonst geschätzt) in kWh je kWp, Anteil am Optimum und Gewinn durch Alternativen (gleiche Richtung mit bester Neigung, senkrecht mit bestem Azimut, flach, Optimum). Verschattung: Anteil der Sonnenstunden-Energie, der in Sonnenrichtungen fehlt, in denen die Messung weit unter dem Modell bleibt; Zonen mit Uhrzeiten auf der Einstellungsseite und der Website.")),
+    ]
+    y += 6
 
     # ============================================================ Batterie und Technik
     panels.append(row(_("Batterie und Technik"), y)); y += 1

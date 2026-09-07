@@ -4057,24 +4057,215 @@
     },
     {
       "id": 52,
+      "type": "table",
+      "title": "Empfehlungen je String (Jahresmodell und Verschattung)",
+      "gridPos": {
+        "x": 0,
+        "y": 122,
+        "w": 24,
+        "h": 6
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -3d)\n  |> filter(fn: (r) => r._measurement == \"pv_advice\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({ \"String\": r.string, \"Basis\": r.basis, \"Azimut\": r.azimuth, \"Neigung\": r.tilt, \"kWh/kWp\": r.kwh_kwp, \"vom Optimum\": r.pct_of_best,\n      \"Optimum\": string(v: int(v: r.best_azimuth)) + \"° / \" + string(v: int(v: r.best_tilt)) + \"°\", \"Gewinn Optimum\": r.best_gain_pct,\n      \"Gleiche Richtung, Neigung\": string(v: int(v: r.same_azimuth_tilt)) + \"°\", \"Gewinn\": r.same_azimuth_gain_pct,\n      \"Senkrecht nach\": string(v: int(v: r.vertical_azimuth)) + \"°\", \"Gewinn senkrecht\": r.vertical_gain_pct, \"Gewinn flach\": r.flat_gain_pct,\n      \"Winteranteil\": r.winter_share_pct, \"Verschattung\": r.shading_loss_pct, \"Zonen\": r.shading_zones, \"Stand\": r._time }))\n  |> sort(columns: [\"String\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Azimut|Neigung)$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(vom Optimum|Winteranteil|Verschattung)$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Gewinn.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5
+                    },
+                    {
+                      "color": "green",
+                      "value": 20
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Verschattung"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 5
+                    },
+                    {
+                      "color": "red",
+                      "value": 15
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Stand"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD.MM. HH:mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Basis"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "config": {
+                        "text": "konfiguriert"
+                      },
+                      "fit": {
+                        "text": "geschätzt"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "Täglich mit der Schätzung berechnet. Jahresmodell aus dem Open-Meteo-Archiv für den Standort: Ertrag der aktuellen Ausrichtung (konfiguriert, sonst geschätzt) in kWh je kWp, Anteil am Optimum und Gewinn durch Alternativen (gleiche Richtung mit bester Neigung, senkrecht mit bestem Azimut, flach, Optimum). Verschattung: Anteil der Sonnenstunden-Energie, der in Sonnenrichtungen fehlt, in denen die Messung weit unter dem Modell bleibt; Zonen mit Uhrzeiten auf der Einstellungsseite und der Website."
+    },
+    {
+      "id": 53,
       "type": "row",
       "title": "Batterie und Technik",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 122,
+        "y": 128,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 53,
+      "id": 54,
       "type": "timeseries",
       "title": "Temperaturen",
       "gridPos": {
         "x": 0,
-        "y": 123,
+        "y": 129,
         "w": 12,
         "h": 9
       },
@@ -4192,12 +4383,12 @@
       }
     },
     {
-      "id": 54,
+      "id": 55,
       "type": "timeseries",
       "title": "Zellspannung (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 123,
+        "y": 129,
         "w": 8,
         "h": 9
       },
@@ -4260,12 +4451,12 @@
       "description": "Ein großer Abstand deutet auf unausgeglichene Zellen hin"
     },
     {
-      "id": 55,
+      "id": 56,
       "type": "stat",
       "title": "Zyklen",
       "gridPos": {
         "x": 20,
-        "y": 123,
+        "y": 129,
         "w": 4,
         "h": 3
       },
@@ -4308,12 +4499,12 @@
       }
     },
     {
-      "id": 56,
+      "id": 57,
       "type": "stat",
       "title": "Gesundheit (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 126,
+        "y": 132,
         "w": 4,
         "h": 3
       },
@@ -4373,12 +4564,12 @@
       }
     },
     {
-      "id": 57,
+      "id": 58,
       "type": "stat",
       "title": "Batteriepacks",
       "gridPos": {
         "x": 20,
-        "y": 129,
+        "y": 135,
         "w": 4,
         "h": 3
       },
@@ -4421,12 +4612,12 @@
       }
     },
     {
-      "id": 58,
+      "id": 59,
       "type": "stat",
       "title": "Entlade-Grenze",
       "gridPos": {
         "x": 0,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4471,12 +4662,12 @@
       "description": "Unter diesen SoC entlädt die Batterie nicht"
     },
     {
-      "id": 59,
+      "id": 60,
       "type": "stat",
       "title": "Lade-Grenze",
       "gridPos": {
         "x": 4,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4520,12 +4711,12 @@
       }
     },
     {
-      "id": 60,
+      "id": 61,
       "type": "stat",
       "title": "Netzspannung",
       "gridPos": {
         "x": 8,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4570,12 +4761,12 @@
       "description": "Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist."
     },
     {
-      "id": 61,
+      "id": 62,
       "type": "stat",
       "title": "Geräteregister zum Vergleich",
       "gridPos": {
         "x": 12,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4635,12 +4826,12 @@
       "description": "Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings."
     },
     {
-      "id": 62,
+      "id": 63,
       "type": "stat",
       "title": "Zellspannung Differenz",
       "gridPos": {
         "x": 16,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4700,12 +4891,12 @@
       }
     },
     {
-      "id": 63,
+      "id": 64,
       "type": "stat",
       "title": "Letzte Nachricht",
       "gridPos": {
         "x": 20,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4749,12 +4940,12 @@
       "description": "Zeitpunkt des letzten Datensatzes vom Dongle"
     },
     {
-      "id": 64,
+      "id": 65,
       "type": "stat",
       "title": "Firmware NEXA (Reg. 119/120)",
       "gridPos": {
         "x": 0,
-        "y": 136,
+        "y": 142,
         "w": 6,
         "h": 4
       },
@@ -4797,12 +4988,12 @@
       "description": "Rohteile aus den Registern, Zusammensetzung laut Growatt unbekannt"
     },
     {
-      "id": 65,
+      "id": 66,
       "type": "stat",
       "title": "Dongle Firmware / Modell",
       "gridPos": {
         "x": 6,
-        "y": 136,
+        "y": 142,
         "w": 6,
         "h": 4
       },
@@ -4844,12 +5035,12 @@
       }
     },
     {
-      "id": 66,
+      "id": 67,
       "type": "stat",
       "title": "WLAN-Signal Dongle",
       "gridPos": {
         "x": 12,
-        "y": 136,
+        "y": 142,
         "w": 4,
         "h": 4
       },
@@ -4910,12 +5101,12 @@
       "description": "Wird nur beim Verbindungsaufbau des Dongles gemeldet"
     },
     {
-      "id": 67,
+      "id": 68,
       "type": "stat",
       "title": "Batteriepacks erkannt",
       "gridPos": {
         "x": 16,
-        "y": 136,
+        "y": 142,
         "w": 4,
         "h": 4
       },
@@ -4958,12 +5149,12 @@
       }
     },
     {
-      "id": 68,
+      "id": 69,
       "type": "stat",
       "title": "Zellspannung min",
       "gridPos": {
         "x": 20,
-        "y": 136,
+        "y": 142,
         "w": 4,
         "h": 4
       },
@@ -5007,12 +5198,12 @@
       }
     },
     {
-      "id": 69,
+      "id": 70,
       "type": "timeseries",
       "title": "SoC je Batteriepack",
       "gridPos": {
         "x": 0,
-        "y": 140,
+        "y": 146,
         "w": 12,
         "h": 8
       },
@@ -5092,12 +5283,12 @@
       }
     },
     {
-      "id": 70,
+      "id": 71,
       "type": "stat",
       "title": "Temperatur je Pack",
       "gridPos": {
         "x": 12,
-        "y": 140,
+        "y": 146,
         "w": 12,
         "h": 4
       },
@@ -5185,12 +5376,12 @@
       }
     },
     {
-      "id": 71,
+      "id": 72,
       "type": "stat",
       "title": "Seriennummern Erweiterungspacks",
       "gridPos": {
         "x": 12,
-        "y": 144,
+        "y": 150,
         "w": 12,
         "h": 4
       },
@@ -5249,25 +5440,25 @@
       "description": "Pack 1 ist das Hauptgerät mit der Geräteseriennummer. Leer = kein Erweiterungspack."
     },
     {
-      "id": 72,
+      "id": 73,
       "type": "row",
       "title": "Unbekannte Register (Forschung)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 148,
+        "y": 154,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 73,
+      "id": 74,
       "type": "timeseries",
       "title": "Unbekannte Eingangsregister, Verlauf (nur ≠ 0)",
       "gridPos": {
         "x": 0,
-        "y": 149,
+        "y": 155,
         "w": 16,
         "h": 10
       },
@@ -5322,12 +5513,12 @@
       "description": "Rohwerte der Register, die die Bridge nicht kennt. 30000 = Offset für 0 bei vorzeichenbehafteten Werten."
     },
     {
-      "id": 74,
+      "id": 75,
       "type": "table",
       "title": "Halteregister-Dump (unbekannt, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 149,
+        "y": 155,
         "w": 8,
         "h": 10
       },

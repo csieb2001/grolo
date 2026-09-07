@@ -25,6 +25,8 @@
   .ctl label { font-weight:600; font-size:13px }
   .cur { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; white-space:nowrap }
   .cur.pending { color:var(--orange) } .cur.unknown { color:var(--muted); font-weight:400 }
+  #advice .item { border-left:3px solid var(--line); background:#1c1f24; border-radius:4px; padding:8px 12px; margin-bottom:8px; font-size:12.5px; line-height:1.5; color:var(--text) }
+  #advice .lever { margin-left:10px; padding:1px 8px; border-radius:10px; background:#26292d; color:var(--accent); font-weight:600; font-size:12px }
   #site-cur { white-space:normal; text-align:right; font-size:12.5px; overflow-wrap:anywhere }
   #sec-site .ctl { min-width:0 } #sec-site .row input[type=text] { min-width:120px }
   #site-strings td.az { display:flex; gap:4px; align-items:center } #site-strings td.az input { flex:1 1 60px; min-width:60px } #site-strings td.az select { flex:0 0 auto; width:auto; padding:4px 4px }
@@ -58,7 +60,7 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.37.2</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.37.3</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -96,6 +98,8 @@
     <div class="tablewrap"><table><thead><tr><th>String</th><th data-t="site.tilt"></th><th data-t="site.azimuth"></th><th data-t="site.wp"></th><th data-t="site.now"></th><th data-t="site.fit"></th></tr></thead><tbody id="site-strings"></tbody></table></div>
     <div class="row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="site-save" class="primary" data-t="site.save"></button><span class="muted" id="site-status"></span>
       <span class="spacer"></span><button id="fit-run" data-t="fit.run"></button><span class="muted" id="fit-status" data-t="fit.none"></span></div>
+    <h3 data-t="adv.title"></h3><p class="hint" data-t="adv.hint"></p>
+    <div id="advice" class="muted" data-t="adv.none"></div>
   </section>
   <section id="sec-cloud"><h2 data-t="sec.cloud"></h2><p class="hint" data-t="sec.cloud.hint"></p>
     <div class="grid">
@@ -109,7 +113,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.37.2 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.37.3 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -143,6 +147,11 @@
       'site.tilt': 'Tilt °', 'site.azimuth': 'Azimuth °', 'site.wp': 'Wp', 'site.now': 'Now', 'site.save': 'Save location and panels', 'site.saved': 'saved, weather service is recalculating', 'site.invalid': 'Enter a valid location first',
       'site.nohit': 'no place found', 'site.searcherr': 'geocoding not reachable', 'site.free': 'free', 'log.site': 'Location/panels saved',
       'compass': { 'N': 'N', 'NE': 'NE', 'E': 'E', 'SE': 'SE', 'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW' },
+      'adv.title': 'Recommendations from the data', 'adv.hint': 'Computed with the estimate: a year model for this location (Open-Meteo archive) compares the current orientation with the optimum and practical alternatives; the shading check looks for sun directions where the measurement stays far below the model.',
+      'adv.none': 'no recommendations yet (come with the first estimate)', 'adv.year': 'kWh per kWp and year', 'adv.ofBest': 'of the site optimum', 'adv.optimum': 'Site optimum', 'adv.sameAz': 'Same direction, tilt', 'adv.vertical': 'Vertical (balcony) facing', 'adv.flat': 'Flat',
+      'adv.winter': 'winter share', 'adv.lever': 'Biggest lever', 'adv.fine': 'Orientation is close to the optimum, nothing to gain by moving the panels.', 'adv.shade': 'Shading', 'adv.noShade': 'No recurring shading found in the last 30 days.',
+      'adv.shadeText': 'between {from} and {to} (sun at {a}–{b}°) only {r} % of the expected power, loss about {loss} % of the sunny-hour energy. Look for an obstacle in that direction.', 'adv.noBasis': 'Orientation unknown: enter it above or wait for the estimate.',
+      'adv.free': '{n} of 4 inputs free: another string, e.g. facing {dir}, would use them.', 'adv.fewData': 'shading check needs more sunny hours', 'adv.configured': 'configured', 'adv.estimated': 'estimated', 'adv.tilt': 'tilt', 'adv.period': 'year model',
       'site.fit': 'Estimate from measurements', 'fit.run': 'Estimate orientation now', 'fit.none': 'no estimate yet (runs once a day and on request)', 'fit.running': 'estimating… (about a minute)',
       'fit.last': 'last estimate', 'fit.days': 'days', 'fit.apply': 'Apply', 'fit.ok': 'good', 'fit.uncertain': 'uncertain', 'fit.insufficient': 'not determinable yet', 'fit.unused': 'no panel',
       'fit.hours': 'sunny hours', 'fit.hint': 'Needs several sunny days with direct sun; the range shows equally good solutions.', 'fit.error': 'estimate failed', 'log.fitrun': 'orientation estimate requested', 'log.fit': 'Orientation estimate received',
@@ -188,6 +197,11 @@
       'site.tilt': 'Neigung °', 'site.azimuth': 'Azimut °', 'site.wp': 'Wp', 'site.now': 'Jetzt', 'site.save': 'Standort und Module speichern', 'site.saved': 'gespeichert, Wetterdienst rechnet neu', 'site.invalid': 'Bitte zuerst einen gültigen Standort wählen',
       'site.nohit': 'kein Ort gefunden', 'site.searcherr': 'Geocoding nicht erreichbar', 'site.free': 'frei', 'log.site': 'Standort/Module gespeichert',
       'compass': { 'N': 'N', 'NE': 'NO', 'E': 'O', 'SE': 'SO', 'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW' },
+      'adv.title': 'Empfehlungen aus den Daten', 'adv.hint': 'Wird mit der Schätzung berechnet: Ein Jahresmodell für diesen Standort (Open-Meteo-Archiv) vergleicht die aktuelle Ausrichtung mit dem Optimum und praktischen Alternativen; die Verschattungsprüfung sucht Sonnenrichtungen, in denen die Messung weit unter dem Modell bleibt.',
+      'adv.none': 'noch keine Empfehlungen (kommen mit der ersten Schätzung)', 'adv.year': 'kWh je kWp und Jahr', 'adv.ofBest': 'des Standortoptimums', 'adv.optimum': 'Optimum am Standort', 'adv.sameAz': 'Gleiche Richtung, Neigung', 'adv.vertical': 'Senkrecht (Balkon) nach', 'adv.flat': 'Flach',
+      'adv.winter': 'Winteranteil', 'adv.lever': 'Größter Hebel', 'adv.fine': 'Die Ausrichtung liegt nahe am Optimum, Umbauen bringt nichts.', 'adv.shade': 'Verschattung', 'adv.noShade': 'Keine wiederkehrende Verschattung in den letzten 30 Tagen gefunden.',
+      'adv.shadeText': 'zwischen {from} und {to} Uhr (Sonne bei {a}–{b}°) nur {r} % der erwarteten Leistung, Verlust etwa {loss} % der Sonnenstunden-Energie. In dieser Richtung nach einem Hindernis schauen.', 'adv.noBasis': 'Ausrichtung unbekannt: oben eintragen oder die Schätzung abwarten.',
+      'adv.free': '{n} von 4 Eingängen frei: ein weiterer String, z. B. nach {dir}, würde sie nutzen.', 'adv.fewData': 'Verschattungsprüfung braucht mehr Sonnenstunden', 'adv.configured': 'konfiguriert', 'adv.estimated': 'geschätzt', 'adv.tilt': 'Neigung', 'adv.period': 'Jahresmodell',
       'site.fit': 'Schätzung aus Messdaten', 'fit.run': 'Ausrichtung jetzt schätzen', 'fit.none': 'noch keine Schätzung (läuft täglich und auf Anforderung)', 'fit.running': 'schätzt… (etwa eine Minute)',
       'fit.last': 'letzte Schätzung', 'fit.days': 'Tage', 'fit.apply': 'Übernehmen', 'fit.ok': 'gut', 'fit.uncertain': 'unsicher', 'fit.insufficient': 'noch nicht bestimmbar', 'fit.unused': 'kein Modul',
       'fit.hours': 'Sonnenstunden', 'fit.hint': 'Braucht mehrere sonnige Tage mit direkter Sonne; die Spanne zeigt gleich gute Lösungen.', 'fit.error': 'Schätzung fehlgeschlagen', 'log.fitrun': 'Ausrichtungsschätzung angefordert', 'log.fit': 'Ausrichtungsschätzung empfangen',
@@ -226,7 +240,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { site: null, wx: null, fit: null, siteDirty: false, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -250,7 +264,7 @@
   client.on('connect', () => {
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
-                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`]);
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -264,6 +278,7 @@
     if (topic === `${BASE}/grolo/config/site`) { try { onSiteConfig(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit/status`) { try { const st = JSON.parse(p); if (st.error) { fitPending = false; $('fit-status').textContent = `${t('fit.error')}: ${st.error}`; log(`${t('fit.error')}: ${st.error}`, 'log-err'); } } catch {} return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/state$`)))) { if (!state.device || m[1] === state.device) { try { onState(m[1], JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/dongle$`)))) { if (!state.device || m[1] === state.device) { try { onDongle(JSON.parse(p)); } catch {} } return; }
@@ -353,7 +368,7 @@
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
   }
-  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
 
   function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
   function updateValue(id) {
@@ -571,6 +586,29 @@
       b.onclick = () => { $(`site-s${i}-tilt`).value = v.tilt; $(`site-s${i}-az`).value = v.azimuth; if (!$(`site-s${i}-wp`).value) $(`site-s${i}-wp`).value = v.wp; markDirty(); };
       el.appendChild(txt); el.appendChild(b);
     }
+  }
+  function onAdvice(a) {
+    state.advice = a;
+    const pct = v => v == null ? '–' : `${v > 0 ? '+' : ''}${Math.round(v)} %`;
+    const dir = az => `${compassName(az)} ${Math.round(az)}°`;
+    const fill = (str, m) => str.replace(/\{(\w+)\}/g, (_, k) => m[k] ?? '');
+    const esc = x => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const parts = [];
+    for (const i of [1, 2, 3, 4]) {
+      const v = (a.strings || {})[String(i)]; if (!v || v.unused) continue;
+      const head = `<b>String ${i}</b>`;
+      if (!v.basis) { parts.push(`<div class="item">${head}<div>${esc(t('adv.noBasis'))}</div><div>${esc(t('adv.optimum'))}: ${dir(a.site_best.azimuth)}, ${t('adv.tilt')} ${a.site_best.tilt}° (${a.site_best.kwh_kwp} ${esc(t('adv.year'))})</div></div>`); continue; }
+      const opts = [[`${t('adv.sameAz')} ${v.same_azimuth.tilt}°`, v.same_azimuth.gain_pct], [`${t('adv.vertical')} ${dir(v.vertical.azimuth)}`, v.vertical.gain_pct], [t('adv.flat'), v.flat.gain_pct], [`${t('adv.optimum')} ${dir(v.best.azimuth)} / ${v.best.tilt}°`, v.best.gain_pct]];
+      const best = opts.filter(o => (o[1] ?? 0) >= 5).sort((x, y) => (y[1] ?? 0) - (x[1] ?? 0))[0];
+      const lines = [`${dir(v.azimuth)}, ${t('adv.tilt')} ${v.tilt}° (${v.basis === 'config' ? t('adv.configured') : t('adv.estimated')}): ${v.kwh_kwp} ${t('adv.year')}, ${v.pct_of_best} % ${t('adv.ofBest')} (${dir(a.site_best.azimuth)}, ${a.site_best.tilt}°: ${a.site_best.kwh_kwp}). ${t('adv.winter')} ${v.winter_share_pct} % (${t('adv.optimum').toLowerCase()} ${v.best_winter_share_pct} %).`,
+                     opts.map(o => `${o[0]}: ${pct(o[1])}`).join(' · ')];
+      if (v.shading && v.shading.length) for (const z of v.shading) lines.push(`${t('adv.shade')}: ${fill(t('adv.shadeText'), { from: z.time_from ?? '?', to: z.time_to ?? '?', a: z.az_from, b: z.az_to, r: Math.round(z.ratio * 100), loss: v.shading_loss_pct ?? 0 })}`);
+      else lines.push(v.ratio_median == null ? `${t('adv.shade')}: ${t('adv.fewData')}.` : t('adv.noShade'));
+      parts.push(`<div class="item" style="border-left-color:var(--accent)">${head}<span class="lever">${esc(best ? `${t('adv.lever')}: ${best[0]} (${pct(best[1])})` : t('adv.fine'))}</span>${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div>`);
+    }
+    if (a.free_inputs > 0) parts.push(`<div class="item">${esc(fill(t('adv.free'), { n: a.free_inputs, dir: dir(a.site_best.azimuth) }))}</div>`);
+    const el = $('advice'); el.className = parts.length ? '' : 'muted';
+    el.innerHTML = parts.length ? `<div class="muted" style="font-size:12px;margin-bottom:6px">${esc(t('adv.period'))} ${a.period[0]} – ${a.period[1]} · ${new Date(a.updated * 1000).toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB')}</div>` + parts.join('') : esc(t('adv.none'));
   }
   $('fit-run').onclick = () => { fitPending = true; client.publish(`${BASE}/grolo/fit/run`, '1'); $('fit-status').textContent = t('fit.running'); log(`→ ${t('log.fitrun')}`, 'log-tx'); };
   for (const id of ['site-lat', 'site-lon']) $(id).oninput = () => { markDirty(); $('site-q').dataset.name = ''; };

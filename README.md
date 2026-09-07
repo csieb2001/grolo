@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.37.2** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.37.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 ## Screenshots
 
@@ -230,6 +230,16 @@ button, Grafana in the table *Estimated orientation per string*, the website as 
 chart. It needs a few sunny days with direct sun and says "not determinable yet" until then. `scripts/fit-orientation.py` runs
 the same estimate from the shell (`--apply` writes the result to the settings topic).
 
+**Recommendations.** With every estimate the weather service also builds a year model for the location from the Open-Meteo
+archive (12 months of hourly DNI/DHI/GHI) and compares the current orientation of each string (configured, else estimated) with
+the site optimum and practical alternatives: same direction with the best tilt, vertical (balcony) with the best azimuth, flat.
+It reports kWh per kWp and year, the share of the optimum, the gain of each alternative and the winter share, and it checks the
+measurements for **shading**: sun directions in which the measured power stays far below the model while it fits elsewhere are
+reported as zones with today's times and the lost share of sunny-hour energy. Results: retained `homeassistant/grolo/advice`,
+measurement `pv_advice`, the Grafana table *Recommendations per string*, the settings page below the estimate, and the website
+under the sun-path chart. Strings without configured panels get an **assumed orientation** for the expected curve (the estimate,
+else the site optimum), labelled as such, until you enter the panels.
+
 The optional [GroLo website](https://github.com/csieb2001/grolo-web) receives location, sun position and the model and shows a
 **sun-path polar chart** (paths for solstices, equinox and the selected day, the daily peak of each string as a dot at the sun
 position of that moment, panel orientations as squares), a day slider that animates the sun and lets the strings glow with their
@@ -319,7 +329,7 @@ settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
 grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.37.2
+VERSION                      2026.37.3
 ```
 
 License: MIT.

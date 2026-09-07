@@ -4057,24 +4057,215 @@
     },
     {
       "id": 52,
+      "type": "table",
+      "title": "Recommendations per string (year model and shading)",
+      "gridPos": {
+        "x": 0,
+        "y": 122,
+        "w": 24,
+        "h": 6
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -3d)\n  |> filter(fn: (r) => r._measurement == \"pv_advice\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({ \"String\": r.string, \"Basis\": r.basis, \"Azimuth\": r.azimuth, \"Tilt\": r.tilt, \"kWh/kWp\": r.kwh_kwp, \"of optimum\": r.pct_of_best,\n      \"Optimum\": string(v: int(v: r.best_azimuth)) + \"° / \" + string(v: int(v: r.best_tilt)) + \"°\", \"Gain optimum\": r.best_gain_pct,\n      \"Same direction, tilt\": string(v: int(v: r.same_azimuth_tilt)) + \"°\", \"Gain\": r.same_azimuth_gain_pct,\n      \"Vertical facing\": string(v: int(v: r.vertical_azimuth)) + \"°\", \"Gain vertical\": r.vertical_gain_pct, \"Gain flat\": r.flat_gain_pct,\n      \"Winter share\": r.winter_share_pct, \"Shading\": r.shading_loss_pct, \"Zones\": r.shading_zones, \"As of\": r._time }))\n  |> sort(columns: [\"String\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Azimuth|Tilt)$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(of optimum|Winter share|Shading)$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Gain.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5
+                    },
+                    {
+                      "color": "green",
+                      "value": 20
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Shading"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 5
+                    },
+                    {
+                      "color": "red",
+                      "value": 15
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "As of"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD.MM. HH:mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Basis"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "config": {
+                        "text": "configured"
+                      },
+                      "fit": {
+                        "text": "estimated"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "Computed daily with the estimate. Year model from the Open-Meteo archive for the location: yield of the current orientation (configured, else estimated) in kWh per kWp, share of the optimum and gain from alternatives (same direction with best tilt, vertical with best azimuth, flat, optimum). Shading: share of sunny-hour energy missing in sun directions where the measurement stays far below the model; zones with times on the settings page and the website."
+    },
+    {
+      "id": 53,
       "type": "row",
       "title": "Battery and technical",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 122,
+        "y": 128,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 53,
+      "id": 54,
       "type": "timeseries",
       "title": "Temperatures",
       "gridPos": {
         "x": 0,
-        "y": 123,
+        "y": 129,
         "w": 12,
         "h": 9
       },
@@ -4192,12 +4383,12 @@
       }
     },
     {
-      "id": 54,
+      "id": 55,
       "type": "timeseries",
       "title": "Cell voltage (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 123,
+        "y": 129,
         "w": 8,
         "h": 9
       },
@@ -4260,12 +4451,12 @@
       "description": "A large spread indicates unbalanced cells"
     },
     {
-      "id": 55,
+      "id": 56,
       "type": "stat",
       "title": "Cycles",
       "gridPos": {
         "x": 20,
-        "y": 123,
+        "y": 129,
         "w": 4,
         "h": 3
       },
@@ -4308,12 +4499,12 @@
       }
     },
     {
-      "id": 56,
+      "id": 57,
       "type": "stat",
       "title": "Health (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 126,
+        "y": 132,
         "w": 4,
         "h": 3
       },
@@ -4373,12 +4564,12 @@
       }
     },
     {
-      "id": 57,
+      "id": 58,
       "type": "stat",
       "title": "Battery packs",
       "gridPos": {
         "x": 20,
-        "y": 129,
+        "y": 135,
         "w": 4,
         "h": 3
       },
@@ -4421,12 +4612,12 @@
       }
     },
     {
-      "id": 58,
+      "id": 59,
       "type": "stat",
       "title": "Discharge limit",
       "gridPos": {
         "x": 0,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4471,12 +4662,12 @@
       "description": "The battery does not discharge below this SoC"
     },
     {
-      "id": 59,
+      "id": 60,
       "type": "stat",
       "title": "Charge limit",
       "gridPos": {
         "x": 4,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4520,12 +4711,12 @@
       }
     },
     {
-      "id": 60,
+      "id": 61,
       "type": "stat",
       "title": "Grid voltage",
       "gridPos": {
         "x": 8,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4570,12 +4761,12 @@
       "description": "Register 115. Near 0 V when the NEXA is disconnected from the grid."
     },
     {
-      "id": 61,
+      "id": 62,
       "type": "stat",
       "title": "Device registers for comparison",
       "gridPos": {
         "x": 12,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4635,12 +4826,12 @@
       "description": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings."
     },
     {
-      "id": 62,
+      "id": 63,
       "type": "stat",
       "title": "Cell voltage spread",
       "gridPos": {
         "x": 16,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4700,12 +4891,12 @@
       }
     },
     {
-      "id": 63,
+      "id": 64,
       "type": "stat",
       "title": "Last message",
       "gridPos": {
         "x": 20,
-        "y": 132,
+        "y": 138,
         "w": 4,
         "h": 4
       },
@@ -4749,12 +4940,12 @@
       "description": "Time of the last data packet from the dongle"
     },
     {
-      "id": 64,
+      "id": 65,
       "type": "stat",
       "title": "NEXA firmware (reg. 119/120)",
       "gridPos": {
         "x": 0,
-        "y": 136,
+        "y": 142,
         "w": 6,
         "h": 4
       },
@@ -4797,12 +4988,12 @@
       "description": "Raw parts from the registers, Growatt's composition unknown"
     },
     {
-      "id": 65,
+      "id": 66,
       "type": "stat",
       "title": "Dongle firmware / model",
       "gridPos": {
         "x": 6,
-        "y": 136,
+        "y": 142,
         "w": 6,
         "h": 4
       },
@@ -4844,12 +5035,12 @@
       }
     },
     {
-      "id": 66,
+      "id": 67,
       "type": "stat",
       "title": "Dongle Wi-Fi signal",
       "gridPos": {
         "x": 12,
-        "y": 136,
+        "y": 142,
         "w": 4,
         "h": 4
       },
@@ -4910,12 +5101,12 @@
       "description": "Only reported when the dongle connects"
     },
     {
-      "id": 67,
+      "id": 68,
       "type": "stat",
       "title": "Battery packs detected",
       "gridPos": {
         "x": 16,
-        "y": 136,
+        "y": 142,
         "w": 4,
         "h": 4
       },
@@ -4958,12 +5149,12 @@
       }
     },
     {
-      "id": 68,
+      "id": 69,
       "type": "stat",
       "title": "Cell voltage min",
       "gridPos": {
         "x": 20,
-        "y": 136,
+        "y": 142,
         "w": 4,
         "h": 4
       },
@@ -5007,12 +5198,12 @@
       }
     },
     {
-      "id": 69,
+      "id": 70,
       "type": "timeseries",
       "title": "SoC per battery pack",
       "gridPos": {
         "x": 0,
-        "y": 140,
+        "y": 146,
         "w": 12,
         "h": 8
       },
@@ -5092,12 +5283,12 @@
       }
     },
     {
-      "id": 70,
+      "id": 71,
       "type": "stat",
       "title": "Temperature per pack",
       "gridPos": {
         "x": 12,
-        "y": 140,
+        "y": 146,
         "w": 12,
         "h": 4
       },
@@ -5185,12 +5376,12 @@
       }
     },
     {
-      "id": 71,
+      "id": 72,
       "type": "stat",
       "title": "Serial numbers of expansion packs",
       "gridPos": {
         "x": 12,
-        "y": 144,
+        "y": 150,
         "w": 12,
         "h": 4
       },
@@ -5249,25 +5440,25 @@
       "description": "Pack 1 is the main unit with the device serial. Empty = no expansion pack."
     },
     {
-      "id": 72,
+      "id": 73,
       "type": "row",
       "title": "Unknown registers (research)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 148,
+        "y": 154,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 73,
+      "id": 74,
       "type": "timeseries",
       "title": "Unknown input registers, history (≠ 0 only)",
       "gridPos": {
         "x": 0,
-        "y": 149,
+        "y": 155,
         "w": 16,
         "h": 10
       },
@@ -5322,12 +5513,12 @@
       "description": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values."
     },
     {
-      "id": 74,
+      "id": 75,
       "type": "table",
       "title": "Holding register dump (unknown, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 149,
+        "y": 155,
         "w": 8,
         "h": 10
       },

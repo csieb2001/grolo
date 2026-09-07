@@ -22,6 +22,11 @@ Ausrichtungsschätzung (fit.py): alle FIT_INTERVAL Sekunden (Standard 24 h) und 
 Neigung/Azimut/Wp je String aus den letzten FIT_DAYS Tagen geschätzt; Ergebnis retained unter <BASE>/grolo/fit und als
 Measurement "pv_fit" (Tag string) in InfluxDB.
 
+Empfehlungen (advice.py): nach jeder Schätzung Jahresmodell aus dem Open-Meteo-Archiv (aktuelle vs. optimale Ausrichtung,
+Alternativen mit Ertragsgewinn) und Verschattungsanalyse aus den Messdaten; retained <BASE>/grolo/advice, Measurement "pv_advice".
+Strings ohne Konfiguration bekommen für das Erwartungsmodell eine angenommene Ausrichtung (Schätzung, sonst Standortoptimum),
+im pv_model-Payload als "assumed" gekennzeichnet.
+
 Standort und Strings kommen aus der Umgebung (WEATHER_LAT/LON, STRING<n>_*) und werden von der retained Nachricht
 <BASE>/grolo/config/site (Einstellungsseite: Ortssuche, Neigung/Ausrichtung/Wp je String) überschrieben.
 
@@ -33,7 +38,8 @@ import json, logging, os, sys, threading, time, urllib.parse, urllib.request
 import paho.mqtt.client as mqtt
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from solar import sun_position, poa_irradiance, expected_w, string_config
-from fit import run_fit
+from fit import run_fit, influx_hourly, open_meteo_history
+from advice import build_advice
 
 BASE = os.getenv("HA_BASE_TOPIC", "homeassistant")
 HOST = os.getenv("MQTT_HOST", "mosquitto"); PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -65,6 +71,7 @@ STRINGS = string_config()
 SITE = {"name": os.getenv("WEATHER_NAME", ""), "lat": float(LAT) if LAT else None, "lon": float(LON) if LON else None}
 refresh = threading.Event()   # wird gesetzt, wenn die Konfiguration sich ändert -> sofort neu rechnen
 fit_request = threading.Event()
+LAST = {"fit": None, "advice": None}
 FIT_INTERVAL = int(os.getenv("FIT_INTERVAL", "86400")); FIT_DAYS = int(os.getenv("FIT_DAYS", "30"))
 
 
@@ -135,13 +142,31 @@ def build(d):
     return current, forecast, state, model_rows(hourly, now)
 
 
+def effective_strings():
+    """Konfigurierte Strings; für Strings mit Leistung ohne Konfiguration eine angenommene Ausrichtung (Schätzung, sonst Standortoptimum)."""
+    pr = float(os.getenv("STRING_PR", 0.85) or 0.85)
+    eff = {i: dict(c, assumed=False) for i, c in STRINGS.items()}
+    fit = LAST["fit"] or {}; adv = LAST["advice"] or {}
+    for k, v in (fit.get("strings") or {}).items():
+        i = int(k)
+        if i in eff or v.get("status") == "unused":
+            continue
+        if v.get("status") in ("ok", "uncertain"):
+            eff[i] = {"tilt": float(v["tilt"]), "azimuth": float(v["azimuth"]), "wp": float(v["wp"]), "pr": pr, "assumed": True, "source": "fit"}
+        elif adv.get("site_best") and v.get("peak_w", 0) >= 20:
+            b = adv["site_best"]
+            eff[i] = {"tilt": float(b["tilt"]), "azimuth": float(b["azimuth"]), "wp": round(float(v["peak_w"]) / 0.75 / pr / 5.0) * 5.0, "pr": pr, "assumed": True, "source": "site_best"}
+    return eff
+
+
 def model_rows(hourly, now):
-    """Erwartete Leistung je konfiguriertem String, stündlich von −24 h bis +48 h.
+    """Erwartete Leistung je String (konfiguriert oder angenommen), stündlich von −24 h bis +48 h.
 
     Open-Meteo-Stundenwerte der Strahlung sind Mittel der vorangehenden Stunde, deshalb Sonnenstand zur Stundenmitte
     und Zeitstempel der Zeile ebenfalls Stundenmitte."""
     rows = []
-    if not STRINGS:
+    strings = effective_strings()
+    if not strings:
         return rows
     lat, lon = float(LAT), float(LON)
     for i, ts in enumerate(hourly["time"]):
@@ -152,9 +177,9 @@ def model_rows(hourly, now):
             continue
         mid = ts - 1800
         az, el = sun_position(mid, lat, lon)
-        for n, c in STRINGS.items():
+        for n, c in strings.items():
             gti = poa_irradiance(ghi, dni, dhi, az, el, c["tilt"], c["azimuth"])
-            rows.append({"time": mid, "string": n, "gti": round(gti, 1), "expected_w": round(expected_w(gti, c["wp"], c["pr"]), 1) if c["wp"] else None})
+            rows.append({"time": mid, "string": n, "gti": round(gti, 1), "expected_w": round(expected_w(gti, c["wp"], c["pr"]), 1) if c["wp"] else None, "assumed": c.get("assumed", False)})
     return rows
 
 
@@ -175,7 +200,7 @@ def write_model(rows):
         lines.append(f"pv_model,string={int(r['string'])} {vals} {int(r['time'])}")
     influx_write(lines)
     if lines:
-        LOG.info("Modell: %d Stundenwerte für %d Strings nach InfluxDB geschrieben", len(lines), len(STRINGS))
+        LOG.info("Modell: %d Stundenwerte für %d Strings nach InfluxDB geschrieben (%d davon mit angenommener Ausrichtung)", len(lines), len({r["string"] for r in rows}), len({r["string"] for r in rows if r.get("assumed")}))
 
 
 def fit_loop(client):
@@ -195,10 +220,32 @@ def fit_loop(client):
                     else:
                         lines.append(f'pv_fit,string={k} hours={int(v.get("hours", 0))}i,quality="{v["status"]}" {res["updated"]}')
                 influx_write(lines)
+                LAST["fit"] = res
                 LOG.info("Ausrichtung geschätzt: %s", "; ".join(f"{k}: {v['status']}" + (f" {v['azimuth']:.0f}°/{v['tilt']:.0f}°/{v['wp']:.0f} Wp R²={v['r2']:.2f}" if v.get("status") in ("ok", "uncertain") else "") for k, v in res["strings"].items()))
             except Exception as e:
                 LOG.warning("Ausrichtungsschätzung fehlgeschlagen: %s", e)
                 client.publish(f"{BASE}/grolo/fit/status", json.dumps({"error": str(e), "time": int(time.time())}), retain=False)
+            try:
+                power = influx_hourly(INFLUX_URL, INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET, FIT_DAYS)
+                wx = open_meteo_history(float(LAT), float(LON), FIT_DAYS)
+                adv = build_advice(float(LAT), float(LON), STRINGS, LAST["fit"], power, wx, pr)
+                LAST["advice"] = adv
+                client.publish(f"{BASE}/grolo/advice", json.dumps(adv), retain=True)
+                lines = []
+                for k, v in adv["strings"].items():
+                    if not v.get("basis"):
+                        continue
+                    lines.append(f'pv_advice,string={k} basis="{v["basis"]}",tilt={float(v["tilt"])},azimuth={float(v["azimuth"])},kwh_kwp={float(v["kwh_kwp"])},pct_of_best={float(v["pct_of_best"] or 0)},'
+                                 f'best_tilt={float(v["best"]["tilt"])},best_azimuth={float(v["best"]["azimuth"])},best_gain_pct={float(v["best"]["gain_pct"] or 0)},'
+                                 f'same_azimuth_tilt={float(v["same_azimuth"]["tilt"])},same_azimuth_gain_pct={float(v["same_azimuth"]["gain_pct"] or 0)},'
+                                 f'vertical_azimuth={float(v["vertical"]["azimuth"])},vertical_gain_pct={float(v["vertical"]["gain_pct"] or 0)},flat_gain_pct={float(v["flat"]["gain_pct"] or 0)},'
+                                 f'winter_share_pct={float(v["winter_share_pct"])},shading_loss_pct={float(v.get("shading_loss_pct") or 0)},shading_zones={len(v.get("shading") or [])}i {adv["updated"]}')
+                influx_write(lines)
+                LOG.info("Empfehlungen: Optimum %s°/%s° = %s kWh/kWp; %s", adv["site_best"]["tilt"], adv["site_best"]["azimuth"], adv["site_best"]["kwh_kwp"],
+                         "; ".join(f"{k}: {v['pct_of_best']} % des Optimums ({v['basis']})" + (f", Verschattung {v['shading_loss_pct']} %" if v.get("shading") else "") for k, v in adv["strings"].items() if v.get("basis")) or "keine Ausrichtung bekannt")
+                refresh.set()   # Erwartungsmodell mit angenommener Ausrichtung neu rechnen
+            except Exception as e:
+                LOG.warning("Empfehlungen fehlgeschlagen: %s", e)
         fit_request.wait(FIT_INTERVAL)
 
 
@@ -228,11 +275,19 @@ def write_forecast(forecast):
 
 def main():
     client = mqtt.Client(client_id="grolo-weather", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-    client.on_connect = lambda c, u, f, rc, p=None: c.subscribe([(f"{BASE}/grolo/config/site", 0), (f"{BASE}/grolo/fit/run", 0)])
+    client.on_connect = lambda c, u, f, rc, p=None: c.subscribe([(f"{BASE}/grolo/config/site", 0), (f"{BASE}/grolo/fit/run", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0)])
     def on_message(c, u, msg):
         try:
             if msg.topic.endswith("/fit/run"):
                 LOG.info("Ausrichtungsschätzung angefordert"); fit_request.set(); return
+            if msg.topic.endswith("/grolo/fit"):
+                if LAST["fit"] is None:
+                    LAST["fit"] = json.loads(msg.payload)   # letzte Schätzung (retained) als Startwert
+                return
+            if msg.topic.endswith("/grolo/advice"):
+                if LAST["advice"] is None:
+                    LAST["advice"] = json.loads(msg.payload)
+                return
             apply_site(json.loads(msg.payload))
         except Exception as e:
             LOG.warning("Konfiguration unlesbar: %s", e)
@@ -255,7 +310,7 @@ def main():
             client.publish(f"{BASE}/grolo/weather/current", json.dumps(current, ensure_ascii=False), retain=True)
             client.publish(f"{BASE}/grolo/weather/forecast", json.dumps(forecast), retain=True)
             client.publish(f"{BASE}/grolo/weather/state", json.dumps(state), retain=True)
-            client.publish(f"{BASE}/grolo/pv_model", json.dumps({"strings": current["strings"], "hours": model}), retain=True)
+            client.publish(f"{BASE}/grolo/pv_model", json.dumps({"strings": {str(i): c for i, c in effective_strings().items()}, "hours": model}), retain=True)
             LOG.info("%s, %.1f °C, Bewölkung %s %%, Strahlung %s W/m², Sonne %s-%s", current["condition_de"], current["temperature"],
                      current["cloud_cover"], current["shortwave_radiation"], current["sunrise"], current["sunset"])
             try:
