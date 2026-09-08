@@ -243,7 +243,8 @@ else the site optimum), labelled as such, until you enter the panels.
 The optional [GroLo website](https://github.com/csieb2001/grolo-web) receives location, sun position and the model and shows a
 **sun-path polar chart** (paths for solstices, equinox and the selected day, the daily peak of each string as a dot at the sun
 position of that moment, panel orientations as squares), a day slider that animates the sun and lets the strings glow with their
-power, an hour × day heatmap per string, and measured vs. expected for the selected day.
+power, an hour × day heatmap per string, measured vs. expected for the selected day, and per string tiles with the day's peak,
+the daylight mean and the all-time high and all-time daylight mean.
 
 ## Cloud relay (optional)
 
