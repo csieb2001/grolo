@@ -106,11 +106,11 @@ def decode_down(payload: bytes):
             return None, "zu kurz", False
         t = struct.unpack_from(">H", u, 6)[0]
         dev = u[8:24].rstrip(b"\x00").decode("ascii", "replace")
-        if t == 0x0118 and len(u) >= 46:           # Dongle-Konfiguration schreiben: 14x00 | count | len | reg | vlen | value
+        if t in (0x0118, 0xFE18) and len(u) >= 46: # Dongle-Konfiguration schreiben (0x0118, NOAH/NEXA auch 0xFE18): 14x00 | count | len | reg | vlen | value
             reg = struct.unpack_from(">H", u, 42)[0]; vlen = struct.unpack_from(">H", u, 44)[0]
             val = u[46:46 + vlen].decode("ascii", "replace")
             shown = "[ausgeblendet]" if reg in (7, 57) else repr(val)
-            return t, f"Dongle-Parameter {reg} = {shown} ({dev})", reg in PROTECTED_PARAMS
+            return t, f"Dongle-Parameter {reg} = {shown} (Typ 0x{t:04x}, {dev})", reg in PROTECTED_PARAMS
         if t == 0x0110 and len(u) >= 42:           # Register schreiben (Gerät)
             start, count = struct.unpack_from(">HH", u, 38)
             return t, f"Register {start} (+{count}) = {u[42:-2].hex()} ({dev})", False
