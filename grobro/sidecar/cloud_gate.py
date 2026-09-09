@@ -15,6 +15,8 @@ Steuerung über MQTT (lokaler Broker):
   <BASE>/switch/grobro/cloud_forward/set   ON | OFF        (Schalter, wird retained gespeichert)
   <BASE>/switch/grobro/cloud_forward/get   ON | OFF        (Zustand, retained)
   <BASE>/grobro/cloud_forward/status       JSON mit Verbindungen, Bytes, verworfenen Paketen (retained)
+  <BASE>/grolo/cloud/trace/set             ON | OFF        Mitschnitt aller Pakete in beide Richtungen (Live-Log
+                                                           grolo/lab/log und /dump/cloud_down/trace.log)
 """
 import asyncio, json, logging, os, socket, ssl, struct, threading, time
 import paho.mqtt.client as mqtt
@@ -130,10 +132,88 @@ def record_down(topic, payload, desc, blocked):
         open(os.path.join(DUMP_DIR, name), "wb").write(payload)
     except Exception as e:
         LOG.debug("dump: %s", e)
+    if TRACE["on"]:
+        try:
+            with open(os.path.join(DUMP_DIR, "trace.log"), "a") as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} Cloud → Gerät PUBLISH {topic} {desc} {'VERWORFEN' if blocked else ''} | {payload.hex()}\n")
+        except Exception:
+            pass
     if mq is not None:
         line = {"ts": time.strftime("%H:%M:%S"), "level": "err" if blocked else "tx",
                 "msg": f"CLOUD → Gerät {'VERWORFEN' if blocked else 'durchgelassen'}: {desc} [Topic {topic}]"}
         mq.publish(LAB_TOPIC, json.dumps(line, ensure_ascii=False))
+
+
+TRACE = {"on": os.getenv("TRACE", "false").lower() == "true"}
+PKT_NAMES = {1: "CONNECT", 2: "CONNACK", 3: "PUBLISH", 4: "PUBACK", 8: "SUBSCRIBE", 9: "SUBACK", 10: "UNSUBSCRIBE", 11: "UNSUBACK", 12: "PINGREQ", 13: "PINGRESP", 14: "DISCONNECT"}
+
+
+def describe_up(payload: bytes) -> str:
+    """Gerät -> Cloud: Growatt-Nachrichtentyp und Kurzinfo."""
+    if not grobro_parser:
+        return f"{len(payload)} Bytes"
+    try:
+        u = grobro_parser.unscramble(payload); t = struct.unpack_from(">H", u, 6)[0]
+        names = {0x0104: "Messdaten", 0x0105: "Antwort Register lesen", 0x0106: "Antwort Einzelregister", 0x0116: "Heartbeat", 0x0118: "Quittung Parameter schreiben",
+                 0x0119: "Antwort Parameter lesen", 0x0150: "Meldung 0150", 0xFE19: "Dongle-Konfiguration", 0xFE25: "Keepalive", 0x0103: "Holding-Register-Dump", 0x6F64: "ZÄHLERDATEN"}
+        extra = ""
+        if t == 0x0119 and len(u) >= 45:
+            reg = struct.unpack_from(">H", u, 41)[0]; n = struct.unpack_from(">H", u, 43)[0]
+            extra = f", Parameter {reg} = " + ("[ausgeblendet]" if reg in (7, 57) else repr(u[45:45 + n].decode("ascii", "replace")))
+        return f"Typ 0x{t:04x} {names.get(t, '?')}{extra}, {len(u)} Bytes"
+    except Exception:
+        return f"{len(payload)} Bytes (nicht dekodierbar)"
+
+
+def connect_info(pkt: bytes) -> str:
+    """Client-ID und Benutzername aus einem CONNECT-Paket."""
+    try:
+        i = 1
+        while pkt[i] & 0x80:
+            i += 1
+        i += 1
+        plen = struct.unpack_from(">H", pkt, i)[0]; i += 2 + plen
+        level = pkt[i]; flags = pkt[i + 1]; i += 4
+        if level == 5:
+            plen, n = 0, 0
+            while True:
+                b = pkt[i + n]; plen += (b & 0x7F) << (7 * n); n += 1
+                if not b & 0x80:
+                    break
+            i += n + plen
+        cl = struct.unpack_from(">H", pkt, i)[0]; cid = pkt[i + 2:i + 2 + cl].decode("utf-8", "replace"); i += 2 + cl
+        out = f"Client-ID {cid!r}"
+        if flags & 0x04:   # Will
+            for _ in range(2):
+                l = struct.unpack_from(">H", pkt, i)[0]; i += 2 + l
+        if flags & 0x80:
+            l = struct.unpack_from(">H", pkt, i)[0]; out += f", Benutzer {pkt[i + 2:i + 2 + l].decode('utf-8', 'replace')!r}"; i += 2 + l
+        if flags & 0x40:
+            out += ", mit Passwort"
+        return out
+    except Exception as e:
+        return f"CONNECT nicht dekodierbar: {e}"
+
+
+def trace(direction: str, pkt: bytes, desc: str):
+    if not TRACE["on"]:
+        return
+    arrow = "Gerät → Cloud" if direction == "up" else "Cloud → Gerät"
+    try:
+        os.makedirs(DUMP_DIR, exist_ok=True)
+        with open(os.path.join(DUMP_DIR, "trace.log"), "a") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {arrow} {desc} | {pkt.hex()}\n")
+    except Exception:
+        pass
+    if mq is not None:
+        mq.publish(LAB_TOPIC, json.dumps({"ts": time.strftime("%H:%M:%S"), "level": "info" if direction == "up" else "tx", "msg": f"{arrow}: {desc}"}, ensure_ascii=False))
+
+
+def set_trace(on: bool):
+    TRACE["on"] = on
+    LOG.info("Mitschnitt %s", "AN" if on else "AUS")
+    if mq is not None:
+        mq.publish(f"{BASE}/grolo/cloud/trace/get", "ON" if on else "OFF", retain=True)
 
 
 # --------------------------------------------------------------------------- Verbindungen
@@ -146,12 +226,28 @@ async def pump(reader, writer, direction, conn_state):
             if not data:
                 break
             if direction == "up":
-                state["bytes_up"] += len(data); writer.write(data); await writer.drain(); continue
+                state["bytes_up"] += len(data); buf += data
+                while True:
+                    pkt, buf = read_packet(buf)
+                    if pkt is None:
+                        break
+                    if TRACE["on"]:
+                        pt = pkt[0] >> 4
+                        if pt == 3:
+                            topic, payload = publish_payload(pkt); trace("up", pkt, f"PUBLISH {topic}: {describe_up(payload or b'')}")
+                        elif pt == 1:
+                            trace("up", pkt, "CONNECT " + connect_info(pkt))
+                        elif pt not in (12,):
+                            trace("up", pkt, PKT_NAMES.get(pt, str(pt)) + f" ({len(pkt)} Bytes)")
+                    writer.write(pkt)
+                await writer.drain(); continue
             state["bytes_down"] += len(data); buf += data
             while True:
                 pkt, buf = read_packet(buf)
                 if pkt is None:
                     break
+                if TRACE["on"] and (pkt[0] >> 4) not in (3, 13):
+                    trace("down", pkt, PKT_NAMES.get(pkt[0] >> 4, str(pkt[0] >> 4)) + f" ({len(pkt)} Bytes)")
                 if (pkt[0] >> 4) == 3:
                     topic, payload = publish_payload(pkt)
                     if payload is not None:
@@ -298,13 +394,16 @@ def set_enabled(on: bool, source="mqtt"):
 
 def on_connect(client, userdata, flags, rc, props=None):
     LOG.info("MQTT verbunden %s:%s", MQTT_HOST, MQTT_PORT)
-    client.subscribe(f"{BASE}/switch/grobro/cloud_forward/set")
-    publish_status()
+    client.subscribe([(f"{BASE}/switch/grobro/cloud_forward/set", 0), (f"{BASE}/grolo/cloud/trace/set", 0)])
+    publish_status(); set_trace(TRACE["on"])
 
 
 def on_message(client, userdata, msg):
     v = msg.payload.decode(errors="replace").strip().upper()
-    if v in ("ON", "1", "TRUE"):
+    on = v in ("ON", "1", "TRUE")
+    if msg.topic.endswith("/trace/set"):
+        set_trace(on); return
+    if on:
         set_enabled(True)
     elif v in ("OFF", "0", "FALSE"):
         set_enabled(False)
