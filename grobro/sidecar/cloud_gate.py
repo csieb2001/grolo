@@ -89,17 +89,51 @@ def publish_payload(pkt: bytes):
     return topic, pkt[i:]
 
 
-def is_config_write(payload: bytes) -> bool:
+# Dongle-Parameter, die die Cloud nie schreiben darf: Netz/Broker (12,14,17,18,19,25,26), Passwort (7), Intervall (4),
+# Neustart (32), IOT-Modul aus (35), WLAN (56,57). Alles andere (z. B. die Zähler-Kopplung) wird durchgelassen und protokolliert.
+PROTECTED_PARAMS = {int(x) for x in os.getenv("PROTECTED_PARAMS", "4,7,12,14,17,18,19,25,26,32,35,56,57").split(",") if x.strip()}
+DUMP_DIR = os.getenv("DUMP_DIR", "/dump/cloud_down")
+LAB_TOPIC = os.getenv("LAB_TOPIC", "grolo/lab/log")
+
+
+def decode_down(payload: bytes):
+    """Cloud -> Gerät: (typ, beschreibung, blockieren?)"""
     if not grobro_parser:
-        return False
+        return None, "kein Parser", False
     try:
         u = grobro_parser.unscramble(payload)
         if len(u) < 8:
-            return False
+            return None, "zu kurz", False
         t = struct.unpack_from(">H", u, 6)[0]
-        return t in (0x0110, 0x0118)
-    except Exception:
-        return False
+        dev = u[8:24].rstrip(b"\x00").decode("ascii", "replace")
+        if t == 0x0118 and len(u) >= 46:           # Dongle-Konfiguration schreiben: 14x00 | count | len | reg | vlen | value
+            reg = struct.unpack_from(">H", u, 42)[0]; vlen = struct.unpack_from(">H", u, 44)[0]
+            val = u[46:46 + vlen].decode("ascii", "replace")
+            shown = "[ausgeblendet]" if reg in (7, 57) else repr(val)
+            return t, f"Dongle-Parameter {reg} = {shown} ({dev})", reg in PROTECTED_PARAMS
+        if t == 0x0110 and len(u) >= 42:           # Register schreiben (Gerät)
+            start, count = struct.unpack_from(">HH", u, 38)
+            return t, f"Register {start} (+{count}) = {u[42:-2].hex()} ({dev})", False
+        if t == 0x0106 and len(u) >= 42:
+            reg, val = struct.unpack_from(">HH", u, 38)
+            return t, f"Einzelregister {reg} = {val} ({dev})", False
+        return t, f"Typ 0x{t:04x}, {len(u)} Bytes, Nutzdaten {u[24:min(len(u), 90)].hex()} ({dev})", False
+    except Exception as e:
+        return None, f"nicht dekodierbar: {e}", False
+
+
+def record_down(topic, payload, desc, blocked):
+    """Jeden Cloud-Befehl an das Gerät als Datei ablegen und ins Live-Log melden."""
+    try:
+        os.makedirs(DUMP_DIR, exist_ok=True)
+        name = time.strftime("%Y%m%d-%H%M%S") + f"-{int(time.time() * 1000) % 1000:03d}" + ("-blocked" if blocked else "") + ".bin"
+        open(os.path.join(DUMP_DIR, name), "wb").write(payload)
+    except Exception as e:
+        LOG.debug("dump: %s", e)
+    if mq is not None:
+        line = {"ts": time.strftime("%H:%M:%S"), "level": "err" if blocked else "tx",
+                "msg": f"CLOUD → Gerät {'VERWORFEN' if blocked else 'durchgelassen'}: {desc} [Topic {topic}]"}
+        mq.publish(LAB_TOPIC, json.dumps(line, ensure_ascii=False))
 
 
 # --------------------------------------------------------------------------- Verbindungen
@@ -118,12 +152,17 @@ async def pump(reader, writer, direction, conn_state):
                 pkt, buf = read_packet(buf)
                 if pkt is None:
                     break
-                if CONFIG_FILTER and (pkt[0] >> 4) == 3:
+                if (pkt[0] >> 4) == 3:
                     topic, payload = publish_payload(pkt)
-                    if payload is not None and is_config_write(payload):
-                        state["blocked_config_writes"] += 1
-                        LOG.warning("Konfig-Schreibbefehl der Cloud verworfen (Topic %s, %d Bytes)", topic, len(payload))
-                        publish_status(); continue
+                    if payload is not None:
+                        t, desc, blocked = decode_down(payload)
+                        blocked = blocked and CONFIG_FILTER
+                        record_down(topic, payload, desc, blocked)
+                        if blocked:
+                            state["blocked_config_writes"] += 1
+                            LOG.warning("Cloud-Befehl verworfen: %s (Topic %s)", desc, topic)
+                            publish_status(); continue
+                        LOG.info("Cloud-Befehl durchgelassen: %s", desc)
                 writer.write(pkt)
             await writer.drain()
     except (asyncio.CancelledError, ConnectionError, ssl.SSLError):

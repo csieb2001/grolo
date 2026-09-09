@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>GroLo · Shelly-Labor Live-Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { margin:0; background:#111217; color:#d8d9da; font:13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding:12px 16px; border-bottom:1px solid #2c3235; display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  h1 { font-size:16px; margin:0; } .muted { color:#8e8e8e; } #st { font-weight:600; }
+  #log { padding:8px 16px 40px; font-family: ui-monospace, Menlo, monospace; font-size:12px; white-space:pre-wrap; word-break:break-all; }
+  .l { padding:2px 0; border-bottom:1px solid #1c1f24; } .t { color:#8e8e8e; margin-right:8px; }
+  .info { color:#d8d9da; } .ok { color:#73bf69; } .warn { color:#ff9830; } .err { color:#f2495c; } .mdns { color:#8ab8ff; } .meter { color:#f2cc0c; font-weight:700; } .tx { color:#b877d9; }
+  button { background:#2f3540; color:#d8d9da; border:0; border-radius:4px; padding:4px 10px; cursor:pointer; }
+</style></head><body>
+<header><h1>Shelly-Labor · Live-Log</h1><span class="muted">Broker: <span id="st">verbinde …</span></span>
+  <span class="muted">Zeilen: <span id="n">0</span></span><button onclick="document.getElementById('log').innerHTML='';document.getElementById('n').textContent=0">leeren</button>
+  <label class="muted"><input type="checkbox" id="follow" checked> mitscrollen</label></header>
+<div id="log"></div>
+<script src="mqtt.min.js"></script>
+<script>
+  const host = location.hostname; const c = mqtt.connect(`ws://${host}:9001`, { clientId: 'grolo-lab-' + Math.random().toString(16).slice(2, 8), keepalive: 30, reconnectPeriod: 3000 });
+  const st = document.getElementById('st'), log = document.getElementById('log'), n = document.getElementById('n');
+  let count = 0;
+  function add(ts, level, msg) {
+    const d = document.createElement('div'); d.className = 'l ' + (level || 'info');
+    const t = document.createElement('span'); t.className = 't'; t.textContent = ts; d.appendChild(t); d.appendChild(document.createTextNode(msg));
+    log.appendChild(d); n.textContent = ++count; if (document.getElementById('follow').checked) window.scrollTo(0, document.body.scrollHeight);
+  }
+  c.on('connect', () => { st.textContent = 'verbunden'; st.className = 'ok'; c.subscribe('grolo/lab/#'); });
+  c.on('close', () => { st.textContent = 'getrennt'; st.className = 'err'; });
+  c.on('message', (topic, p) => {
+    try { const m = JSON.parse(p.toString()); add(m.ts || '', m.level || 'info', m.msg || p.toString()); }
+    catch { add(new Date().toLocaleTimeString('de-DE'), 'info', `${topic} ${p.toString()}`); }
+  });
+</script></body></html>

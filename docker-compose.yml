@@ -124,6 +124,7 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
       - ./mosquitto/certs:/certs:ro
+      - ./grobro/dump:/dump          # Cloud-Befehle an das Gerät als Dateien (cloud_down/)
       - cloud-gate-state:/state
 
   # Push der bereinigten Messwerte an die GroLo-Website (Vercel), nur wenn WEB_URL/WEB_TOKEN gesetzt sind
