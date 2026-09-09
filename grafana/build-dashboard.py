@@ -21,7 +21,7 @@ EN = {
     "Batterie-Leistung": "Battery power", "Lade-/Entladeleistung der Batterie": "Battery charge/discharge power",
     "Ladezustand": "State of charge", "Hausverbrauch": "Household load", "Nur mit Smart Meter / GroPlug befüllt, sonst 0": "Only filled with a smart meter / GroPlug, otherwise 0",
     "Nulleinspeisung (Shelly)": "Zero feed-in (Shelly)", "Netzbezug": "Grid draw", "Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung": "Grid power at the meter: positive = draw, negative = feed-in",
-    "Hausverbrauch (Shelly)": "Household (Shelly)", "Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)": "Measured household load from the Shelly (grid + NEXA output)",
+    "Hausverbrauch (Shelly)": "Household (Shelly)", "Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)": "Measured household load from the Shelly (grid + NEXA output)", "Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur belegt, wenn die Shelly-Regelung läuft.": "Measured from the Shelly (grid + NEXA output). Only populated while the Shelly control runs.",
     "Zielleistung": "Target output", "Vom Regler angeforderte NEXA-Ausgangsleistung": "NEXA output power requested by the controller",
     "Verlauf Nulleinspeisung": "Zero feed-in history", "Netz": "Grid", "Haushalt": "Household", "Ausgabe": "Output",
     "Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)": "Only present while the Shelly control runs (settings page)",
@@ -127,6 +127,13 @@ def build(lang):
         return f'''from(bucket: "{BUCKET}")
   |> range(start: {rng})
   |> filter(fn: (r) => r._measurement == "{measurement}" and r._field == "{field}")
+  |> last()
+  |> keep(columns: ["_time", "_value"])'''
+
+    def q_sh_last(field):
+        return f'''from(bucket: "{BUCKET}")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
   |> last()
   |> keep(columns: ["_time", "_value"])'''
 
@@ -382,7 +389,7 @@ def build(lang):
         panel("gauge", _("Ladezustand"), 12, y, 6, 10, [target(q_last("totalBatteryPackSoc"))], "percent",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
               defaults={"min": 0, "max": 100, "decimals": 0, "thresholds": thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green"))}),
-        stat_field(_("Hausverbrauch"), 18, y, 6, 5, "totalHouseholdLoad", "watt", "red", desc=_("Nur mit Smart Meter / GroPlug befüllt, sonst 0")),
+        stat(_("Hausverbrauch"), 18, y, 6, 5, q_sh_last("household_w"), "watt", C_HOUSE, desc=_("Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur belegt, wenn die Shelly-Regelung läuft.")),
         stat_field(_("Batterie-Status"), 0, y + 5, 4, 5, "totalBatteryPackChargingStatus", None, "blue", mapping=status_map, desc=_("Statusregister 10 des Geräts. Auf aktueller Firmware oft „Ruhe“, obwohl die Bilanz Laden oder Entladen zeigt.")),
         stat_field(_("Betriebsmodus"), 4, y + 5, 4, 5, "workMode", None, "orange", mapping=mode_map),
         stat_field(_("Systemtemperatur"), 8, y + 5, 4, 5, "systemTemp", "celsius", None, 1, thr=thresholds((None, "blue"), (35, "green"), (50, "orange"), (60, "red"))),
@@ -391,12 +398,6 @@ def build(lang):
     y += 10
 
     # ============================================================ Nulleinspeisung (Shelly)
-    def q_sh_last(field):
-        return f'''from(bucket: "{BUCKET}")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
-  |> last()
-  |> keep(columns: ["_time", "_value"])'''
     def q_sh_series(field, label):
         return HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)

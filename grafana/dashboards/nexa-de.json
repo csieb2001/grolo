@@ -295,7 +295,7 @@
             "type": "influxdb",
             "uid": "influx-nexa"
           },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"totalHouseholdLoad\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"household_w\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
           "refId": "A"
         }
       ],
@@ -304,7 +304,7 @@
           "unit": "watt",
           "color": {
             "mode": "fixed",
-            "fixedColor": "red"
+            "fixedColor": "orange"
           }
         },
         "overrides": []
@@ -322,7 +322,7 @@
         "textMode": "value",
         "justifyMode": "center"
       },
-      "description": "Nur mit Smart Meter / GroPlug befüllt, sonst 0"
+      "description": "Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur belegt, wenn die Shelly-Regelung läuft."
     },
     {
       "id": 7,
