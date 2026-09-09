@@ -148,6 +148,29 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
 
+  # Nulleinspeisung ("Smart"-Modus) mit einem Shelly-Zähler, lokal ohne Growatt-Cloud
+  shelly-control:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-shelly-control
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/shelly_control.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      INFLUX_URL: "http://influxdb:8086"
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      SHELLY_HTTP_TIMEOUT: "${SHELLY_HTTP_TIMEOUT:-2}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
   # Wetter für den Anlagenstandort (Open-Meteo, kostenlos, ohne Schlüssel): aktuell + 48 h Vorhersage
   weather:
     image: ghcr.io/robertzaage/grobro:latest

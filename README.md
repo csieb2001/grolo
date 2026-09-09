@@ -247,6 +247,22 @@ position of that moment, panel orientations as squares), a day slider that anima
 power, an hour × day heatmap per string, measured vs. expected for the selected day, and per string tiles with the day's peak,
 the daylight mean and the all-time high and all-time daylight mean.
 
+## Zero feed-in with a Shelly (local "Smart" mode)
+
+The NEXA refuses the manufacturer's Smart mode without a meter paired in the Growatt cloud. The `shelly-control` sidecar
+reproduces it locally: it reads a Shelly meter (Pro 3EM, EM, 1PM or a Gen1 Shelly) every couple of seconds over local HTTP
+and adjusts the NEXA output power (slot power, a RAM register safe for frequent writes) so the grid draw stays at a small
+setpoint and nothing is exported. No Growatt cloud, no meter pairing.
+
+Configure it on the settings page under **Zero feed-in (Shelly)**: enter the Shelly address, setpoint (grid draw to hold,
+default 20 W), and the output range (min/max W). Choosing **Smart** in the operating-mode control turns the controller on and
+keeps the slot in Load First underneath; choosing Load first / Battery first turns it off and writes the real mode. The
+config is a retained message `<base>/grolo/config/shelly`; the controller publishes `<base>/grolo/shelly/state` (grid,
+household, output, target, ok) which the settings page, InfluxDB (measurement `shelly`) and the website mirror. On the
+website the **Grid** and **Household** tiles appear once the controller runs. If the Shelly is unreachable for 30 s the
+output falls back to a safe value (default 0 W) and the state is flagged. Works for any Shelly, so other users can use it
+by pointing it at their own meter.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -271,6 +287,7 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `cloud-gate` | grobro image + `grobro/sidecar/cloud_gate.py` | switchable, filtering TLS relay to the Growatt cloud |
 | `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast, sun position every minute, expected power per string (`solar.py`) |
 | `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples to the optional GroLo website (Vercel) |
+| `shelly-control` | grobro image + `grobro/sidecar/shelly_control.py` | local zero-feed-in: reads a Shelly meter and steers the NEXA output power |
 
 `grobro/registers/growatt_nexa_registers.json` is a copy of GroBro's NEXA register map extended with the firmware registers
 (119/120) and the serial/temperature registers of battery packs 2–4. It is mounted into the GroBro container and can be removed

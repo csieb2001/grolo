@@ -25,6 +25,7 @@ acc = {}            # device -> {"n": int, sums: {...}, last: state}
 queue = deque(maxlen=2880)   # gepufferte Samples (24 h bei 30 s)
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
+shelly = {"state": None, "dirty": False}
 
 
 def pick(d, *keys, default=None):
@@ -117,6 +118,9 @@ def on_message(client, userdata, msg):
         elif parts[-2:] == ["grolo", "advice"]:
             with lock:
                 weather["advice"] = json.loads(msg.payload); weather["dirty"] = True
+        elif parts[-2:] == ["shelly", "state"]:
+            with lock:
+                shelly["state"] = json.loads(msg.payload); shelly["dirty"] = True
         elif parts[-1] == "dongle":
             d = json.loads(msg.payload); device = parts[-2]
             with lock:
@@ -138,7 +142,9 @@ def flush():
         info = dict(info_pending); info_pending.clear()
         wx = weather_payload() if (weather["dirty"] and weather["current"]) else None
         weather["dirty"] = False
-    if not queue and not info and not wx:
+        sh = shelly["state"] if shelly["dirty"] else None
+        shelly["dirty"] = False
+    if not queue and not info and not wx and not sh:
         return
     batch = list(queue)[:200]
     body = {"samples": batch}
@@ -146,6 +152,8 @@ def flush():
         body["info"] = next(iter(info.values()))
     if wx:
         body["weather"] = wx
+    if sh:
+        body["shelly"] = sh
     req = urllib.request.Request(f"{URL}/api/ingest", data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"})
     try:
@@ -157,11 +165,11 @@ def flush():
     except urllib.error.HTTPError as e:
         LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200])
         with lock:
-            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx)
+            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
     except Exception as e:
         LOG.warning("Senden fehlgeschlagen (%s), Puffer %d", e, len(queue))
         with lock:
-            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx)
+            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
 
 
 def main():
@@ -169,7 +177,7 @@ def main():
         LOG.error("WEB_URL oder WEB_TOKEN fehlt"); time.sleep(3600); return
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
-                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0)]))
+                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0)]))
     client.on_message = on_message
     while True:
         try:

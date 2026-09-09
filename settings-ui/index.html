@@ -56,6 +56,11 @@
   a { color:var(--blue) }
   footer { text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px }
   @media (max-width:700px) { header { padding:10px 12px } main { padding:12px } }
+  .slab { color:#8e8e8e; font-size:11px; align-self:center; margin-left:4px }
+  .srow { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end }
+  .sfield { display:flex; flex-direction:column; gap:2px }
+  .sfield .slab { margin:0; font-size:11px }
+  .sfield input { width:88px; padding:5px 6px }
 </style>
 </head>
 <body>
@@ -79,6 +84,34 @@
   </section>
 
   <section id="sec-mode"><h2 data-t="sec.mode"></h2><p class="hint" data-t="sec.mode.hint"></p><div class="grid" id="mode-grid"></div></section>
+  <section id="sec-shelly"><h2 data-t="sec.shelly"></h2><p class="hint" data-t="sec.shelly.hint"></p>
+    <div class="grid">
+      <div class="ctl">
+        <div class="top"><label data-t="shelly.enabled"></label><span class="cur unknown" id="shelly-badge">–</span></div>
+        <div class="desc" data-t="shelly.enabled.desc"></div>
+        <div class="row"><div class="toggle" id="shelly-toggle"><button class="b-on" id="shelly-on" data-t="on"></button><button class="b-off" id="shelly-off" data-t="off"></button></div></div>
+      </div>
+      <div class="ctl">
+        <div class="top"><label data-t="shelly.host"></label></div>
+        <div class="desc" data-t="shelly.host.desc"></div>
+        <div class="row"><input type="text" id="shelly-host" placeholder="192.168.1.158" style="flex:1;min-width:120px"><button class="primary" id="shelly-host-save" data-t="set"></button></div>
+      </div>
+      <div class="ctl">
+        <div class="top"><label data-t="shelly.tuning"></label></div>
+        <div class="desc" data-t="shelly.tuning.desc"></div>
+        <div class="srow">
+          <span class="sfield"><label class="slab" data-t="shelly.setpoint"></label><input type="number" id="shelly-setpoint" inputmode="numeric"></span>
+          <span class="sfield"><label class="slab" data-t="shelly.min"></label><input type="number" id="shelly-min" inputmode="numeric"></span>
+          <span class="sfield"><label class="slab" data-t="shelly.max"></label><input type="number" id="shelly-max" inputmode="numeric"></span>
+          <button class="primary" id="shelly-save" data-t="set"></button>
+        </div>
+      </div>
+      <div class="ctl">
+        <div class="top"><label data-t="shelly.live"></label></div>
+        <div class="desc" id="shelly-live">–</div>
+      </div>
+    </div>
+  </section>
   <section id="sec-battery"><h2 data-t="sec.battery"></h2><p class="hint" data-t="sec.battery.hint"></p><div class="grid"></div></section>
   <section id="sec-output"><h2 data-t="sec.output"></h2><p class="hint" data-t="sec.output.hint"></p><div class="grid"></div></section>
   <section id="sec-slots"><h2 data-t="sec.slots"></h2><p class="hint" data-t="sec.slots.hint"></p>
@@ -174,6 +207,12 @@
       'L.4': ['Reporting interval', 'Minutes between data packets'], 'L.30': ['Time zone', 'e.g. GMT+1 or GMT+2 (DST)'], 'L.31': ['Clock', 'Sync the dongle clock with this host'], 'L.32': ['Restart dongle', 'Connection drops for about 20 s'],
       'L.18': ['MQTT port', 'Port the dongle sends to'], 'L.19': ['MQTT broker', 'Hostname the dongle sends to; usually redirected by local DNS'], 'L.17': ['MQTT IP', 'Server address as seen by the dongle'],
       'btn.sync': 'Sync with host time', 'btn.restart': 'Restart', 'btn.pair': 'Pairing mode', 'L.pair': ['Pairing mode (IOT module off)', 'Writes dongle parameter 35 = 1. The IOT lamp goes out and the dongle leaves the Wi-Fi. A short press on the IOT button of the NEXA then starts the pairing mode (lamp flashes). It only comes back online once ShinePhone sets the Wi-Fi again via Bluetooth.'], 'confirm.pair': 'Switch off the IOT module now? The dongle disappears from this system until you set the Wi-Fi again in ShinePhone via Bluetooth.', 'log.pair': 'Pairing mode requested (parameter 35 = 1)', 'log.param': 'Dongle parameter', 'confirm.run': 'really run?', 'confirm.set': 'set to', 'confirm.danger': 'A wrong value disconnects the dongle from this system.',
+      'sec.shelly': 'Zero feed-in (Shelly)', 'sec.shelly.hint': 'Local smart control without the Growatt cloud: a Shelly meter is read every couple of seconds and the NEXA output power is adjusted so the grid draw stays at the setpoint and nothing is fed back. Choosing Smart above turns this on.',
+      'shelly.enabled': 'Control', 'shelly.enabled.desc': 'While on, the output power is steered automatically; the manual output power and the slot power are overridden.',
+      'shelly.host': 'Shelly address', 'shelly.host.desc': 'Shelly Pro 3EM, EM, 1PM or a Gen1 Shelly on the same network, without password.',
+      'shelly.tuning': 'Setpoint and limits', 'shelly.tuning.desc': 'Setpoint = grid draw to hold (W, slightly positive so nothing is exported). Min/Max = output power range in W.',
+      'shelly.setpoint': 'Setpoint', 'shelly.min': 'Min', 'shelly.max': 'Max', 'shelly.live': 'Live', 'shelly.on': 'on', 'shelly.off': 'off',
+      'shelly.grid': 'grid', 'shelly.house': 'household', 'shelly.out': 'output', 'shelly.target': 'target', 'shelly.unreachable': 'Shelly unreachable', 'shelly.disabled': 'off', 'shelly.nohost': 'no Shelly address set',
       'modes': { '0': 'Load first', '1': 'Battery first', '2': 'Smart' }, 'status': { 'Charging': 'charging', 'Discharging': 'discharging', 'Idle': 'idle' },
     },
     de: {
@@ -224,6 +263,12 @@
       'L.4': ['Sendeintervall', 'Minuten zwischen Datenpaketen'], 'L.30': ['Zeitzone', 'z. B. GMT+1 oder GMT+2 (Sommerzeit)'], 'L.31': ['Uhrzeit', 'Uhr des Dongles mit diesem Host synchronisieren'], 'L.32': ['Dongle neu starten', 'Verbindung bricht etwa 20 s ab'],
       'L.18': ['MQTT-Port', 'Port, an den der Dongle sendet'], 'L.19': ['MQTT-Broker', 'Hostname, an den der Dongle sendet; meist per lokalem DNS umgeleitet'], 'L.17': ['MQTT-IP', 'Serveradresse aus Sicht des Dongles'],
       'btn.sync': 'Mit Host-Zeit synchronisieren', 'btn.restart': 'Neu starten', 'btn.pair': 'Kopplungsmodus', 'L.pair': ['Kopplungsmodus (IOT-Modul aus)', 'Schreibt Dongle-Parameter 35 = 1. Die IOT-Lampe geht aus und der Dongle verlässt das WLAN. Ein kurzer Druck auf den IOT-Knopf des NEXA startet danach den Kopplungsmodus (Lampe blinkt). Online kommt er erst wieder, wenn ShinePhone per Bluetooth das WLAN neu setzt.'], 'confirm.pair': 'IOT-Modul jetzt abschalten? Der Dongle verschwindet aus diesem System, bis du das WLAN in ShinePhone per Bluetooth neu setzt.', 'log.pair': 'Kopplungsmodus angefordert (Parameter 35 = 1)', 'log.param': 'Dongle-Parameter', 'confirm.run': 'wirklich ausführen?', 'confirm.set': 'setzen auf', 'confirm.danger': 'Ein falscher Wert trennt den Dongle von diesem System.',
+      'sec.shelly': 'Nulleinspeisung (Shelly)', 'sec.shelly.hint': 'Lokaler Smart-Modus ohne Growatt-Cloud: ein Shelly-Zähler wird alle paar Sekunden gelesen und die NEXA-Ausgangsleistung so nachgestellt, dass der Netzbezug auf dem Sollwert bleibt und nichts eingespeist wird. Die Auswahl Smart oben schaltet das ein.',
+      'shelly.enabled': 'Regelung', 'shelly.enabled.desc': 'Solange an, wird die Ausgangsleistung automatisch gestellt; die manuelle Ausgangsleistung und die Slot-Leistung werden überschrieben.',
+      'shelly.host': 'Shelly-Adresse', 'shelly.host.desc': 'Shelly Pro 3EM, EM, 1PM oder ein Gen1-Shelly im selben Netz, ohne Passwort.',
+      'shelly.tuning': 'Sollwert und Grenzen', 'shelly.tuning.desc': 'Sollwert = zu haltender Netzbezug (W, leicht positiv, damit nichts eingespeist wird). Min/Max = Bereich der Ausgangsleistung in W.',
+      'shelly.setpoint': 'Sollwert', 'shelly.min': 'Min', 'shelly.max': 'Max', 'shelly.live': 'Live', 'shelly.on': 'an', 'shelly.off': 'aus',
+      'shelly.grid': 'Netz', 'shelly.house': 'Haushalt', 'shelly.out': 'Ausgabe', 'shelly.target': 'Ziel', 'shelly.unreachable': 'Shelly nicht erreichbar', 'shelly.disabled': 'aus', 'shelly.nohost': 'keine Shelly-Adresse gesetzt',
       'modes': { '0': 'Last zuerst', '1': 'Batterie zuerst', '2': 'Smart' }, 'status': { 'Charging': 'lädt', 'Discharging': 'entlädt', 'Idle': 'Ruhe' },
     },
   };
@@ -240,7 +285,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -265,7 +310,7 @@
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
     client.subscribe(`${BASE}/grolo/dongle/param/result`);
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
-                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`]);
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -277,6 +322,8 @@
     if (topic === `${BASE}/switch/grobro/cloud_forward/get`) return onCloudState(p);
     if (topic === `${BASE}/grobro/cloud_forward/status`) { try { onCloudStatus(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/site`) { try { onSiteConfig(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/config/shelly`) { try { onShelly(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/shelly/state`) { try { onShellyState(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
@@ -371,7 +418,7 @@
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
   }
-  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.shelly) onShelly(state.shelly, true); if (state.shellyState) onShellyState(state.shellyState); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
 
   function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
   function updateValue(id) {
@@ -448,6 +495,40 @@
     b.onclick = () => { if (!confirm(t('confirm.pair'))) return; client.publish(`${BASE}/grolo/dongle/param/set`, JSON.stringify({ reg: 35, value: '1', device: state.device })); log(`→ ${t('log.pair')}`, 'log-tx'); };
     row.appendChild(b); box.appendChild(row); return box;
   }
+  // ------------------------------------------------------------------ Shelly / Nulleinspeisung
+  const SHELLY_DEFAULTS = { enabled: false, host: '', setpoint_w: 20, min_w: 0, max_w: 800, slot: 1, deadband_w: 10, interval_s: 2, gain: 0.8, fallback_w: 0 };
+  function publishShelly(patch) {
+    const cfg = Object.assign({}, SHELLY_DEFAULTS, state.shelly || {}, patch);
+    if (state.device) cfg.device = state.device;
+    state.shelly = cfg;
+    client.publish(`${BASE}/grolo/config/shelly`, JSON.stringify(cfg), { qos: 0, retain: true });
+    log(`→ Shelly ${patch.enabled != null ? (patch.enabled ? t('shelly.on') : t('shelly.off')) : JSON.stringify(patch)}`, 'log-tx');
+    onShelly(cfg, true); updateModeControl();
+  }
+  function onShelly(cfg, quiet) {
+    state.shelly = cfg;
+    const set = (id, v) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = v; };
+    set('shelly-host', cfg.host || ''); set('shelly-setpoint', cfg.setpoint_w); set('shelly-min', cfg.min_w); set('shelly-max', cfg.max_w);
+    const on = document.getElementById('shelly-on'), off = document.getElementById('shelly-off');
+    if (on && off) { on.className = 'b-on ' + (cfg.enabled ? 'on' : ''); off.className = 'b-off ' + (cfg.enabled ? '' : 'off'); }
+    const badge = document.getElementById('shelly-badge'); if (badge) { badge.textContent = cfg.enabled ? t('shelly.on') : t('shelly.off'); badge.className = 'cur ' + (cfg.enabled ? 'ok' : ''); }
+    if (!quiet) updateModeControl();
+  }
+  function onShellyState(st) {
+    state.shellyState = st;
+    const el = document.getElementById('shelly-live'); if (!el) return;
+    const w = v => v == null ? '–' : `${Math.round(v)} W`;
+    if (!st.enabled) el.textContent = t('shelly.disabled');
+    else if (!st.ok) el.textContent = `⚠ ${st.reason === 'shelly_unreachable' ? t('shelly.unreachable') : (st.reason || '')}`;
+    else el.textContent = `${t('shelly.grid')} ${w(st.grid_w)} · ${t('shelly.house')} ${w(st.household_w)} · ${t('shelly.out')} ${w(st.out_w)} → ${t('shelly.target')} ${w(st.target_w)}`;
+    const badge = document.getElementById('shelly-badge');
+    if (badge && st.enabled) { const bad = !st.ok; badge.textContent = bad ? '⚠' : t('shelly.on'); badge.className = 'cur ' + (bad ? 'unknown' : 'ok'); }
+  }
+  document.getElementById('shelly-on').onclick = () => publishShelly({ enabled: true });
+  document.getElementById('shelly-off').onclick = () => publishShelly({ enabled: false });
+  document.getElementById('shelly-host-save').onclick = () => publishShelly({ host: document.getElementById('shelly-host').value.trim() });
+  document.getElementById('shelly-save').onclick = () => publishShelly({ setpoint_w: +document.getElementById('shelly-setpoint').value || 0, min_w: +document.getElementById('shelly-min').value || 0, max_w: +document.getElementById('shelly-max').value || 800 });
+
   function renderSlot(n, s) {
     const tr = document.createElement('tr');
     const td = (el) => { const c = document.createElement('td'); if (el) c.appendChild(el); tr.appendChild(c); return c; };
@@ -482,11 +563,18 @@
     const lab = document.createElement('label'); lab.textContent = `${t('mode.label')} (Slot ${n})`; top.append(lab, curSpan(c.id)); box.appendChild(top);
     const d = document.createElement('div'); d.className = 'desc'; d.id = 'mode-reported'; box.appendChild(d);
     const row = document.createElement('div'); row.className = 'row';
-    for (const [v, txt] of Object.entries(t('modes'))) { const b = document.createElement('button'); b.dataset.modeBtn = v; b.textContent = txt; b.onclick = () => send(c.id, modePayload(c, v)); row.appendChild(b); }
+    for (const [v, txt] of Object.entries(t('modes'))) {
+      const b = document.createElement('button'); b.dataset.modeBtn = v; b.textContent = txt;
+      b.onclick = () => {
+        if (v === '2') { publishShelly({ enabled: true }); send(c.id, modePayload(c, '0')); }   // Smart = eigener Shelly-Regler, Slot bleibt Last zuerst
+        else { if (state.shelly && state.shelly.enabled) publishShelly({ enabled: false }); send(c.id, modePayload(c, v)); }
+      };
+      row.appendChild(b);
+    }
     box.appendChild(row); g.appendChild(box); updateModeControl();
   }
   function updateModeControl() {
-    const n = allDaySlot(); const cur = state.values[`slot${n}_mode`]; const key = MODE_EN[cur] ?? String(cur);
+    const n = allDaySlot(); const cur = state.values[`slot${n}_mode`]; const key = (state.shelly && state.shelly.enabled) ? '2' : (MODE_EN[cur] ?? String(cur));
     for (const b of document.querySelectorAll('[data-mode-btn]')) b.className = b.dataset.modeBtn === key ? 'primary' : '';
     const rep = document.getElementById('mode-reported'); if (rep && state.st) rep.textContent = `${t('mode.desc')}: ${modeText(state.st.workMode)}`;
   }
