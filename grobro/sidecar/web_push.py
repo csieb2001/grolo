@@ -98,7 +98,7 @@ def derive(st):
 def on_message(client, userdata, msg):
     parts = msg.topic.split("/")
     try:
-        if parts[-1] == "state":
+        if parts[-1] == "state" and len(parts) >= 3 and parts[-3] == "grobro":
             st = json.loads(msg.payload); device = parts[-2]; d = derive(st)
             with lock:
                 a = acc.setdefault(device, {"n": 0, "pv": 0.0, "out": 0.0, "bat": 0.0, "soc": 0.0, "last": None})
