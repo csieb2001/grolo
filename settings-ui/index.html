@@ -173,7 +173,7 @@
       'L.grid_power_allowed': ['Grid charging allowed', 'Battery may charge from the grid'], 'L.island_mode': ['Island mode', 'Operation without grid'], 'L.smart_mode': ['Smart mode (default)', 'Automatic regulation as base mode'],
       'L.4': ['Reporting interval', 'Minutes between data packets'], 'L.30': ['Time zone', 'e.g. GMT+1 or GMT+2 (DST)'], 'L.31': ['Clock', 'Sync the dongle clock with this host'], 'L.32': ['Restart dongle', 'Connection drops for about 20 s'],
       'L.18': ['MQTT port', 'Port the dongle sends to'], 'L.19': ['MQTT broker', 'Hostname the dongle sends to; usually redirected by local DNS'], 'L.17': ['MQTT IP', 'Server address as seen by the dongle'],
-      'btn.sync': 'Sync with host time', 'btn.restart': 'Restart', 'confirm.run': 'really run?', 'confirm.set': 'set to', 'confirm.danger': 'A wrong value disconnects the dongle from this system.',
+      'btn.sync': 'Sync with host time', 'btn.restart': 'Restart', 'btn.pair': 'Pairing mode', 'L.pair': ['Pairing mode (IOT module off)', 'Writes dongle parameter 35 = 1. The IOT lamp goes out and the dongle leaves the Wi-Fi. A short press on the IOT button of the NEXA then starts the pairing mode (lamp flashes). It only comes back online once ShinePhone sets the Wi-Fi again via Bluetooth.'], 'confirm.pair': 'Switch off the IOT module now? The dongle disappears from this system until you set the Wi-Fi again in ShinePhone via Bluetooth.', 'log.pair': 'Pairing mode requested (parameter 35 = 1)', 'log.param': 'Dongle parameter', 'confirm.run': 'really run?', 'confirm.set': 'set to', 'confirm.danger': 'A wrong value disconnects the dongle from this system.',
       'modes': { '0': 'Load first', '1': 'Battery first', '2': 'Smart' }, 'status': { 'Charging': 'charging', 'Discharging': 'discharging', 'Idle': 'idle' },
     },
     de: {
@@ -223,7 +223,7 @@
       'L.grid_power_allowed': ['Netzladen erlaubt', 'Batterie darf aus dem Netz laden'], 'L.island_mode': ['Inselmodus', 'Betrieb ohne Netz'], 'L.smart_mode': ['Smart-Modus (Standard)', 'Automatische Regelung als Grundmodus'],
       'L.4': ['Sendeintervall', 'Minuten zwischen Datenpaketen'], 'L.30': ['Zeitzone', 'z. B. GMT+1 oder GMT+2 (Sommerzeit)'], 'L.31': ['Uhrzeit', 'Uhr des Dongles mit diesem Host synchronisieren'], 'L.32': ['Dongle neu starten', 'Verbindung bricht etwa 20 s ab'],
       'L.18': ['MQTT-Port', 'Port, an den der Dongle sendet'], 'L.19': ['MQTT-Broker', 'Hostname, an den der Dongle sendet; meist per lokalem DNS umgeleitet'], 'L.17': ['MQTT-IP', 'Serveradresse aus Sicht des Dongles'],
-      'btn.sync': 'Mit Host-Zeit synchronisieren', 'btn.restart': 'Neu starten', 'confirm.run': 'wirklich ausführen?', 'confirm.set': 'setzen auf', 'confirm.danger': 'Ein falscher Wert trennt den Dongle von diesem System.',
+      'btn.sync': 'Mit Host-Zeit synchronisieren', 'btn.restart': 'Neu starten', 'btn.pair': 'Kopplungsmodus', 'L.pair': ['Kopplungsmodus (IOT-Modul aus)', 'Schreibt Dongle-Parameter 35 = 1. Die IOT-Lampe geht aus und der Dongle verlässt das WLAN. Ein kurzer Druck auf den IOT-Knopf des NEXA startet danach den Kopplungsmodus (Lampe blinkt). Online kommt er erst wieder, wenn ShinePhone per Bluetooth das WLAN neu setzt.'], 'confirm.pair': 'IOT-Modul jetzt abschalten? Der Dongle verschwindet aus diesem System, bis du das WLAN in ShinePhone per Bluetooth neu setzt.', 'log.pair': 'Kopplungsmodus angefordert (Parameter 35 = 1)', 'log.param': 'Dongle-Parameter', 'confirm.run': 'wirklich ausführen?', 'confirm.set': 'setzen auf', 'confirm.danger': 'Ein falscher Wert trennt den Dongle von diesem System.',
       'modes': { '0': 'Last zuerst', '1': 'Batterie zuerst', '2': 'Smart' }, 'status': { 'Charging': 'lädt', 'Discharging': 'entlädt', 'Idle': 'Ruhe' },
     },
   };
@@ -263,6 +263,7 @@
   setPill('conn', t('connecting'));
   client.on('connect', () => {
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
+    client.subscribe(`${BASE}/grolo/dongle/param/result`);
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
                       `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`]);
   });
@@ -281,6 +282,7 @@
     if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit/status`) { try { const st = JSON.parse(p); if (st.error) { fitPending = false; $('fit-status').textContent = `${t('fit.error')}: ${st.error}`; log(`${t('fit.error')}: ${st.error}`, 'log-err'); } } catch {} return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/state$`)))) { if (!state.device || m[1] === state.device) { try { onState(m[1], JSON.parse(p)); } catch {} } return; }
+    if (topic === `${BASE}/grolo/dongle/param/result`) { try { const r = JSON.parse(p); log(r.error ? `⚠ ${t('log.param')}: ${r.error}` : r.ack ? `✔ ${t('log.param')} ${t('log.confirmed')}` : `← ${t('log.param')} ${r.reg} = ${r.value}`, r.error ? 'log-err' : 'log-ok'); } catch {} return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/dongle$`)))) { if (!state.device || m[1] === state.device) { try { onDongle(JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/([^/]+)/grobro/([^/]+)/([^/]+)/get$`)))) return onValue(m[1], m[2], m[3], p);
   });
@@ -364,6 +366,7 @@
       if (isSlot(c.id)) { const n = c.id.match(/^slot(\d+)_/)[1]; (slots[n] ||= {})[c.id.replace(/^slot\d+_/, '')] = c; continue; }
       document.querySelector(`#sec-${SEC[c.id] || 'other'} .grid`).appendChild(renderCtl(c));
     }
+    document.querySelector('#sec-dongle .grid').appendChild(renderPairCard());
     document.getElementById('sec-other').hidden = !document.querySelector('#sec-other .grid').children.length;
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
@@ -435,6 +438,15 @@
       row.appendChild(b);
     }
     box.appendChild(row); return box;
+  }
+  // Kopplungsmodus: Parameter 35 über den Sidecar dongle-info schreiben (Freigabeliste dort), kein HA-Register
+  function renderPairCard() {
+    const box = document.createElement('div'); box.className = 'ctl';
+    const top = document.createElement('div'); top.className = 'top'; const lab = document.createElement('label'); lab.textContent = t('L.pair')[0]; top.appendChild(lab); box.appendChild(top);
+    const d = document.createElement('div'); d.className = 'desc'; d.textContent = t('L.pair')[1]; box.appendChild(d);
+    const row = document.createElement('div'); row.className = 'row'; const b = document.createElement('button'); b.className = 'danger'; b.textContent = t('btn.pair');
+    b.onclick = () => { if (!confirm(t('confirm.pair'))) return; client.publish(`${BASE}/grolo/dongle/param/set`, JSON.stringify({ reg: 35, value: '1', device: state.device })); log(`→ ${t('log.pair')}`, 'log-tx'); };
+    row.appendChild(b); box.appendChild(row); return box;
   }
   function renderSlot(n, s) {
     const tr = document.createElement('tr');

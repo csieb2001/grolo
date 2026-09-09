@@ -164,7 +164,8 @@ two DNS records. The dongle reconnects within seconds; the gap in our move was a
 
 **Settings page (GroLo)**: device and hardware (serial, firmware register, packs with serial/SoC/temperature, PV inputs in use,
 dongle model/software/Wi-Fi signal), operating mode switch, charge/discharge limits, output power, operating switches, all
-9 time slots, cloud relay switch with status, dongle settings (interval, time zone, clock sync, restart), and a log with
+9 time slots, cloud relay switch with status, dongle settings (interval, time zone, clock sync, restart, pairing mode = IOT
+module off via dongle parameter 35, see below), and a log with
 confirmations from the device. Controls are generated from GroBro's Home Assistant discovery, so anything GroBro exposes appears
 automatically. Every write is confirmed by reading the register back. A **Location and panels** section sets the plant location
 by place or postcode search (Open-Meteo geocoding) and tilt/azimuth/Wp per string; it is stored as a retained MQTT message
@@ -294,6 +295,23 @@ Things learned from the raw frames that GroBro does not (yet) expose, kept here 
 
 Settings the Growatt cloud knows but no register is known for: Power+ (1000 W), AC coupling, anti-backflow limit,
 "never power off". Identify them by toggling in the app and comparing the next hourly dump.
+
+## Dongle parameters and the Shelly lab
+
+The Wi-Fi dongle (an ESP32, `GTSW0000`) keeps about 145 configuration parameters that can be read with message type
+0x0119 and written with 0x0118 on `s/33/<serial>`; answers arrive on `c/33/<serial>`. `scripts/dongle-param.sh <id>`
+reads one parameter in clear text. Known ids: 4 interval, 17-19 broker, 30 time zone, 31 clock, 32 restart, **35 IOT
+module off** (the dongle leaves the Wi-Fi; a short press on the NEXA's IOT button then starts the pairing mode and
+ShinePhone can set the Wi-Fi again over Bluetooth), 56/57 Wi-Fi SSID and password (readable in clear text by anyone on
+the broker, keep port 1883 inside the LAN), 76 Wi-Fi signal, 102/122 read-only device status, 118 forces a reconnect.
+Setting every other zero-valued parameter to 1 had no effect, so the smart-meter pairing is not a simple dongle flag.
+
+The `dongle-info` sidecar exposes `<base>/grolo/dongle/param/read` (`{"reg": 20}`) and `.../set` (`{"reg": 35, "value": "1"}`,
+only ids in `WRITABLE_PARAMS`, default 35); results come back on `.../param/result`. The settings page uses it for the
+**Pairing mode** button. `scripts/shelly-lab.py` (runs in the GroBro image) reads, writes and probes parameters with a
+block list and reports to `grolo/lab/log`, shown live by `settings-ui/shelly-lab.html`. `cloud-gate` decodes every command
+the cloud sends to the device, stores it under `grobro/dump/cloud_down/`, reports it to the same live log and blocks only
+writes to protected dongle parameters (`PROTECTED_PARAMS`).
 
 ## Safety notes
 
