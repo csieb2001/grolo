@@ -598,7 +598,7 @@
     {
       "id": 11,
       "type": "row",
-      "title": "Power and state of charge",
+      "title": "Zero feed-in (Shelly)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -610,11 +610,293 @@
     },
     {
       "id": 12,
+      "type": "stat",
+      "title": "Grid draw",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"grid_w\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Grid power at the meter: positive = draw, negative = feed-in"
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Household (Shelly)",
+      "gridPos": {
+        "x": 4,
+        "y": 12,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"household_w\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Measured household load from the Shelly (grid + NEXA output)"
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Target output",
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"target_w\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "NEXA output power requested by the controller"
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Zero feed-in history",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"grid_w\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Grid\"})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"household_w\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Household\"})",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"out_w\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"Output\"})",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Grid"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Household"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Output"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Only present while the Shelly control runs (settings page)"
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "Power and state of charge",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
       "type": "timeseries",
       "title": "Power history",
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 21,
         "w": 16,
         "h": 10
       },
@@ -760,12 +1042,12 @@
       "description": "PV from voltage × current of the strings, output from register 116, battery as balance PV minus output (positive = charging). Dashed: the device's rounded PV register."
     },
     {
-      "id": 13,
+      "id": 18,
       "type": "timeseries",
       "title": "State of charge",
       "gridPos": {
         "x": 16,
-        "y": 12,
+        "y": 21,
         "w": 8,
         "h": 10
       },
@@ -837,25 +1119,25 @@
       }
     },
     {
-      "id": 14,
+      "id": 19,
       "type": "row",
       "title": "Energy",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 31,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 15,
+      "id": 20,
       "type": "timeseries",
       "title": "PV yield per day (30 days)",
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 32,
         "w": 12,
         "h": 9
       },
@@ -927,12 +1209,12 @@
       "description": "Integrated from measured power, day boundaries in local time, bars at midday. Set the time range to 30 days to see all days."
     },
     {
-      "id": 16,
+      "id": 21,
       "type": "timeseries",
       "title": "Output to house per day (30 days)",
       "gridPos": {
         "x": 12,
-        "y": 23,
+        "y": 32,
         "w": 12,
         "h": 9
       },
@@ -1003,12 +1285,12 @@
       }
     },
     {
-      "id": 17,
+      "id": 22,
       "type": "piechart",
       "title": "Where did today's PV energy go?",
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 41,
         "w": 6,
         "h": 9
       },
@@ -1096,12 +1378,12 @@
       }
     },
     {
-      "id": 18,
+      "id": 23,
       "type": "piechart",
       "title": "Where did today's house energy come from?",
       "gridPos": {
         "x": 6,
-        "y": 32,
+        "y": 41,
         "w": 6,
         "h": 9
       },
@@ -1189,12 +1471,12 @@
       }
     },
     {
-      "id": 19,
+      "id": 24,
       "type": "stat",
       "title": "PV today",
       "gridPos": {
         "x": 12,
-        "y": 32,
+        "y": 41,
         "w": 3,
         "h": 4
       },
@@ -1238,12 +1520,12 @@
       "description": "Computed from measurements. The device energy counter registers (eacToday etc.) stay at 0 on current firmware."
     },
     {
-      "id": 20,
+      "id": 25,
       "type": "stat",
       "title": "PV month",
       "gridPos": {
         "x": 15,
-        "y": 32,
+        "y": 41,
         "w": 3,
         "h": 4
       },
@@ -1287,12 +1569,12 @@
       "description": "Computed from measurements, since start of month"
     },
     {
-      "id": 21,
+      "id": 26,
       "type": "stat",
       "title": "PV year",
       "gridPos": {
         "x": 18,
-        "y": 32,
+        "y": 41,
         "w": 3,
         "h": 4
       },
@@ -1336,12 +1618,12 @@
       "description": "Computed from measurements, since start of year"
     },
     {
-      "id": 22,
+      "id": 27,
       "type": "stat",
       "title": "PV total",
       "gridPos": {
         "x": 21,
-        "y": 32,
+        "y": 41,
         "w": 3,
         "h": 4
       },
@@ -1385,12 +1667,12 @@
       "description": "Computed from measurements, since recording began"
     },
     {
-      "id": 23,
+      "id": 28,
       "type": "stat",
       "title": "Today from measurements",
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 45,
         "w": 12,
         "h": 5
       },
@@ -1519,25 +1801,25 @@
       }
     },
     {
-      "id": 24,
+      "id": 29,
       "type": "row",
       "title": "Weather",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 41,
+        "y": 50,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 25,
+      "id": 30,
       "type": "stat",
       "title": "Outdoor temperature",
       "gridPos": {
         "x": 0,
-        "y": 42,
+        "y": 51,
         "w": 4,
         "h": 4
       },
@@ -1606,12 +1888,12 @@
       "description": "Open-Meteo for the plant location, every 10 minutes"
     },
     {
-      "id": 26,
+      "id": 31,
       "type": "stat",
       "title": "Conditions",
       "gridPos": {
         "x": 4,
-        "y": 42,
+        "y": 51,
         "w": 4,
         "h": 4
       },
@@ -1724,12 +2006,12 @@
       "description": "WMO weather code from Open-Meteo"
     },
     {
-      "id": 27,
+      "id": 32,
       "type": "stat",
       "title": "Cloud cover",
       "gridPos": {
         "x": 8,
-        "y": 42,
+        "y": 51,
         "w": 4,
         "h": 4
       },
@@ -1793,12 +2075,12 @@
       }
     },
     {
-      "id": 28,
+      "id": 33,
       "type": "stat",
       "title": "Global irradiance",
       "gridPos": {
         "x": 12,
-        "y": 42,
+        "y": 51,
         "w": 4,
         "h": 4
       },
@@ -1843,12 +2125,12 @@
       "description": "Shortwave irradiance on the horizontal in W/m², reference for PV power"
     },
     {
-      "id": 29,
+      "id": 34,
       "type": "stat",
       "title": "Sunrise / sunset",
       "gridPos": {
         "x": 16,
-        "y": 42,
+        "y": 51,
         "w": 4,
         "h": 4
       },
@@ -1899,12 +2181,12 @@
       "description": "Today, local time"
     },
     {
-      "id": 30,
+      "id": 35,
       "type": "stat",
       "title": "Sunshine today",
       "gridPos": {
         "x": 20,
-        "y": 42,
+        "y": 51,
         "w": 4,
         "h": 4
       },
@@ -1949,12 +2231,12 @@
       "description": "Forecast sunshine duration for the day"
     },
     {
-      "id": 31,
+      "id": 36,
       "type": "stat",
       "title": "Irradiation sum today / tomorrow",
       "gridPos": {
         "x": 0,
-        "y": 46,
+        "y": 55,
         "w": 4,
         "h": 9
       },
@@ -2008,12 +2290,12 @@
       "description": "Daily sum of global irradiance in MJ/m² per forecast (1 MJ/m² ≈ 0.28 kWh/m²)"
     },
     {
-      "id": 32,
+      "id": 37,
       "type": "timeseries",
       "title": "Global irradiance and PV power",
       "gridPos": {
         "x": 4,
-        "y": 46,
+        "y": 55,
         "w": 10,
         "h": 9
       },
@@ -2109,12 +2391,12 @@
       "description": "The ratio of PV power to irradiance reveals shading, orientation and soiling. Irradiance left (W/m²), PV right (W)."
     },
     {
-      "id": 33,
+      "id": 38,
       "type": "timeseries",
       "title": "Cloud cover and temperature",
       "gridPos": {
         "x": 14,
-        "y": 46,
+        "y": 55,
         "w": 10,
         "h": 9
       },
@@ -2214,12 +2496,12 @@
       }
     },
     {
-      "id": 34,
+      "id": 39,
       "type": "barchart",
       "title": "Forecast 48 h: irradiance and cloud cover",
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 64,
         "w": 24,
         "h": 8
       },
@@ -2302,25 +2584,25 @@
       "description": "Hourly Open-Meteo forecast from now. The dashboard time range has no effect here, the panel always shows the next 48 hours."
     },
     {
-      "id": 35,
+      "id": 40,
       "type": "row",
       "title": "PV strings",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 63,
+        "y": 72,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 36,
+      "id": 41,
       "type": "timeseries",
       "title": "Power per string",
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 73,
         "w": 12,
         "h": 9
       },
@@ -2375,12 +2657,12 @@
       "description": "Power = voltage × current per input"
     },
     {
-      "id": 37,
+      "id": 42,
       "type": "timeseries",
       "title": "Voltage per string",
       "gridPos": {
         "x": 12,
-        "y": 64,
+        "y": 73,
         "w": 6,
         "h": 9
       },
@@ -2434,12 +2716,12 @@
       }
     },
     {
-      "id": 38,
+      "id": 43,
       "type": "timeseries",
       "title": "Current per string",
       "gridPos": {
         "x": 18,
-        "y": 64,
+        "y": 73,
         "w": 6,
         "h": 9
       },
@@ -2493,12 +2775,12 @@
       }
     },
     {
-      "id": 39,
+      "id": 44,
       "type": "stat",
       "title": "PV inputs in use",
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 82,
         "w": 4,
         "h": 4
       },
@@ -2542,12 +2824,12 @@
       "description": "Inputs with more than 15 V in the last 24 h, out of 4 MPPT inputs. Free inputs show about 7 V."
     },
     {
-      "id": 40,
+      "id": 45,
       "type": "stat",
       "title": "PV input 1 to 4",
       "gridPos": {
         "x": 4,
-        "y": 73,
+        "y": 82,
         "w": 20,
         "h": 4
       },
@@ -2628,25 +2910,25 @@
       "description": "Maximum voltage per input in 24 h. Green = panel connected (> 15 V), red = free."
     },
     {
-      "id": 41,
+      "id": 46,
       "type": "row",
       "title": "Daily peaks, sun position and model",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 77,
+        "y": 86,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 42,
+      "id": 47,
       "type": "table",
       "title": "Daily peak per string (30 days)",
       "gridPos": {
         "x": 0,
-        "y": 78,
+        "y": 87,
         "w": 10,
         "h": 10
       },
@@ -2787,12 +3069,12 @@
       "description": "Highest one-minute power per string and day with the time and the sun position at that moment. Only strings above 5 W."
     },
     {
-      "id": 43,
+      "id": 48,
       "type": "timeseries",
       "title": "Daily peaks per string (30 days)",
       "gridPos": {
         "x": 10,
-        "y": 78,
+        "y": 87,
         "w": 14,
         "h": 10
       },
@@ -2910,12 +3192,12 @@
       "description": "Highest one-minute power per day, bars on midday."
     },
     {
-      "id": 44,
+      "id": 49,
       "type": "heatmap",
       "title": "PV total: hour × day (30 days)",
       "gridPos": {
         "x": 0,
-        "y": 88,
+        "y": 97,
         "w": 12,
         "h": 9
       },
@@ -3027,12 +3309,12 @@
       ]
     },
     {
-      "id": 45,
+      "id": 50,
       "type": "heatmap",
       "title": "String $string: hour × day (30 days)",
       "gridPos": {
         "x": 12,
-        "y": 88,
+        "y": 97,
         "w": 12,
         "h": 9
       },
@@ -3144,12 +3426,12 @@
       ]
     },
     {
-      "id": 46,
+      "id": 51,
       "type": "state-timeline",
       "title": "Strongest string per hour",
       "gridPos": {
         "x": 0,
-        "y": 97,
+        "y": 106,
         "w": 24,
         "h": 5
       },
@@ -3229,12 +3511,12 @@
       "description": "Which string delivers the most in the hourly mean. East strings lead in the morning, west strings in the afternoon. Grey = below 5 W."
     },
     {
-      "id": 47,
+      "id": 52,
       "type": "timeseries",
       "title": "Measured vs. expected per string",
       "gridPos": {
         "x": 0,
-        "y": 102,
+        "y": 111,
         "w": 16,
         "h": 10
       },
@@ -3502,12 +3784,12 @@
       "description": "Measured: voltage × current per string. Expected: Open-Meteo irradiance (DNI/DHI/GHI) transposed onto the configured panel plane, times Wp times performance ratio (weather sidecar). Without tilt/azimuth on the settings page, “Expected” stays empty. Recurring dips at the same time of day = shading."
     },
     {
-      "id": 48,
+      "id": 53,
       "type": "timeseries",
       "title": "Sun position",
       "gridPos": {
         "x": 16,
-        "y": 102,
+        "y": 111,
         "w": 8,
         "h": 10
       },
@@ -3641,12 +3923,12 @@
       "description": "Azimuth 0 = north, 90 = east, 180 = south, 270 = west. Elevation above the horizon, computed every minute by the weather sidecar (NOAA)."
     },
     {
-      "id": 49,
+      "id": 54,
       "type": "xychart",
       "title": "Power vs. sun azimuth",
       "gridPos": {
         "x": 0,
-        "y": 112,
+        "y": 121,
         "w": 16,
         "h": 10
       },
@@ -3852,12 +4134,12 @@
       "description": "Each point is a 5-minute mean in the selected range. The centre of the cloud shows where a string faces; a dip at a fixed azimuth is an obstacle. For a sun-path polar chart see the GroLo website."
     },
     {
-      "id": 50,
+      "id": 55,
       "type": "stat",
       "title": "Sun now",
       "gridPos": {
         "x": 16,
-        "y": 112,
+        "y": 121,
         "w": 8,
         "h": 4
       },
@@ -3925,12 +4207,12 @@
       }
     },
     {
-      "id": 51,
+      "id": 56,
       "type": "table",
       "title": "Estimated orientation per string",
       "gridPos": {
         "x": 16,
-        "y": 116,
+        "y": 125,
         "w": 8,
         "h": 6
       },
@@ -4056,12 +4338,12 @@
       "description": "Once a day (and on request from the settings page) the weather sidecar estimates tilt, azimuth and Wp of every string from the hourly curves of the last 30 days against the irradiance model. Needs several sunny days. Apply it on the settings page under “Location and panels”, then “Expected” fills in."
     },
     {
-      "id": 52,
+      "id": 57,
       "type": "table",
       "title": "Recommendations per string (year model and shading)",
       "gridPos": {
         "x": 0,
-        "y": 122,
+        "y": 131,
         "w": 24,
         "h": 6
       },
@@ -4247,25 +4529,25 @@
       "description": "Computed daily with the estimate. Year model from the Open-Meteo archive for the location: yield of the current orientation (configured, else estimated) in kWh per kWp, share of the optimum and gain from alternatives (same direction with best tilt, vertical with best azimuth, flat, optimum). Shading: share of sunny-hour energy missing in sun directions where the measurement stays far below the model; zones with times on the settings page and the website."
     },
     {
-      "id": 53,
+      "id": 58,
       "type": "row",
       "title": "Battery and technical",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 128,
+        "y": 137,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 54,
+      "id": 59,
       "type": "timeseries",
       "title": "Temperatures",
       "gridPos": {
         "x": 0,
-        "y": 129,
+        "y": 138,
         "w": 12,
         "h": 9
       },
@@ -4383,12 +4665,12 @@
       }
     },
     {
-      "id": 55,
+      "id": 60,
       "type": "timeseries",
       "title": "Cell voltage (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 129,
+        "y": 138,
         "w": 8,
         "h": 9
       },
@@ -4451,12 +4733,12 @@
       "description": "A large spread indicates unbalanced cells"
     },
     {
-      "id": 56,
+      "id": 61,
       "type": "stat",
       "title": "Cycles",
       "gridPos": {
         "x": 20,
-        "y": 129,
+        "y": 138,
         "w": 4,
         "h": 3
       },
@@ -4499,12 +4781,12 @@
       }
     },
     {
-      "id": 57,
+      "id": 62,
       "type": "stat",
       "title": "Health (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 132,
+        "y": 141,
         "w": 4,
         "h": 3
       },
@@ -4564,12 +4846,12 @@
       }
     },
     {
-      "id": 58,
+      "id": 63,
       "type": "stat",
       "title": "Battery packs",
       "gridPos": {
         "x": 20,
-        "y": 135,
+        "y": 144,
         "w": 4,
         "h": 3
       },
@@ -4612,12 +4894,12 @@
       }
     },
     {
-      "id": 59,
+      "id": 64,
       "type": "stat",
       "title": "Discharge limit",
       "gridPos": {
         "x": 0,
-        "y": 138,
+        "y": 147,
         "w": 4,
         "h": 4
       },
@@ -4662,12 +4944,12 @@
       "description": "The battery does not discharge below this SoC"
     },
     {
-      "id": 60,
+      "id": 65,
       "type": "stat",
       "title": "Charge limit",
       "gridPos": {
         "x": 4,
-        "y": 138,
+        "y": 147,
         "w": 4,
         "h": 4
       },
@@ -4711,12 +4993,12 @@
       }
     },
     {
-      "id": 61,
+      "id": 66,
       "type": "stat",
       "title": "Grid voltage",
       "gridPos": {
         "x": 8,
-        "y": 138,
+        "y": 147,
         "w": 4,
         "h": 4
       },
@@ -4761,12 +5043,12 @@
       "description": "Register 115. Near 0 V when the NEXA is disconnected from the grid."
     },
     {
-      "id": 62,
+      "id": 67,
       "type": "stat",
       "title": "Device registers for comparison",
       "gridPos": {
         "x": 12,
-        "y": 138,
+        "y": 147,
         "w": 4,
         "h": 4
       },
@@ -4826,12 +5108,12 @@
       "description": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings."
     },
     {
-      "id": 63,
+      "id": 68,
       "type": "stat",
       "title": "Cell voltage spread",
       "gridPos": {
         "x": 16,
-        "y": 138,
+        "y": 147,
         "w": 4,
         "h": 4
       },
@@ -4891,12 +5173,12 @@
       }
     },
     {
-      "id": 64,
+      "id": 69,
       "type": "stat",
       "title": "Last message",
       "gridPos": {
         "x": 20,
-        "y": 138,
+        "y": 147,
         "w": 4,
         "h": 4
       },
@@ -4940,12 +5222,12 @@
       "description": "Time of the last data packet from the dongle"
     },
     {
-      "id": 65,
+      "id": 70,
       "type": "stat",
       "title": "NEXA firmware (reg. 119/120)",
       "gridPos": {
         "x": 0,
-        "y": 142,
+        "y": 151,
         "w": 6,
         "h": 4
       },
@@ -4988,12 +5270,12 @@
       "description": "Raw parts from the registers, Growatt's composition unknown"
     },
     {
-      "id": 66,
+      "id": 71,
       "type": "stat",
       "title": "Dongle firmware / model",
       "gridPos": {
         "x": 6,
-        "y": 142,
+        "y": 151,
         "w": 6,
         "h": 4
       },
@@ -5035,12 +5317,12 @@
       }
     },
     {
-      "id": 67,
+      "id": 72,
       "type": "stat",
       "title": "Dongle Wi-Fi signal",
       "gridPos": {
         "x": 12,
-        "y": 142,
+        "y": 151,
         "w": 4,
         "h": 4
       },
@@ -5101,12 +5383,12 @@
       "description": "Only reported when the dongle connects"
     },
     {
-      "id": 68,
+      "id": 73,
       "type": "stat",
       "title": "Battery packs detected",
       "gridPos": {
         "x": 16,
-        "y": 142,
+        "y": 151,
         "w": 4,
         "h": 4
       },
@@ -5149,12 +5431,12 @@
       }
     },
     {
-      "id": 69,
+      "id": 74,
       "type": "stat",
       "title": "Cell voltage min",
       "gridPos": {
         "x": 20,
-        "y": 142,
+        "y": 151,
         "w": 4,
         "h": 4
       },
@@ -5198,12 +5480,12 @@
       }
     },
     {
-      "id": 70,
+      "id": 75,
       "type": "timeseries",
       "title": "SoC per battery pack",
       "gridPos": {
         "x": 0,
-        "y": 146,
+        "y": 155,
         "w": 12,
         "h": 8
       },
@@ -5283,12 +5565,12 @@
       }
     },
     {
-      "id": 71,
+      "id": 76,
       "type": "stat",
       "title": "Temperature per pack",
       "gridPos": {
         "x": 12,
-        "y": 146,
+        "y": 155,
         "w": 12,
         "h": 4
       },
@@ -5376,12 +5658,12 @@
       }
     },
     {
-      "id": 72,
+      "id": 77,
       "type": "stat",
       "title": "Serial numbers of expansion packs",
       "gridPos": {
         "x": 12,
-        "y": 150,
+        "y": 159,
         "w": 12,
         "h": 4
       },
@@ -5440,25 +5722,25 @@
       "description": "Pack 1 is the main unit with the device serial. Empty = no expansion pack."
     },
     {
-      "id": 73,
+      "id": 78,
       "type": "row",
       "title": "Unknown registers (research)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 154,
+        "y": 163,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 74,
+      "id": 79,
       "type": "timeseries",
       "title": "Unknown input registers, history (≠ 0 only)",
       "gridPos": {
         "x": 0,
-        "y": 155,
+        "y": 164,
         "w": 16,
         "h": 10
       },
@@ -5513,12 +5795,12 @@
       "description": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values."
     },
     {
-      "id": 75,
+      "id": 80,
       "type": "table",
       "title": "Holding register dump (unknown, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 155,
+        "y": 164,
         "w": 8,
         "h": 10
       },

@@ -20,6 +20,11 @@ EN = {
     "Ausgang ins Haus": "Output to house", "AC-Ausgangsleistung des NEXA": "AC output power of the NEXA",
     "Batterie-Leistung": "Battery power", "Lade-/Entladeleistung der Batterie": "Battery charge/discharge power",
     "Ladezustand": "State of charge", "Hausverbrauch": "Household load", "Nur mit Smart Meter / GroPlug befüllt, sonst 0": "Only filled with a smart meter / GroPlug, otherwise 0",
+    "Nulleinspeisung (Shelly)": "Zero feed-in (Shelly)", "Netzbezug": "Grid draw", "Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung": "Grid power at the meter: positive = draw, negative = feed-in",
+    "Hausverbrauch (Shelly)": "Household (Shelly)", "Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)": "Measured household load from the Shelly (grid + NEXA output)",
+    "Zielleistung": "Target output", "Vom Regler angeforderte NEXA-Ausgangsleistung": "NEXA output power requested by the controller",
+    "Verlauf Nulleinspeisung": "Zero feed-in history", "Netz": "Grid", "Haushalt": "Household", "Ausgabe": "Output",
+    "Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)": "Only present while the Shelly control runs (settings page)",
     "Batterie-Status": "Battery status", "Statusregister 10 des Geräts. Auf aktueller Firmware oft „Ruhe“, obwohl die Bilanz Laden oder Entladen zeigt.": "Device status register 10. On current firmware often \"Idle\" although the balance shows charging or discharging.", "Betriebsmodus": "Operating mode", "Systemtemperatur": "System temperature", "Batterietemperatur": "Battery temperature",
     "Lädt": "Charging", "Entlädt": "Discharging", "Ruhe": "Idle", "Last zuerst": "Load first", "Batterie zuerst": "Battery first", "Smart": "Smart",
     "Leistung und Ladezustand": "Power and state of charge", "Leistungsverlauf": "Power history", "PV": "PV", "Ins Haus": "To house",
@@ -384,6 +389,31 @@ def build(lang):
         stat_field(_("Batterietemperatur"), 18, y + 5, 6, 5, "battery1Temp", "celsius", None, 1, thr=temp_thr),
     ]
     y += 10
+
+    # ============================================================ Nulleinspeisung (Shelly)
+    def q_sh_last(field):
+        return f'''from(bucket: "{BUCKET}")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
+  |> last()
+  |> keep(columns: ["_time", "_value"])'''
+    def q_sh_series(field, label):
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
+  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+    panels.append(row(_("Nulleinspeisung (Shelly)"), y)); y += 1
+    panels += [
+        stat(_("Netzbezug"), 0, y, 4, 8, q_sh_last("grid_w"), "watt", "red", desc=_("Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung")),
+        stat(_("Hausverbrauch (Shelly)"), 4, y, 4, 8, q_sh_last("household_w"), "watt", C_HOUSE, desc=_("Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)")),
+        stat(_("Zielleistung"), 8, y, 4, 8, q_sh_last("target_w"), "watt", C_PV, desc=_("Vom Regler angeforderte NEXA-Ausgangsleistung")),
+        ts(_("Verlauf Nulleinspeisung"), 12, y, 12, 8, [
+            target(q_sh_series("grid_w", _("Netz")), "A"), target(q_sh_series("household_w", _("Haushalt")), "B"), target(q_sh_series("out_w", _("Ausgabe")), "C"),
+        ], "watt", overrides=[color_override(_("Netz"), "red"), color_override(_("Haushalt"), C_HOUSE), color_override(_("Ausgabe"), C_PV)], desc=_("Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)")),
+    ]
+    y += 8
 
     # ============================================================ Leistung
     panels.append(row(_("Leistung und Ladezustand"), y)); y += 1

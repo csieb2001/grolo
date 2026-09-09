@@ -35,6 +35,7 @@
   input[type=number], input[type=time], input[type=text], select {
     flex:1; min-width:0; background:#0f1114; color:var(--text); border:1px solid #3a4046; border-radius:4px; padding:6px 8px; font-size:14px }
   input[type=range] { flex:1; accent-color:var(--accent) }
+  .ctl .row input[type=number] { flex:0 0 auto; width:76px; min-width:76px }
   button { background:#2f3540; color:var(--text); border:1px solid #444b54; border-radius:4px; padding:6px 12px; font-size:13px; cursor:pointer; white-space:nowrap }
   button:hover { background:#3a414d } button.primary { background:#3d5a80; border-color:#4a6d9a } button.primary:hover { background:#476a96 }
   button.danger { background:#5a2a2f; border-color:#7a3a41 }
@@ -61,6 +62,10 @@
   .sfield { display:flex; flex-direction:column; gap:2px }
   .sfield .slab { margin:0; font-size:11px }
   .sfield input { width:88px; padding:5px 6px }
+  .sgrid { display:flex; flex-wrap:wrap; gap:14px 18px; margin-top:2px }
+  .scell { display:flex; flex-direction:column; gap:1px }
+  .scell .sl { color:#8e8e8e; font-size:11px; text-transform:uppercase; letter-spacing:.03em }
+  .scell .sv { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums }
 </style>
 </head>
 <body>
@@ -107,8 +112,8 @@
         </div>
       </div>
       <div class="ctl">
-        <div class="top"><label data-t="shelly.live"></label></div>
-        <div class="desc" id="shelly-live">–</div>
+        <div class="top"><label data-t="shelly.live"></label><span class="cur unknown" id="shelly-live-badge">–</span></div>
+        <div id="shelly-live" class="sgrid"><span class="muted">–</span></div>
       </div>
     </div>
   </section>
@@ -518,9 +523,15 @@
     state.shellyState = st;
     const el = document.getElementById('shelly-live'); if (!el) return;
     const w = v => v == null ? '–' : `${Math.round(v)} W`;
-    if (!st.enabled) el.textContent = t('shelly.disabled');
-    else if (!st.ok) el.textContent = `⚠ ${st.reason === 'shelly_unreachable' ? t('shelly.unreachable') : (st.reason || '')}`;
-    else el.textContent = `${t('shelly.grid')} ${w(st.grid_w)} · ${t('shelly.house')} ${w(st.household_w)} · ${t('shelly.out')} ${w(st.out_w)} → ${t('shelly.target')} ${w(st.target_w)}`;
+    const lbadge = document.getElementById('shelly-live-badge');
+    const cell = (label, val, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
+    if (!st.enabled) { el.innerHTML = `<span class="muted">${t('shelly.disabled')}</span>`; if (lbadge) { lbadge.textContent = t('shelly.off'); lbadge.className = 'cur'; } }
+    else if (!st.ok) { el.innerHTML = `<span style="color:var(--red)">⚠ ${st.reason === 'shelly_unreachable' ? t('shelly.unreachable') : (st.reason || '')}</span>`; if (lbadge) { lbadge.textContent = '⚠'; lbadge.className = 'cur unknown'; } }
+    else {
+      const gridColor = st.grid_w != null && st.grid_w < 0 ? 'var(--bat)' : 'var(--red)';
+      el.innerHTML = cell(t('shelly.grid'), w(st.grid_w), gridColor) + cell(t('shelly.house'), w(st.household_w), 'var(--accent)') + cell(t('shelly.out'), w(st.out_w)) + cell(t('shelly.target'), w(st.target_w));
+      if (lbadge) { lbadge.textContent = t('shelly.on'); lbadge.className = 'cur ok'; }
+    }
     const badge = document.getElementById('shelly-badge');
     if (badge && st.enabled) { const bad = !st.ok; badge.textContent = bad ? '⚠' : t('shelly.on'); badge.className = 'cur ' + (bad ? 'unknown' : 'ok'); }
   }
