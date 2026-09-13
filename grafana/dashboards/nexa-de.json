@@ -2998,24 +2998,345 @@
     },
     {
       "id": 50,
+      "type": "table",
+      "title": "Top-Strings 24 h",
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 1000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Anteil\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "kWh"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "kwatth"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Anteil"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "String"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "kWh",
+            "desc": true
+          }
+        ]
+      },
+      "description": "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge."
+    },
+    {
+      "id": 51,
+      "type": "table",
+      "title": "Top-Strings 7 Tage",
+      "gridPos": {
+        "x": 8,
+        "y": 81,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 1000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Anteil\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "kWh"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "kwatth"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Anteil"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "String"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "kWh",
+            "desc": true
+          }
+        ]
+      },
+      "description": "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge."
+    },
+    {
+      "id": 52,
+      "type": "table",
+      "title": "Top-Strings 30 Tage",
+      "gridPos": {
+        "x": 16,
+        "y": 81,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 1000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Anteil\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "kWh"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "kwatth"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Anteil"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "String"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "kWh",
+            "desc": true
+          }
+        ]
+      },
+      "description": "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge."
+    },
+    {
+      "id": 53,
       "type": "row",
       "title": "Tagesspitzen, Sonnenstand und Modell",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 88,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 51,
+      "id": 54,
       "type": "table",
       "title": "Tagesspitze je String (30 Tage)",
       "gridPos": {
         "x": 0,
-        "y": 82,
+        "y": 89,
         "w": 10,
         "h": 10
       },
@@ -3156,12 +3477,12 @@
       "description": "Höchste Minutenleistung je String und Tag mit Uhrzeit und Sonnenstand in diesem Moment. Nur Strings mit mehr als 5 W."
     },
     {
-      "id": 52,
+      "id": 55,
       "type": "timeseries",
       "title": "Tagesspitzen je String (30 Tage)",
       "gridPos": {
         "x": 10,
-        "y": 82,
+        "y": 89,
         "w": 14,
         "h": 10
       },
@@ -3279,12 +3600,12 @@
       "description": "Höchste Minutenleistung je Tag, Balken auf Tagesmitte."
     },
     {
-      "id": 53,
+      "id": 56,
       "type": "heatmap",
       "title": "PV gesamt: Stunde × Tag (30 Tage)",
       "gridPos": {
         "x": 0,
-        "y": 92,
+        "y": 99,
         "w": 12,
         "h": 9
       },
@@ -3396,12 +3717,12 @@
       ]
     },
     {
-      "id": 54,
+      "id": 57,
       "type": "heatmap",
       "title": "String $string: Stunde × Tag (30 Tage)",
       "gridPos": {
         "x": 12,
-        "y": 92,
+        "y": 99,
         "w": 12,
         "h": 9
       },
@@ -3513,12 +3834,12 @@
       ]
     },
     {
-      "id": 55,
+      "id": 58,
       "type": "state-timeline",
       "title": "Stärkster String je Stunde",
       "gridPos": {
         "x": 0,
-        "y": 101,
+        "y": 108,
         "w": 24,
         "h": 5
       },
@@ -3598,12 +3919,12 @@
       "description": "Welcher String im Stundenmittel am meisten liefert. Ost-Strings führen morgens, West-Strings nachmittags. Grau = unter 5 W."
     },
     {
-      "id": 56,
+      "id": 59,
       "type": "timeseries",
       "title": "Gemessen vs. erwartet je String",
       "gridPos": {
         "x": 0,
-        "y": 106,
+        "y": 113,
         "w": 16,
         "h": 10
       },
@@ -3871,12 +4192,12 @@
       "description": "Gemessen: Spannung × Strom je String. Erwartet: Open-Meteo-Strahlung (DNI/DHI/GHI) auf die konfigurierte Modulfläche umgerechnet, mal Wp mal Performance-Ratio (Sidecar weather). Ohne Neigung/Ausrichtung auf der Einstellungsseite bleibt „Erwartet“ leer. Wiederkehrende Einbrüche zur gleichen Uhrzeit = Verschattung."
     },
     {
-      "id": 57,
+      "id": 60,
       "type": "timeseries",
       "title": "Sonnenstand",
       "gridPos": {
         "x": 16,
-        "y": 106,
+        "y": 113,
         "w": 8,
         "h": 10
       },
@@ -4010,12 +4331,12 @@
       "description": "Azimut 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Höhe über dem Horizont, jede Minute vom Sidecar weather berechnet (NOAA)."
     },
     {
-      "id": 58,
+      "id": 61,
       "type": "xychart",
       "title": "Leistung über Sonnenazimut",
       "gridPos": {
         "x": 0,
-        "y": 116,
+        "y": 123,
         "w": 16,
         "h": 10
       },
@@ -4221,12 +4542,12 @@
       "description": "Jeder Punkt ein 5-Minuten-Mittel im gewählten Zeitraum. Der Schwerpunkt der Punktwolke zeigt, wohin ein String schaut; ein Einbruch bei einem festen Azimut ist ein Hindernis. Für ein Sonnenbahn-Polardiagramm siehe die GroLo-Website."
     },
     {
-      "id": 59,
+      "id": 62,
       "type": "stat",
       "title": "Sonne jetzt",
       "gridPos": {
         "x": 16,
-        "y": 116,
+        "y": 123,
         "w": 8,
         "h": 4
       },
@@ -4294,12 +4615,12 @@
       }
     },
     {
-      "id": 60,
+      "id": 63,
       "type": "table",
       "title": "Geschätzte Ausrichtung je String",
       "gridPos": {
         "x": 16,
-        "y": 120,
+        "y": 127,
         "w": 8,
         "h": 6
       },
@@ -4425,12 +4746,12 @@
       "description": "Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“."
     },
     {
-      "id": 61,
+      "id": 64,
       "type": "table",
       "title": "Empfehlungen je String (Jahresmodell und Verschattung)",
       "gridPos": {
         "x": 0,
-        "y": 126,
+        "y": 133,
         "w": 24,
         "h": 6
       },
@@ -4616,25 +4937,25 @@
       "description": "Täglich mit der Schätzung berechnet. Jahresmodell aus dem Open-Meteo-Archiv für den Standort: Ertrag der aktuellen Ausrichtung (konfiguriert, sonst geschätzt) in kWh je kWp, Anteil am Optimum und Gewinn durch Alternativen (gleiche Richtung mit bester Neigung, senkrecht mit bestem Azimut, flach, Optimum). Verschattung: Anteil der Sonnenstunden-Energie, der in Sonnenrichtungen fehlt, in denen die Messung weit unter dem Modell bleibt; Zonen mit Uhrzeiten auf der Einstellungsseite und der Website."
     },
     {
-      "id": 62,
+      "id": 65,
       "type": "row",
       "title": "Wetter",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 132,
+        "y": 139,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 63,
+      "id": 66,
       "type": "stat",
       "title": "Außentemperatur",
       "gridPos": {
         "x": 0,
-        "y": 133,
+        "y": 140,
         "w": 4,
         "h": 4
       },
@@ -4703,12 +5024,12 @@
       "description": "Open-Meteo für den Anlagenstandort, alle 10 Minuten"
     },
     {
-      "id": 64,
+      "id": 67,
       "type": "stat",
       "title": "Wetterzustand",
       "gridPos": {
         "x": 4,
-        "y": 133,
+        "y": 140,
         "w": 4,
         "h": 4
       },
@@ -4821,12 +5142,12 @@
       "description": "WMO-Wettercode von Open-Meteo"
     },
     {
-      "id": 65,
+      "id": 68,
       "type": "stat",
       "title": "Bewölkung",
       "gridPos": {
         "x": 8,
-        "y": 133,
+        "y": 140,
         "w": 4,
         "h": 4
       },
@@ -4890,12 +5211,12 @@
       }
     },
     {
-      "id": 66,
+      "id": 69,
       "type": "stat",
       "title": "Globalstrahlung",
       "gridPos": {
         "x": 12,
-        "y": 133,
+        "y": 140,
         "w": 4,
         "h": 4
       },
@@ -4940,12 +5261,12 @@
       "description": "Kurzwellige Einstrahlung auf die Horizontale in W/m², Referenz für die PV-Leistung"
     },
     {
-      "id": 67,
+      "id": 70,
       "type": "stat",
       "title": "Sonnenaufgang / -untergang",
       "gridPos": {
         "x": 16,
-        "y": 133,
+        "y": 140,
         "w": 4,
         "h": 4
       },
@@ -4996,12 +5317,12 @@
       "description": "Heute, lokale Zeit"
     },
     {
-      "id": 68,
+      "id": 71,
       "type": "stat",
       "title": "Sonnenschein heute",
       "gridPos": {
         "x": 20,
-        "y": 133,
+        "y": 140,
         "w": 4,
         "h": 4
       },
@@ -5046,12 +5367,12 @@
       "description": "Prognostizierte Sonnenscheindauer des Tages"
     },
     {
-      "id": 69,
+      "id": 72,
       "type": "stat",
       "title": "Strahlungssumme heute / morgen",
       "gridPos": {
         "x": 0,
-        "y": 137,
+        "y": 144,
         "w": 4,
         "h": 9
       },
@@ -5105,12 +5426,12 @@
       "description": "Tagessumme der Globalstrahlung in MJ/m² laut Vorhersage (1 MJ/m² ≈ 0,28 kWh/m²)"
     },
     {
-      "id": 70,
+      "id": 73,
       "type": "timeseries",
       "title": "Globalstrahlung und PV-Leistung",
       "gridPos": {
         "x": 4,
-        "y": 137,
+        "y": 144,
         "w": 10,
         "h": 9
       },
@@ -5206,12 +5527,12 @@
       "description": "Verhältnis von PV-Leistung zu Einstrahlung zeigt Verschattung, Ausrichtung und Verschmutzung. Strahlung links (W/m²), PV rechts (W)."
     },
     {
-      "id": 71,
+      "id": 74,
       "type": "timeseries",
       "title": "Bewölkung und Temperatur",
       "gridPos": {
         "x": 14,
-        "y": 137,
+        "y": 144,
         "w": 10,
         "h": 9
       },
@@ -5311,12 +5632,12 @@
       }
     },
     {
-      "id": 72,
+      "id": 75,
       "type": "barchart",
       "title": "Vorhersage 48 h: Einstrahlung und Bewölkung",
       "gridPos": {
         "x": 0,
-        "y": 146,
+        "y": 153,
         "w": 24,
         "h": 8
       },
@@ -5399,25 +5720,25 @@
       "description": "Stündliche Open-Meteo-Vorhersage ab jetzt. Zeitraum des Dashboards ist hier ohne Wirkung, das Panel zeigt immer die nächsten 48 Stunden."
     },
     {
-      "id": 73,
+      "id": 76,
       "type": "row",
       "title": "Batterie und Technik",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 154,
+        "y": 161,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 74,
+      "id": 77,
       "type": "timeseries",
       "title": "Temperaturen",
       "gridPos": {
         "x": 0,
-        "y": 155,
+        "y": 162,
         "w": 12,
         "h": 9
       },
@@ -5535,12 +5856,12 @@
       }
     },
     {
-      "id": 75,
+      "id": 78,
       "type": "timeseries",
       "title": "Zellspannung (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 155,
+        "y": 162,
         "w": 8,
         "h": 9
       },
@@ -5603,12 +5924,12 @@
       "description": "Ein großer Abstand deutet auf unausgeglichene Zellen hin"
     },
     {
-      "id": 76,
+      "id": 79,
       "type": "stat",
       "title": "Zyklen",
       "gridPos": {
         "x": 20,
-        "y": 155,
+        "y": 162,
         "w": 4,
         "h": 3
       },
@@ -5651,12 +5972,12 @@
       }
     },
     {
-      "id": 77,
+      "id": 80,
       "type": "stat",
       "title": "Gesundheit (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 158,
+        "y": 165,
         "w": 4,
         "h": 3
       },
@@ -5716,12 +6037,12 @@
       }
     },
     {
-      "id": 78,
+      "id": 81,
       "type": "stat",
       "title": "Batteriepacks",
       "gridPos": {
         "x": 20,
-        "y": 161,
+        "y": 168,
         "w": 4,
         "h": 3
       },
@@ -5764,12 +6085,12 @@
       }
     },
     {
-      "id": 79,
+      "id": 82,
       "type": "stat",
       "title": "Entlade-Grenze",
       "gridPos": {
         "x": 0,
-        "y": 164,
+        "y": 171,
         "w": 4,
         "h": 4
       },
@@ -5814,12 +6135,12 @@
       "description": "Unter diesen SoC entlädt die Batterie nicht"
     },
     {
-      "id": 80,
+      "id": 83,
       "type": "stat",
       "title": "Lade-Grenze",
       "gridPos": {
         "x": 4,
-        "y": 164,
+        "y": 171,
         "w": 4,
         "h": 4
       },
@@ -5863,12 +6184,12 @@
       }
     },
     {
-      "id": 81,
+      "id": 84,
       "type": "stat",
       "title": "Netzspannung",
       "gridPos": {
         "x": 8,
-        "y": 164,
+        "y": 171,
         "w": 4,
         "h": 4
       },
@@ -5913,12 +6234,12 @@
       "description": "Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist."
     },
     {
-      "id": 82,
+      "id": 85,
       "type": "stat",
       "title": "Geräteregister zum Vergleich",
       "gridPos": {
         "x": 12,
-        "y": 164,
+        "y": 171,
         "w": 4,
         "h": 4
       },
@@ -5978,12 +6299,12 @@
       "description": "Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings."
     },
     {
-      "id": 83,
+      "id": 86,
       "type": "stat",
       "title": "Zellspannung Differenz",
       "gridPos": {
         "x": 16,
-        "y": 164,
+        "y": 171,
         "w": 4,
         "h": 4
       },
@@ -6043,12 +6364,12 @@
       }
     },
     {
-      "id": 84,
+      "id": 87,
       "type": "stat",
       "title": "Letzte Nachricht",
       "gridPos": {
         "x": 20,
-        "y": 164,
+        "y": 171,
         "w": 4,
         "h": 4
       },
@@ -6092,12 +6413,12 @@
       "description": "Zeitpunkt des letzten Datensatzes vom Dongle"
     },
     {
-      "id": 85,
+      "id": 88,
       "type": "stat",
       "title": "Firmware NEXA (Reg. 119/120)",
       "gridPos": {
         "x": 0,
-        "y": 168,
+        "y": 175,
         "w": 6,
         "h": 4
       },
@@ -6140,12 +6461,12 @@
       "description": "Rohteile aus den Registern, Zusammensetzung laut Growatt unbekannt"
     },
     {
-      "id": 86,
+      "id": 89,
       "type": "stat",
       "title": "Dongle Firmware / Modell",
       "gridPos": {
         "x": 6,
-        "y": 168,
+        "y": 175,
         "w": 6,
         "h": 4
       },
@@ -6187,12 +6508,12 @@
       }
     },
     {
-      "id": 87,
+      "id": 90,
       "type": "stat",
       "title": "WLAN-Signal Dongle",
       "gridPos": {
         "x": 12,
-        "y": 168,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -6253,12 +6574,12 @@
       "description": "Wird nur beim Verbindungsaufbau des Dongles gemeldet"
     },
     {
-      "id": 88,
+      "id": 91,
       "type": "stat",
       "title": "Batteriepacks erkannt",
       "gridPos": {
         "x": 16,
-        "y": 168,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -6301,12 +6622,12 @@
       }
     },
     {
-      "id": 89,
+      "id": 92,
       "type": "stat",
       "title": "Zellspannung min",
       "gridPos": {
         "x": 20,
-        "y": 168,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -6350,12 +6671,12 @@
       }
     },
     {
-      "id": 90,
+      "id": 93,
       "type": "timeseries",
       "title": "SoC je Batteriepack",
       "gridPos": {
         "x": 0,
-        "y": 172,
+        "y": 179,
         "w": 12,
         "h": 8
       },
@@ -6435,12 +6756,12 @@
       }
     },
     {
-      "id": 91,
+      "id": 94,
       "type": "stat",
       "title": "Temperatur je Pack",
       "gridPos": {
         "x": 12,
-        "y": 172,
+        "y": 179,
         "w": 12,
         "h": 4
       },
@@ -6528,12 +6849,12 @@
       }
     },
     {
-      "id": 92,
+      "id": 95,
       "type": "stat",
       "title": "Seriennummern Erweiterungspacks",
       "gridPos": {
         "x": 12,
-        "y": 176,
+        "y": 183,
         "w": 12,
         "h": 4
       },
@@ -6592,25 +6913,25 @@
       "description": "Pack 1 ist das Hauptgerät mit der Geräteseriennummer. Leer = kein Erweiterungspack."
     },
     {
-      "id": 93,
+      "id": 96,
       "type": "row",
       "title": "Unbekannte Register (Forschung)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 180,
+        "y": 187,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 94,
+      "id": 97,
       "type": "timeseries",
       "title": "Unbekannte Eingangsregister, Verlauf (nur ≠ 0)",
       "gridPos": {
         "x": 0,
-        "y": 181,
+        "y": 188,
         "w": 16,
         "h": 10
       },
@@ -6665,12 +6986,12 @@
       "description": "Rohwerte der Register, die die Bridge nicht kennt. 30000 = Offset für 0 bei vorzeichenbehafteten Werten."
     },
     {
-      "id": 95,
+      "id": 98,
       "type": "table",
       "title": "Halteregister-Dump (unbekannt, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 181,
+        "y": 188,
         "w": 8,
         "h": 10
       },

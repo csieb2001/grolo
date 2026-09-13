@@ -120,6 +120,8 @@ EN = {
     "Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings.": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings.",
     "Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.": "Sum of voltage × current of all strings. Finer and more current than the device register, which rounds to whole watts.", "PV-Eingänge belegt": "PV inputs in use", "belegt": "in use",
     "Eingänge mit mehr als 15 V in den letzten 24 h, von 4 MPPT-Eingängen. Freie Eingänge zeigen etwa 7 V.": "Inputs with more than 15 V in the last 24 h, out of 4 MPPT inputs. Free inputs show about 7 V.",
+    "Top-Strings 24 h": "Top strings 24 h", "Top-Strings 7 Tage": "Top strings 7 days", "Top-Strings 30 Tage": "Top strings 30 days", "Anteil": "Share",
+    "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge.": "Energy per PV input (voltage × current, minute means) in the window, sorted descending. Share of the total of all inputs.",
     "PV-Eingang 1 bis 4": "PV input 1 to 4", "Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei.": "Maximum voltage per input in 24 h. Green = panel connected (> 15 V), red = free.", "Einstellungen": "Settings", "Einstellungsseite (GroLo)": "Settings page (GroLo)",
 }
 
@@ -625,6 +627,36 @@ from(bucket: "{BUCKET}")
               desc=_("Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei.")),
     ]
     y += 4
+
+    def q_rank(start):
+        """Energie je String (kWh) im Zeitraum, absteigend, mit Anteil an der Summe."""
+        pv_filt = " or ".join(f'r._field == "{f}"' for f in sf)
+        maps = ", ".join(f'b |> map(fn: (r) => ({{_time: r._time, _start: r._start, _stop: r._stop, string: "{S} {i}", _value: r.pv{i}Voltage * r.pv{i}Current}}))' for i in range(1, 5))
+        return HEAD + f'''b = from(bucket: "{BUCKET}")
+  |> range(start: {start})
+  |> filter(fn: (r) => r._measurement == "nexa" and ({pv_filt}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
+e = union(tables: [{maps}])
+  |> group(columns: ["string", "_start", "_stop"])
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ string: r.string, _value: r._value / 1000.0 }}))
+  |> group()
+tot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: "_value"), v: [0.0]))[0]
+e
+  |> map(fn: (r) => ({{ "{S}": r.string, "kWh": r._value, "{_("Anteil")}": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }}))
+  |> sort(columns: ["kWh"], desc: true)'''
+
+    rank_desc = _("Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge.")
+    rank_ovr = [{"matcher": {"id": "byName", "options": "kWh"}, "properties": [{"id": "unit", "value": "kwatth"}, {"id": "decimals", "value": 3}, {"id": "custom.cellOptions", "value": {"type": "gauge", "mode": "gradient"}}, {"id": "color", "value": {"mode": "fixed", "fixedColor": C_PV}}, {"id": "min", "value": 0}]},
+                {"matcher": {"id": "byName", "options": _("Anteil")}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 0}, {"id": "custom.width", "value": 70}]},
+                {"matcher": {"id": "byName", "options": S}, "properties": [{"id": "custom.width", "value": 90}]}]
+    panels += [
+        panel("table", _(title), x, y, 8, 7, [target(q_rank(start))], None, opts={"showHeader": True, "cellHeight": "sm", "sortBy": [{"displayName": "kWh", "desc": True}]}, overrides=rank_ovr, desc=rank_desc)
+        for title, x, start in (("Top-Strings 24 h", 0, "-24h"), ("Top-Strings 7 Tage", 8, "-7d"), ("Top-Strings 30 Tage", 16, "-30d"))
+    ]
+    y += 7
 
     # ============================================================ Tagesspitzen, Sonnenstand, Modell
     panels.append(row(_("Tagesspitzen, Sonnenstand und Modell"), y)); y += 1
