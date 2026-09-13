@@ -66,11 +66,17 @@
   .scell { display:flex; flex-direction:column; gap:1px }
   .scell .sl { color:#8e8e8e; font-size:11px; text-transform:uppercase; letter-spacing:.03em }
   .scell .sv { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums }
+  /* Energiefluss-Schema */
+  .flowwrap { display:grid; grid-template-columns:minmax(260px,400px) 1fr; gap:18px; align-items:center } @media (max-width:900px) { .flowwrap { grid-template-columns:1fr } }
+  .flow { width:100%; max-width:420px; height:auto; display:block; margin:0 auto }
+  .flow .base { fill:none; stroke:var(--line); stroke-width:3; stroke-linecap:round }
+  .flow .fe.idle { fill:none; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 6; opacity:.35 }
+  .flow .nl { fill:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em } .flow .nv { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; paint-order:stroke; stroke:#1c1f24; stroke-width:4px; stroke-linejoin:round } .flow .ns { fill:var(--muted); font-size:10.5px }
 </style>
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.37.3</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.37.4</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -81,6 +87,9 @@
 </header>
 
 <main>
+  <section id="sec-flow"><h2 data-t="sec.flow"></h2><p class="hint" data-t="sec.flow.hint"></p>
+    <div class="flowwrap"><div id="flow"><span class="muted" data-t="loading"></span></div><div class="sgrid" id="flow-cells"></div></div>
+  </section>
   <section id="sec-device"><h2 data-t="sec.device"></h2><p class="hint" data-t="sec.device.hint"></p>
     <div class="info" id="dev-info"></div>
     <h3 data-t="packs.title"></h3>
@@ -139,6 +148,26 @@
     <h3 data-t="adv.title"></h3><p class="hint" data-t="adv.hint"></p>
     <div id="advice" class="muted" data-t="adv.none"></div>
   </section>
+  <section id="sec-tariff"><h2 data-t="sec.tariff"></h2><p class="hint" data-t="sec.tariff.hint"></p>
+    <div class="grid">
+      <div class="ctl">
+        <div class="top"><label data-t="tariff.price"></label><span class="cur unknown" id="tariff-cur">–</span></div>
+        <div class="desc" data-t="tariff.price.desc"></div>
+        <div class="srow">
+          <span class="sfield"><label class="slab" data-t="tariff.price.short"></label><input type="number" id="tariff-price" step="0.1" min="0" inputmode="decimal" placeholder="30"></span>
+          <span class="sfield"><label class="slab" data-t="tariff.feedin"></label><input type="number" id="tariff-feedin" step="0.1" min="0" inputmode="decimal" placeholder="0"></span>
+          <span class="sfield"><label class="slab" data-t="tariff.cost"></label><input type="number" id="tariff-cost" step="1" min="0" inputmode="numeric" placeholder="0"></span>
+          <button class="primary" id="tariff-save" data-t="set"></button>
+        </div>
+        <div class="muted" id="tariff-status"></div>
+      </div>
+      <div class="ctl">
+        <div class="top"><label data-t="tariff.live"></label></div>
+        <div class="desc" data-t="tariff.live.desc"></div>
+        <div id="tariff-live" class="sgrid"><span class="muted">–</span></div>
+      </div>
+    </div>
+  </section>
   <section id="sec-cloud"><h2 data-t="sec.cloud"></h2><p class="hint" data-t="sec.cloud.hint"></p>
     <div class="grid">
       <div class="ctl"><div class="top"><label data-t="cloud.switch"></label><span class="cur unknown" id="cloud-state">–</span></div>
@@ -151,7 +180,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.37.3 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.37.4 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -168,6 +197,9 @@
       'connecting': 'connecting…', 'connected': 'connected', 'reconnecting': 'reconnecting…', 'disconnected': 'disconnected', 'error': 'error',
       'device': 'Device', 'online': 'device online', 'offline': 'device offline', 'readall': 'Read all values', 'dashboard': 'Dashboard',
       'on': 'On', 'off': 'Off', 'set': 'Set', 'setslot': 'Set slot', 'unknown': 'unknown', 'loading': 'loading…', 'setting': 'setting…', 'run': 'Run',
+      'sec.flow': 'Power flow', 'sec.flow.hint': 'Live: solar into the NEXA, the NEXA into the house, battery charging or discharging, and the grid when a Shelly meter is connected. Moving dots show the direction, their speed the power.',
+      'flow.solar': 'Solar', 'flow.battery': 'Battery', 'flow.home': 'Home', 'flow.grid': 'Grid', 'flow.nexa': 'NEXA', 'flow.noGrid': 'grid only with a Shelly meter', 'flow.self': 'self-sufficiency', 'flow.charging': 'charging', 'flow.discharging': 'discharging', 'flow.idle': 'idle',
+      'flow.pv': 'Solar', 'flow.out': 'NEXA → house', 'flow.bat': 'Battery', 'flow.soc': 'State of charge', 'flow.gridIn': 'Grid draw', 'flow.gridOut': 'Feed-in', 'flow.house': 'Household (Shelly)',
       'sec.device': 'Device and hardware', 'sec.device.hint': 'Reported by the NEXA and its Wi-Fi dongle, read-only. Battery packs appear as soon as the NEXA counts them.',
       'packs.title': 'Battery packs', 'packs.pack': 'Pack / serial', 'packs.temp': 'Temperature', 'packs.cells': 'Cell voltage min / max', 'packs.cycles': 'Cycles', 'packs.soh': 'Health',
       'packs.main': 'main unit', 'packs.ext': 'expansion', 'packs.reported': 'reported',
@@ -218,12 +250,21 @@
       'shelly.tuning': 'Setpoint and limits', 'shelly.tuning.desc': 'Setpoint = grid draw to hold (W, slightly positive so nothing is exported). Min/Max = output power range in W.',
       'shelly.setpoint': 'Setpoint', 'shelly.min': 'Min', 'shelly.max': 'Max', 'shelly.live': 'Live', 'shelly.on': 'on', 'shelly.off': 'off',
       'shelly.grid': 'grid', 'shelly.house': 'household', 'shelly.out': 'output', 'shelly.target': 'target', 'shelly.unreachable': 'Shelly unreachable', 'shelly.disabled': 'off', 'shelly.nohost': 'no Shelly address set',
+      'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
+      'sec.tariff': 'Electricity price and savings', 'sec.tariff.hint': 'Used by the Grafana row “Costs and savings” and the website: savings = energy delivered to the house × price, grid cost = grid import (Shelly) × price, payback = total savings relative to the system price. Stored on the local broker (retained), takes effect immediately.',
+      'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide).',
+      'tariff.price.short': 'Price ct/kWh', 'tariff.feedin': 'Feed-in ct/kWh', 'tariff.cost': 'System price €', 'tariff.saved': 'saved, dashboards recalculate', 'tariff.invalid': 'Enter a price first', 'log.tariff': 'Electricity price saved',
+      'tariff.live': 'Right now', 'tariff.live.desc': 'Money at the current power: NEXA output × price is what you save per hour, grid import (Shelly) × price is what the house costs per hour.',
+      'tariff.saveRate': 'saving', 'tariff.gridRate': 'grid cost', 'tariff.perDay': 'per day at this rate', 'tariff.used': 'price in use', 'tariff.default': 'default, not set yet',
       'modes': { '0': 'Load first', '1': 'Battery first', '2': 'Smart' }, 'status': { 'Charging': 'charging', 'Discharging': 'discharging', 'Idle': 'idle' },
     },
     de: {
       'connecting': 'verbinde…', 'connected': 'verbunden', 'reconnecting': 'verbinde neu…', 'disconnected': 'getrennt', 'error': 'Fehler',
       'device': 'Gerät', 'online': 'Gerät online', 'offline': 'Gerät offline', 'readall': 'Alle Werte lesen', 'dashboard': 'Dashboard',
       'on': 'An', 'off': 'Aus', 'set': 'Setzen', 'setslot': 'Slot setzen', 'unknown': 'unbekannt', 'loading': 'lädt…', 'setting': 'wird gesetzt…', 'run': 'Ausführen',
+      'sec.flow': 'Energiefluss', 'sec.flow.hint': 'Live: Solar in den NEXA, der NEXA ins Haus, Batterie lädt oder entlädt, und das Netz, sobald ein Shelly-Zähler angebunden ist. Laufende Punkte zeigen die Richtung, ihre Geschwindigkeit die Leistung.',
+      'flow.solar': 'Solar', 'flow.battery': 'Batterie', 'flow.home': 'Haus', 'flow.grid': 'Netz', 'flow.nexa': 'NEXA', 'flow.noGrid': 'Netz nur mit Shelly-Zähler', 'flow.self': 'Eigenversorgung', 'flow.charging': 'lädt', 'flow.discharging': 'entlädt', 'flow.idle': 'Ruhe',
+      'flow.pv': 'Solar', 'flow.out': 'NEXA → Haus', 'flow.bat': 'Batterie', 'flow.soc': 'Ladezustand', 'flow.gridIn': 'Netzbezug', 'flow.gridOut': 'Einspeisung', 'flow.house': 'Haushalt (Shelly)',
       'sec.device': 'Gerät und Hardware', 'sec.device.hint': 'Vom NEXA und vom WLAN-Dongle gemeldet, nur Anzeige. Batteriepacks erscheinen, sobald der NEXA sie zählt.',
       'packs.title': 'Batteriepacks', 'packs.pack': 'Pack / Seriennummer', 'packs.temp': 'Temperatur', 'packs.cells': 'Zellspannung min / max', 'packs.cycles': 'Zyklen', 'packs.soh': 'Gesundheit',
       'packs.main': 'Hauptgerät', 'packs.ext': 'Erweiterung', 'packs.reported': 'gemeldet',
@@ -274,6 +315,12 @@
       'shelly.tuning': 'Sollwert und Grenzen', 'shelly.tuning.desc': 'Sollwert = zu haltender Netzbezug (W, leicht positiv, damit nichts eingespeist wird). Min/Max = Bereich der Ausgangsleistung in W.',
       'shelly.setpoint': 'Sollwert', 'shelly.min': 'Min', 'shelly.max': 'Max', 'shelly.live': 'Live', 'shelly.on': 'an', 'shelly.off': 'aus',
       'shelly.grid': 'Netz', 'shelly.house': 'Haushalt', 'shelly.out': 'Ausgabe', 'shelly.target': 'Ziel', 'shelly.unreachable': 'Shelly nicht erreichbar', 'shelly.disabled': 'aus', 'shelly.nohost': 'keine Shelly-Adresse gesetzt',
+      'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
+      'sec.tariff': 'Strompreis und Ersparnis', 'sec.tariff.hint': 'Grundlage für die Grafana-Zeile „Kosten und Ersparnis“ und die Website: Ersparnis = ins Haus abgegebene Energie × Preis, Netzkosten = Netzbezug (Shelly) × Preis, Amortisation = gesamte Ersparnis im Verhältnis zum Anlagenpreis. Liegt auf dem lokalen Broker (retained), gilt sofort.',
+      'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden).',
+      'tariff.price.short': 'Preis ct/kWh', 'tariff.feedin': 'Einspeisung ct/kWh', 'tariff.cost': 'Anlagenpreis €', 'tariff.saved': 'gespeichert, Dashboards rechnen neu', 'tariff.invalid': 'Bitte zuerst einen Preis eintragen', 'log.tariff': 'Strompreis gespeichert',
+      'tariff.live': 'Jetzt gerade', 'tariff.live.desc': 'Geld bei der aktuellen Leistung: NEXA-Ausgang × Preis ist die Ersparnis pro Stunde, Netzbezug (Shelly) × Preis das, was das Haus pro Stunde kostet.',
+      'tariff.saveRate': 'Ersparnis', 'tariff.gridRate': 'Netzkosten', 'tariff.perDay': 'pro Tag bei dieser Leistung', 'tariff.used': 'gerechnet mit', 'tariff.default': 'Standard, noch nicht gesetzt',
       'modes': { '0': 'Last zuerst', '1': 'Batterie zuerst', '2': 'Smart' }, 'status': { 'Charging': 'lädt', 'Discharging': 'entlädt', 'Idle': 'Ruhe' },
     },
   };
@@ -290,7 +337,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, tariff: null, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -315,7 +362,7 @@
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
     client.subscribe(`${BASE}/grolo/dongle/param/result`);
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
-                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`]);
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`, `${BASE}/grolo/config/tariff`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -329,6 +376,7 @@
     if (topic === `${BASE}/grolo/config/site`) { try { onSiteConfig(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/shelly`) { try { onShelly(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/shelly/state`) { try { onShellyState(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/config/tariff`) { try { onTariff(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
@@ -423,7 +471,7 @@
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
   }
-  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.shelly) onShelly(state.shelly, true); if (state.shellyState) onShellyState(state.shellyState); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.shelly) onShelly(state.shelly, true); if (state.shellyState) onShellyState(state.shellyState); if (state.tariff) onTariff(state.tariff, true); renderTariffLive(); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
 
   function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
   function updateValue(id) {
@@ -529,11 +577,15 @@
     else if (!st.ok) { el.innerHTML = `<span style="color:var(--red)">⚠ ${st.reason === 'shelly_unreachable' ? t('shelly.unreachable') : (st.reason || '')}</span>`; if (lbadge) { lbadge.textContent = '⚠'; lbadge.className = 'cur unknown'; } }
     else {
       const gridColor = st.grid_w != null && st.grid_w < 0 ? 'var(--bat)' : 'var(--red)';
-      el.innerHTML = cell(t('shelly.grid'), w(st.grid_w), gridColor) + cell(t('shelly.house'), w(st.household_w), 'var(--accent)') + cell(t('shelly.out'), w(st.out_w)) + cell(t('shelly.target'), w(st.target_w));
-      if (lbadge) { lbadge.textContent = t('shelly.on'); lbadge.className = 'cur ok'; }
+      const reason = st.reason && st.reason !== 'ok' ? (I18N[lang]['shelly.reason.' + st.reason] ?? I18N.en['shelly.reason.' + st.reason] ?? st.reason) : '';
+      el.innerHTML = cell(t('shelly.grid'), w(st.grid_w), gridColor) + cell(t('shelly.house'), w(st.household_w), 'var(--accent)') + cell(t('shelly.out'), w(st.out_w)) + cell(t('shelly.target'), w(st.target_w))
+        + (st.soc != null ? cell(t('shelly.soc'), `${Math.round(st.soc)} %${st.soc_limit != null ? ` / ${Math.round(st.soc_limit)} %` : ''}`) : '')
+        + (reason ? `<div class="scell" style="flex-basis:100%"><div class="sl">${t('shelly.status')}</div><div class="sv" style="font-size:13px;color:var(--orange)">⚠ ${reason}</div></div>` : '');
+      if (lbadge) { lbadge.textContent = reason ? '⚠ ' + t('shelly.on') : t('shelly.on'); lbadge.className = 'cur ' + (reason ? 'pending' : 'ok'); }
     }
     const badge = document.getElementById('shelly-badge');
     if (badge && st.enabled) { const bad = !st.ok; badge.textContent = bad ? '⚠' : t('shelly.on'); badge.className = 'cur ' + (bad ? 'unknown' : 'ok'); }
+    renderTariffLive();
   }
   document.getElementById('shelly-on').onclick = () => publishShelly({ enabled: true });
   document.getElementById('shelly-off').onclick = () => publishShelly({ enabled: false });
@@ -622,6 +674,7 @@
     updateModeControl();
     for (let i = 1; i <= 4; i++) { const el = document.getElementById(`site-s${i}-now`); if (!el) continue; const v = Number(st[`pv${i}Voltage`]), a = Number(st[`pv${i}Current`]);
       el.textContent = v > 15 ? `${(v * a).toFixed(0)} W · ${v.toFixed(1)} V` : t('site.free'); el.style.color = v > 15 ? 'var(--accent)' : 'var(--muted)'; }
+    renderTariffLive();
   }
   function onDongle(d, rerender = false) {
     if (!rerender && (!state.dongle || state.dongle.received_at !== d.received_at)) log(`${t('log.dongle')}: ${d.model_id} SW ${d.sw_version}, Wi-Fi ${d.wifi_signal} dBm`, 'log-info');
@@ -762,6 +815,88 @@
     client.publish(`${BASE}/grolo/config/site`, JSON.stringify(cfg), { qos: 0, retain: true });
     state.siteDirty = false; $('site-status').textContent = t('site.saved'); log(`→ ${t('log.site')}: ${cfg.name || ''} (${lat}, ${lon}), ${Object.keys(strings).length} Strings`, 'log-tx');
   };
+
+  // ------------------------------------------------------------------ Strompreis und Ersparnis / electricity price
+  const TARIFF_DEFAULTS = { price_ct_kwh: 30, feedin_ct_kwh: 0, system_cost_eur: 0 };
+  const fmtCt = v => new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 1 }).format(v);
+  const fmtEur = v => new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', { style: 'currency', currency: 'EUR' }).format(v);
+  function onTariff(cfg, rerender = false) {
+    if (!rerender && state.tariff && state.tariff.updated !== cfg.updated) log(`${t('log.tariff')}: ${fmtCt(cfg.price_ct_kwh)} ct/kWh`, 'log-info');
+    state.tariff = cfg;
+    const set = (id, v) => { const el = $(id); if (el && document.activeElement !== el) el.value = v ?? ''; };
+    set('tariff-price', cfg.price_ct_kwh); set('tariff-feedin', cfg.feedin_ct_kwh ?? 0); set('tariff-cost', cfg.system_cost_eur || '');
+    $('tariff-cur').textContent = `${fmtCt(cfg.price_ct_kwh)} ct/kWh` + (cfg.system_cost_eur ? ` · ${fmtEur(cfg.system_cost_eur)}` : ''); $('tariff-cur').className = 'cur';
+    renderTariffLive();
+  }
+  function renderTariffLive() {
+    const el = $('tariff-live'); if (!el) return;
+    const price = state.tariff ? Number(state.tariff.price_ct_kwh) : TARIFF_DEFAULTS.price_ct_kwh;
+    const out = state.st && state.st.onGridPower != null ? (Number(state.st.onGridPower) - 30000) / 10 : null;
+    const sh = state.shellyState; const grid = sh && sh.enabled && sh.ok && sh.grid_w != null ? Math.max(0, Number(sh.grid_w)) : null;
+    const cell = (label, val, sub, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div>${sub ? `<div class="muted">${sub}</div>` : ''}</div>`;
+    const rate = w => `${fmtCt(w / 1000 * price)} ct/h`;
+    const perDay = w => `${fmtEur(w / 1000 * price * 24 / 100)} ${t('tariff.perDay')}`;
+    el.innerHTML = (out != null ? cell(t('tariff.saveRate'), rate(Math.max(0, out)), perDay(Math.max(0, out)), 'var(--green)') : '')
+      + (grid != null ? cell(t('tariff.gridRate'), rate(grid), perDay(grid), 'var(--red)') : '')
+      + cell(t('tariff.used'), `${fmtCt(price)} ct/kWh`, state.tariff ? '' : t('tariff.default'));
+  }
+  $('tariff-save').onclick = () => {
+    const price = parseFloat($('tariff-price').value);
+    if (isNaN(price) || price < 0) { $('tariff-status').textContent = t('tariff.invalid'); return; }
+    const cfg = { price_ct_kwh: Math.round(price * 100) / 100, feedin_ct_kwh: Math.max(0, parseFloat($('tariff-feedin').value) || 0), system_cost_eur: Math.max(0, parseFloat($('tariff-cost').value) || 0), currency: 'EUR', updated: Math.floor(Date.now() / 1000) };
+    client.publish(`${BASE}/grolo/config/tariff`, JSON.stringify(cfg), { qos: 0, retain: true });
+    $('tariff-status').textContent = t('tariff.saved'); log(`→ ${t('log.tariff')}: ${fmtCt(cfg.price_ct_kwh)} ct/kWh, ${t('tariff.feedin')} ${fmtCt(cfg.feedin_ct_kwh)}, ${t('tariff.cost')} ${cfg.system_cost_eur}`, 'log-tx');
+    onTariff(cfg, true);
+  };
+  renderTariffLive();
+
+  // ------------------------------------------------------------------ Energiefluss / power flow (SVG wie auf der Website)
+  const FC = { pv: '#f2cc0c', house: '#ff9830', bat: '#73bf69', grid: '#5794f2', red: '#f2495c', muted: '#8e8e8e', panel: '#1c1f24' };
+  const fmtW = w => w == null ? '–' : Math.abs(w) < 1000 ? `${Math.round(w)} W` : `${(w / 1000).toFixed(2)} kW`;
+  const flowSpeed = w => { const a = Math.abs(w ?? 0); return a < 2 ? null : `${Math.max(0.5, Math.min(6, 6 - 5.5 * Math.min(1, a / 800))).toFixed(2)}s`; };
+  // Kante: Grundlinie plus drei kleine Pfeile, die in Flussrichtung entlanglaufen (Tempo nach Leistung); ohne Fluss gepunktet
+  const edge = (d, w, color, rev) => { const s = flowSpeed(w); if (!s) return `<path class="base" d="${d}"/><path class="fe idle" d="${d}" stroke="${color}"/>`; const secs = parseFloat(s);
+    return `<path class="base" d="${d}"/>` + [0, 1, 2].map(i => `<polygon points="-5,-3.5 4,0 -5,3.5" fill="${color}"><animateMotion dur="${s}" repeatCount="indefinite" begin="${-(i * secs / 3)}s" rotate="${rev ? 'auto-reverse' : 'auto'}" path="${d}" keyPoints="${rev ? '1;0' : '0;1'}" keyTimes="0;1" calcMode="linear"/></polygon>`).join(''); };
+  const node = (x, y, color, label, value, sub, icon, r = 30, right = false) => `<g transform="translate(${x} ${y})"><circle r="${r}" fill="${FC.panel}" stroke="${color}" stroke-width="2.5"/><g stroke="${color}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</g><text class="nl" y="${-r - 10}" text-anchor="middle">${label}</text>${right ? `<text class="nv" x="${r + 8}" y="5" text-anchor="start" fill="${color}">${value}</text>` : `<text class="nv" y="${r + 20}" text-anchor="middle" fill="${color}">${value}</text>`}${sub ? `<text class="ns" y="${r + 34}" text-anchor="middle">${sub}</text>` : ''}</g>`;
+  function renderFlow() {
+    const el = $('flow'); if (!el || !state.st) return;
+    const st = state.st, sh = state.shellyState;
+    const pv = [1, 2, 3, 4].reduce((a, i) => a + Number(st[`pv${i}Voltage`] || 0) * Number(st[`pv${i}Current`] || 0), 0);
+    const out = st.onGridPower != null ? (Number(st.onGridPower) - 30000) / 10 : null;
+    const bat = out != null ? pv - out : null;
+    const soc = Number(st.totalBatteryPackSoc), lim = st.dischargeSocLimit != null ? Number(st.dischargeSocLimit) : null, packs = Number(st.batteryPackageQuantity) || null;
+    const live = sh && sh.enabled && sh.ok && sh.ts && (Date.now() / 1000 - sh.ts) < 600;
+    const grid = live ? sh.grid_w : null, house = live ? sh.household_w : (out != null ? out : null);
+    const gridDraw = (grid ?? 0) > 0; const hasGrid = grid != null;
+    const self = house && house > 0 && out != null ? Math.max(0, Math.min(100, out / house * 100)) : null;
+    const socPct = isNaN(soc) ? 0 : Math.max(0, Math.min(100, soc)); const socColor = socPct <= (lim ?? 8) + 2 ? FC.red : socPct < 30 ? FC.house : FC.bat;
+    const batTxt = bat == null ? '' : `${bat > 2 ? '▲ ' : bat < -2 ? '▼ ' : ''}${fmtW(Math.abs(bat))} ${bat > 2 ? t('flow.charging') : bat < -2 ? t('flow.discharging') : t('flow.idle')}`;
+    const limited = sh && sh.enabled && sh.limited;
+    const siteName = state.site && state.site.name ? state.site.name : t('flow.home');
+    el.innerHTML = `<svg class="flow" viewBox="0 0 420 320" role="img">
+      ${edge('M70 92 L70 208', pv, FC.pv)}${edge('M145 228 C 165 228, 170 200, 177 190', out, FC.house)}
+      ${hasGrid ? edge('M318 170 L248 170', grid, gridDraw ? FC.grid : FC.bat, !gridDraw) : '<path class="base" d="M248 170 L318 170" opacity=".3"/>'}
+      <text class="ns" x="168" y="252" text-anchor="middle" fill="${FC.house}">↗ ${fmtW(out)}</text>
+      ${hasGrid ? `<text class="ns" x="283" y="188" text-anchor="middle" fill="${gridDraw ? FC.grid : FC.bat}">${gridDraw ? '←' : '→'} ${fmtW(Math.abs(grid))}</text>` : ''}
+      ${node(70, 62, FC.pv, t('flow.solar'), fmtW(pv), '', '<circle r="7"/><path d="M0 -13 V-17 M0 13 V17 M-13 0 H-17 M13 0 H17 M-9 -9 L-12 -12 M9 9 L12 12 M9 -9 L12 -12 M-9 9 L-12 12"/>', 30, true)}
+      <g transform="translate(70 250)"><rect x="-75" y="-40" width="150" height="80" rx="12" fill="${FC.panel}" stroke="${limited ? FC.house : FC.bat}" stroke-width="2.5"/>
+        <text class="nl" y="-24" text-anchor="middle">${t('flow.nexa')}${packs ? ` · ${packs} × ${t('flow.battery')}` : ''}</text>
+        <rect x="-62" y="-12" width="60" height="28" rx="4" fill="none" stroke="${FC.muted}" stroke-width="2"/><rect x="-1" y="-3" width="5" height="10" rx="1" fill="${FC.muted}"/>
+        <rect x="-59" y="-9" width="${Math.max(0, 54 * socPct / 100)}" height="22" rx="2" fill="${socColor}" opacity=".85"/>
+        ${lim != null ? `<line x1="${-59 + 54 * Math.min(100, lim) / 100}" x2="${-59 + 54 * Math.min(100, lim) / 100}" y1="-12" y2="16" stroke="${FC.red}" stroke-width="1.5" stroke-dasharray="2 2"/>` : ''}
+        <text class="nv" x="38" y="7" text-anchor="middle" fill="${socColor}">${isNaN(soc) ? '–' : Math.round(soc) + ' %'}</text>
+        <text class="ns" y="32" text-anchor="middle" fill="${bat != null && Math.abs(bat) > 2 ? (bat > 0 ? FC.bat : FC.house) : FC.muted}">${batTxt}</text></g>
+      ${node(210, 170, FC.house, siteName, fmtW(house), self != null ? `${Math.round(self)} % ${t('flow.self')}` : '', '<path d="M-16 2 L0 -14 L16 2 M-12 -1 V14 H12 V-1 M-4 14 V5 H4 V14"/>', 36)}
+      ${node(350, 170, hasGrid ? (gridDraw ? FC.grid : FC.bat) : FC.muted, t('flow.grid'), hasGrid ? fmtW(Math.abs(grid)) : '–', hasGrid ? '' : t('flow.noGrid'), '<path d="M-9 14 L-4 -12 H4 L9 14 M-8 -4 H8 M-10 4 H10 M-4 -12 L-14 -6 M4 -12 L14 -6 M-6 14 L0 4 L6 14"/>')}
+    </svg>`;
+    const cell = (label, val, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
+    $('flow-cells').innerHTML = cell(t('flow.pv'), fmtW(pv), FC.pv) + cell(t('flow.out'), fmtW(out), FC.house) + cell(t('flow.bat'), batTxt || '–', bat != null && bat > 2 ? FC.bat : bat != null && bat < -2 ? FC.house : '')
+      + cell(t('flow.soc'), isNaN(soc) ? '–' : `${Math.round(soc)} %`, socColor)
+      + (hasGrid ? cell(gridDraw ? t('flow.gridIn') : t('flow.gridOut'), fmtW(Math.abs(grid)), gridDraw ? FC.grid : FC.bat) + cell(t('flow.house'), fmtW(house), FC.house) : '');
+  }
+  const _onState = onState; onState = function (device, st, rerender) { _onState(device, st, rerender); renderFlow(); };
+  const _onShellyState = onShellyState; onShellyState = function (st) { _onShellyState(st); renderFlow(); };
+  const _onSiteConfig = onSiteConfig; onSiteConfig = function (cfg, rerender) { _onSiteConfig(cfg, rerender); renderFlow(); };
 })();
 </script>
 </body>

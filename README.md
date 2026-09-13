@@ -162,19 +162,26 @@ two DNS records. The dongle reconnects within seconds; the gap in our move was a
 
 ## What you get
 
-**Settings page (GroLo)**: device and hardware (serial, firmware register, packs with serial/SoC/temperature, PV inputs in use,
+**Settings page (GroLo)**: a live **power flow** schema at the top (solar → NEXA/battery → house, grid ↔ house with a Shelly;
+animated dots show direction and speed shows power, like the energy-flow screen of the Anker SOLIX or Growatt apps), device and hardware (serial, firmware register, packs with serial/SoC/temperature, PV inputs in use,
 dongle model/software/Wi-Fi signal), operating mode switch, charge/discharge limits, output power, operating switches, all
 9 time slots, cloud relay switch with status, dongle settings (interval, time zone, clock sync, restart, pairing mode = IOT
 module off via dongle parameter 35, see below), and a log with
 confirmations from the device. Controls are generated from GroBro's Home Assistant discovery, so anything GroBro exposes appears
 automatically. Every write is confirmed by reading the register back. A **Location and panels** section sets the plant location
 by place or postcode search (Open-Meteo geocoding) and tilt/azimuth/Wp per string; it is stored as a retained MQTT message
-(`homeassistant/grolo/config/site`) and picked up by the weather service immediately.
+(`homeassistant/grolo/config/site`) and picked up by the weather service immediately. **Electricity price and savings** stores
+your tariff (ct/kWh), an optional feed-in rate and the system price as a retained message (`homeassistant/grolo/config/tariff`);
+Telegraf copies it to InfluxDB (measurement `tariff`) and web-push to the website, and the page shows the money at the current
+power (saving per hour from the NEXA output, grid cost per hour from the Shelly).
 
-**Grafana**: live tiles (PV from the strings, output from register 116, battery as balance), power history, SoC, daily energy
-bars, energy split pies, today/month/year/total energy computed from measurements, per-string power/voltage/current, PV inputs
-in use (> 15 V), a **Daily peaks, sun position and model** row (see below), temperatures, cell voltages, packs, firmware and dongle info, and a research row with the raw registers GroBro
-does not know yet. Free MPPT inputs read about 7 V on the NEXA, connected panels 30 V and more.
+**Grafana** (rows in this order): **Now** (PV from the strings, output from register 116, battery as balance, SoC, household),
+**Zero feed-in (Shelly)** with controller status, grid import and export today, **Power and state of charge**, **Energy**
+(daily bars, energy split pies, today/month/year/total), **Costs and savings** (price in use, saved today/month/year/total =
+output to house × price, grid cost today/month and self-sufficiency from the Shelly, payback gauge against the system price,
+savings and grid cost per day), **PV strings**, **Daily peaks, sun position and model** (see below), **Weather**, **Battery and
+technical**, and a research row with the raw registers GroBro does not know yet. Without a tariff entry the dashboard assumes
+30 ct/kWh. Free MPPT inputs read about 7 V on the NEXA, connected panels 30 V and more.
 
 **MQTT topics** (prefix `homeassistant/`, GroBro's namespace):
 
@@ -258,10 +265,17 @@ Configure it on the settings page under **Zero feed-in (Shelly)**: enter the She
 default 20 W), and the output range (min/max W). Choosing **Smart** in the operating-mode control turns the controller on and
 keeps the slot in Load First underneath; choosing Load first / Battery first turns it off and writes the real mode. The
 config is a retained message `<base>/grolo/config/shelly`; the controller publishes `<base>/grolo/shelly/state` (grid,
-household, output, target, ok) which the settings page, InfluxDB (measurement `shelly`) and the website mirror. On the
-website the **Grid** and **Household** tiles appear once the controller runs. If the Shelly is unreachable for 30 s the
-output falls back to a safe value (default 0 W) and the state is flagged. Works for any Shelly, so other users can use it
-by pointing it at their own meter.
+household, output, target, ok, limited, reason, soc, soc_limit) which the settings page, InfluxDB (measurement `shelly`) and
+the website mirror. On the website the **Grid** and **Household** tiles and the grid node of the power-flow schema appear once
+the controller runs. If the Shelly is unreachable for 30 s the output falls back to a safe value (default 0 W) and the state is
+flagged. Works for any Shelly, so other users can use it by pointing it at their own meter.
+
+`reason` tells you why the output does not match the target: `ok`, `shelly_unreachable`, `device_offline` (no data from the
+dongle), `battery_low` (the pack sits at the discharge limit; the NEXA stops the output there and resumes a few percent
+higher, which looks like a 10 ↔ 13 % cycle on an empty battery) or `device_limited` (the NEXA delivers less than requested
+for another reason). While limited, the controller stops winding the target up and holds it about 100 W above the measured
+output, so nothing is exported when the NEXA resumes; it releases the limit as soon as the output follows again. Each
+transition is logged (`docker compose logs shelly-control`).
 
 ## Cloud relay (optional)
 
@@ -362,10 +376,10 @@ telegraf/telegraf.conf       MQTT → InfluxDB
 grafana/build-dashboard.py   generates grafana/dashboards/nexa-en.json and nexa-de.json
 grafana/provisioning/        data source and dashboard provider
 settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
-grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py
+grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py, shelly_control.py
 grobro/registers/            extended NEXA register map
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.37.3
+VERSION                      2026.37.4
 ```
 
 License: MIT.

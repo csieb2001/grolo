@@ -5,7 +5,9 @@ Bildet aus dem GroBro-State dieselben Größen wie das Grafana-Dashboard:
   pv_w  = Summe Spannung × Strom der Strings          out_w = (Register 116 − 30000) / 10, Register zählt in 0,1 W
   bat_w = pv_w − out_w (positiv = laden)              soc, Packs, Temperaturen, Modus, Status
 Mittelt über das Intervall, puffert bei Ausfall (bis 24 h) und schickt nach. Wetter, Standort, Sonnenstand und das
-Erwartungsmodell je String (Sidecar weather) werden mitgeschickt, sobald sie sich ändern.
+Erwartungsmodell je String (Sidecar weather) werden mitgeschickt, sobald sie sich ändern. Läuft die Shelly-Regelung, trägt
+jedes Sample zusätzlich den gemittelten Netzbezug (grid_w) und Hausverbrauch (house_w) des Intervalls; der Strompreis
+(retained <BASE>/grolo/config/tariff von der Einstellungsseite) geht als "tariff" mit, sobald er sich ändert.
 
 Umgebung: WEB_URL (z. B. https://grolo.vercel.app), WEB_TOKEN, PUSH_INTERVAL (s, Standard 30), MQTT_HOST/MQTT_PORT, HA_BASE_TOPIC.
 """
@@ -25,7 +27,8 @@ acc = {}            # device -> {"n": int, sums: {...}, last: state}
 queue = deque(maxlen=2880)   # gepufferte Samples (24 h bei 30 s)
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
-shelly = {"state": None, "dirty": False}
+shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "house": 0.0}   # n/grid/house: Mittelwert über das Intervall
+tariff = {"cfg": None, "dirty": False}
 
 
 def pick(d, *keys, default=None):
@@ -119,8 +122,14 @@ def on_message(client, userdata, msg):
             with lock:
                 weather["advice"] = json.loads(msg.payload); weather["dirty"] = True
         elif parts[-2:] == ["shelly", "state"]:
+            sh = json.loads(msg.payload)
             with lock:
-                shelly["state"] = json.loads(msg.payload); shelly["dirty"] = True
+                shelly["state"] = sh; shelly["dirty"] = True
+                if sh.get("enabled") and sh.get("ok") and sh.get("grid_w") is not None:
+                    shelly["n"] += 1; shelly["grid"] += float(sh["grid_w"]); shelly["house"] += float(sh.get("household_w") or 0)
+        elif parts[-2:] == ["config", "tariff"]:
+            with lock:
+                tariff["cfg"] = json.loads(msg.payload); tariff["dirty"] = True
         elif parts[-1] == "dongle":
             d = json.loads(msg.payload); device = parts[-2]
             with lock:
@@ -133,18 +142,24 @@ def on_message(client, userdata, msg):
 def flush():
     with lock:
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        grid = round(shelly["grid"] / shelly["n"], 1) if shelly["n"] else None
+        house = round(shelly["house"] / shelly["n"], 1) if shelly["n"] else None
+        shelly.update({"n": 0, "grid": 0.0, "house": 0.0})
         for device, a in acc.items():
             if a["n"] == 0 or not a["last"]:
                 continue
             s = dict(a["last"]); n = a["n"]
-            s.update({"ts": now, "device": device, "pv_w": round(a["pv"] / n, 2), "out_w": round(a["out"] / n, 2), "bat_w": round(a["bat"] / n, 2), "soc": round(a["soc"] / n, 2)})
+            s.update({"ts": now, "device": device, "pv_w": round(a["pv"] / n, 2), "out_w": round(a["out"] / n, 2), "bat_w": round(a["bat"] / n, 2), "soc": round(a["soc"] / n, 2),
+                      "grid_w": grid, "house_w": house})
             queue.append(s); a.update({"n": 0, "pv": 0.0, "out": 0.0, "bat": 0.0, "soc": 0.0})
         info = dict(info_pending); info_pending.clear()
         wx = weather_payload() if (weather["dirty"] and weather["current"]) else None
         weather["dirty"] = False
         sh = shelly["state"] if shelly["dirty"] else None
         shelly["dirty"] = False
-    if not queue and not info and not wx and not sh:
+        tf = tariff["cfg"] if (tariff["dirty"] and tariff["cfg"]) else None
+        tariff["dirty"] = False
+    if not queue and not info and not wx and not sh and not tf:
         return
     batch = list(queue)[:200]
     body = {"samples": batch}
@@ -154,6 +169,8 @@ def flush():
         body["weather"] = wx
     if sh:
         body["shelly"] = sh
+    if tf:
+        body["tariff"] = tf
     req = urllib.request.Request(f"{URL}/api/ingest", data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"})
     try:
@@ -161,15 +178,15 @@ def flush():
             res = json.loads(r.read() or b"{}")
         for _ in batch:
             queue.popleft()
-        LOG.info("gesendet: %d Samples (Antwort %s, Wetter %s), Puffer %d", len(batch), res.get("inserted"), res.get("weather"), len(queue))
+        LOG.info("gesendet: %d Samples (Antwort %s, Wetter %s%s), Puffer %d", len(batch), res.get("inserted"), res.get("weather"), ", Tarif" if tf else "", len(queue))
     except urllib.error.HTTPError as e:
         LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200])
         with lock:
-            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
+            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh); tariff["dirty"] = tariff["dirty"] or bool(tf)
     except Exception as e:
         LOG.warning("Senden fehlgeschlagen (%s), Puffer %d", e, len(queue))
         with lock:
-            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
+            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh); tariff["dirty"] = tariff["dirty"] or bool(tf)
 
 
 def main():
@@ -177,7 +194,7 @@ def main():
         LOG.error("WEB_URL oder WEB_TOKEN fehlt"); time.sleep(3600); return
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
-                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0)]))
+                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0)]))
     client.on_message = on_message
     while True:
         try:

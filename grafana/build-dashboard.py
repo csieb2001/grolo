@@ -25,6 +25,20 @@ EN = {
     "Zielleistung": "Target output", "Vom Regler angeforderte NEXA-Ausgangsleistung": "NEXA output power requested by the controller",
     "Verlauf Nulleinspeisung": "Zero feed-in history", "Netz": "Grid", "Haushalt": "Household", "Ausgabe": "Output",
     "Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)": "Only present while the Shelly control runs (settings page)",
+    "Regler-Status": "Controller status", "regelt": "regulating", "Shelly nicht erreichbar": "Shelly unreachable", "NEXA offline": "NEXA offline",
+    "Batterie an Entladegrenze": "Battery at discharge limit", "NEXA liefert weniger als Ziel": "NEXA delivers less than target", "aus": "off",
+    "Zustand des Shelly-Reglers. „Batterie an Entladegrenze“: der NEXA liefert weniger als angefordert, weil der Akku leer ist; der Regler hält das Ziel dann knapp über dem Ausgang, bis wieder Energie da ist.": "State of the Shelly controller. “Battery at discharge limit”: the NEXA delivers less than requested because the pack is empty; the controller then holds the target just above the output until energy is available again.",
+    "Netzbezug heute": "Grid import today", "Aus dem Shelly integriert (nur positive Netzleistung), seit Tagesbeginn": "Integrated from the Shelly (positive grid power only), since midnight",
+    "Eingespeist heute": "Exported today", "Aus dem Shelly integriert (nur negative Netzleistung). Bei funktionierender Nulleinspeisung nahe 0.": "Integrated from the Shelly (negative grid power only). Close to 0 while zero feed-in works.",
+    "Kosten und Ersparnis": "Costs and savings", "Strompreis": "Electricity price", "Auf der Einstellungsseite unter „Strompreis und Ersparnis“ eingestellt (retained grolo/config/tariff). Ohne Eintrag rechnet das Dashboard mit 30 ct/kWh.": "Set on the settings page under “Electricity price and savings” (retained grolo/config/tariff). Without an entry the dashboard assumes 30 ct/kWh.",
+    "Ersparnis heute": "Saved today", "Ersparnis Monat": "Saved this month", "Ersparnis Jahr": "Saved this year", "Ersparnis gesamt": "Saved in total",
+    "Ins Haus abgegebene Energie × Strompreis: so viel Netzstrom musste nicht gekauft werden.": "Energy delivered to the house × electricity price: grid power that did not have to be bought.",
+    "Netzkosten heute": "Grid cost today", "Netzkosten Monat": "Grid cost this month", "Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.": "Grid import per Shelly × electricity price. Only with the Shelly control running.",
+    "Amortisation": "Payback", "Gesamte Ersparnis im Verhältnis zum Anlagenpreis (Einstellungsseite). 0 %, solange kein Anlagenpreis eingetragen ist.": "Total savings relative to the system price (settings page). 0 % until a system price is entered.",
+    "Ersparnis und Netzkosten pro Tag (30 Tage)": "Savings and grid cost per day (30 days)", "Ersparnis": "Savings", "Netzkosten": "Grid cost",
+    "Ersparnis = Abgabe ins Haus × Strompreis, Netzkosten = Netzbezug (Shelly) × Strompreis. Balken auf Tagesmitte.": "Savings = output to house × electricity price, grid cost = grid import (Shelly) × electricity price. Bars on midday.",
+    "Hausverbrauch heute": "Household today", "Netz + NEXA-Ausgang laut Shelly, integriert seit Tagesbeginn": "Grid + NEXA output per Shelly, integrated since midnight",
+    "Eigenversorgung heute": "Self-sufficiency today", "Anteil des Hausverbrauchs, den der NEXA geliefert hat (Shelly)": "Share of the household load supplied by the NEXA (Shelly)",
     "Batterie-Status": "Battery status", "Statusregister 10 des Geräts. Auf aktueller Firmware oft „Ruhe“, obwohl die Bilanz Laden oder Entladen zeigt.": "Device status register 10. On current firmware often \"Idle\" although the balance shows charging or discharging.", "Betriebsmodus": "Operating mode", "Systemtemperatur": "System temperature", "Batterietemperatur": "Battery temperature",
     "Lädt": "Charging", "Entlädt": "Discharging", "Ruhe": "Idle", "Last zuerst": "Load first", "Batterie zuerst": "Battery first", "Smart": "Smart",
     "Leistung und Ladezustand": "Power and state of charge", "Leistungsverlauf": "Power history", "PV": "PV", "Ins Haus": "To house",
@@ -112,7 +126,7 @@ EN = {
 
 def build(lang):
     _ = (lambda s: s) if lang == "de" else (lambda s: EN.get(s, s))
-    HEAD = f'import "timezone"\nimport "math"\nimport "date"\nimport "join"\noption location = timezone.location(name: "{TZ}")\n'
+    HEAD = f'import "timezone"\nimport "math"\nimport "date"\nimport "join"\nimport "array"\noption location = timezone.location(name: "{TZ}")\n'
 
     # ------------------------------------------------------------- Flux-Bausteine
     def q_series(field, label, fn="mean"):
@@ -287,6 +301,86 @@ def build(lang):
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
+    # Strompreis aus der retained Konfiguration (Telegraf -> Measurement tariff), Fallback 30 ct/kWh. Als Flux-Präfix vor Abfragen.
+    def tariff_head(field="price_ct_kwh", default="30.0", name="price"):
+        return f'''{name} = (array.concat(arr: from(bucket: "{BUCKET}")
+  |> range(start: -10y)
+  |> filter(fn: (r) => r._measurement == "tariff" and r._field == "{field}")
+  |> last()
+  |> findColumn(fn: (key) => true, column: "_value"), v: [{default}]))[0]
+'''
+
+    def q_tariff_value(field="price_ct_kwh", default="30.0"):
+        return HEAD + tariff_head(field, default) + '''array.from(rows: [{_time: now(), _value: price}])'''
+
+    def q_sh_energy(sign, start, label="Value", factor="1.0"):
+        """Energie (kWh) aus der Shelly-Netzleistung: sign '+' = Bezug, '-' = Einspeisung, 'h' = Hausverbrauch; optional × Faktor (Preis)."""
+        expr = {"+": "if r._value > 0.0 then r._value else 0.0", "-": "if r._value < 0.0 then -r._value else 0.0", "h": "r._value"}[sign]
+        field = "household_w" if sign == "h" else "grid_w"
+        return f'''from(bucket: "{BUCKET}")
+  |> range(start: {start})
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> map(fn: (r) => ({{ r with _value: {expr} }}))
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * {factor} }}))
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_saved(start, label="Value"):
+        """Ersparnis in EUR: ins Haus abgegebene Energie × Strompreis."""
+        return HEAD + tariff_head() + f'''from(bucket: "{BUCKET}")
+  |> range(start: {start})
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_saved_daily(label, days=30):
+        return HEAD + tariff_head() + f'''from(bucket: "{BUCKET}")
+  |> range(start: -{days}d)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
+  |> timeShift(duration: 12h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_gridcost_daily(label, days=30):
+        return HEAD + tariff_head() + f'''from(bucket: "{BUCKET}")
+  |> range(start: -{days}d)
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "grid_w")
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> map(fn: (r) => ({{ r with _value: if r._value > 0.0 then r._value else 0.0 }}))
+  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
+  |> timeShift(duration: 12h)
+  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+
+    def q_payback():
+        """Gesamte Ersparnis in Prozent des Anlagenpreises (0, wenn kein Preis eingetragen)."""
+        return HEAD + tariff_head() + tariff_head("system_cost_eur", "0.0", "cost") + f'''from(bucket: "{BUCKET}")
+  |> range(start: 0)
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ r with _value: if cost > 0.0 then (r._value / 1000.0 * price / 100.0) / cost * 100.0 else 0.0 }}))
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "Value"}})'''
+
     PIE_FIELDS = ["ppv", "pac", "totalBatteryPackChargingPower", "totalBatteryPackChargingStatus"]
 
     def q_integral_today(expr, label):
@@ -406,13 +500,22 @@ def build(lang):
   |> keep(columns: ["_time", "_value"])
   |> rename(columns: {{_value: "{label}"}})'''
     panels.append(row(_("Nulleinspeisung (Shelly)"), y)); y += 1
+    reason_map = [{"type": "value", "options": {"ok": {"text": _("regelt"), "color": "green"}, "shelly_unreachable": {"text": _("Shelly nicht erreichbar"), "color": "red"},
+                   "device_offline": {"text": _("NEXA offline"), "color": "red"}, "battery_low": {"text": _("Batterie an Entladegrenze"), "color": "orange"},
+                   "device_limited": {"text": _("NEXA liefert weniger als Ziel"), "color": "orange"}, "disabled": {"text": _("aus"), "color": "text"}}}]
     panels += [
-        stat(_("Netzbezug"), 0, y, 4, 8, q_sh_last("grid_w"), "watt", "red", desc=_("Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung")),
-        stat(_("Hausverbrauch (Shelly)"), 4, y, 4, 8, q_sh_last("household_w"), "watt", C_HOUSE, desc=_("Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)")),
-        stat(_("Zielleistung"), 8, y, 4, 8, q_sh_last("target_w"), "watt", C_PV, desc=_("Vom Regler angeforderte NEXA-Ausgangsleistung")),
+        stat(_("Netzbezug"), 0, y, 4, 4, q_sh_last("grid_w"), "watt", "red", desc=_("Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung")),
+        stat(_("Hausverbrauch (Shelly)"), 4, y, 4, 4, q_sh_last("household_w"), "watt", C_HOUSE, desc=_("Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)")),
+        stat(_("Zielleistung"), 8, y, 4, 4, q_sh_last("target_w"), "watt", C_PV, desc=_("Vom Regler angeforderte NEXA-Ausgangsleistung")),
+        stat(_("Regler-Status"), 0, y + 4, 4, 4, q_last("reason", "shelly"), None, "text", mapping=reason_map,
+             desc=_("Zustand des Shelly-Reglers. „Batterie an Entladegrenze“: der NEXA liefert weniger als angefordert, weil der Akku leer ist; der Regler hält das Ziel dann knapp über dem Ausgang, bis wieder Energie da ist.")),
+        stat(_("Netzbezug heute"), 4, y + 4, 4, 4, HEAD + q_sh_energy("+", "today()"), "kwatth", "red", 2, desc=_("Aus dem Shelly integriert (nur positive Netzleistung), seit Tagesbeginn")),
+        stat(_("Eingespeist heute"), 8, y + 4, 4, 4, HEAD + q_sh_energy("-", "today()"), "kwatth", "blue", 3, desc=_("Aus dem Shelly integriert (nur negative Netzleistung). Bei funktionierender Nulleinspeisung nahe 0.")),
         ts(_("Verlauf Nulleinspeisung"), 12, y, 12, 8, [
-            target(q_sh_series("grid_w", _("Netz")), "A"), target(q_sh_series("household_w", _("Haushalt")), "B"), target(q_sh_series("out_w", _("Ausgabe")), "C"),
-        ], "watt", overrides=[color_override(_("Netz"), "red"), color_override(_("Haushalt"), C_HOUSE), color_override(_("Ausgabe"), C_PV)], desc=_("Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)")),
+            target(q_sh_series("grid_w", _("Netz")), "A"), target(q_sh_series("household_w", _("Haushalt")), "B"), target(q_sh_series("out_w", _("Ausgabe")), "C"), target(q_sh_series("target_w", _("Zielleistung")), "D"),
+        ], "watt", overrides=[color_override(_("Netz"), "red"), color_override(_("Haushalt"), C_HOUSE), color_override(_("Ausgabe"), C_PV),
+                              {"matcher": {"id": "byName", "options": _("Zielleistung")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-yellow"}}, {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.lineWidth", "value": 1}, {"id": "custom.fillOpacity", "value": 0}]}],
+           desc=_("Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)")),
     ]
     y += 8
 
@@ -461,71 +564,42 @@ def build(lang):
     ]
     y += 9
 
-    # ============================================================ Wetter
-    panels.append(row(_("Wetter"), y)); y += 1
-    def q_weather_last(field, rng="-2h"):
-        return f'''from(bucket: "{BUCKET}")
-  |> range(start: {rng})
-  |> filter(fn: (r) => r._measurement == "weather" and r._field == "{field}")
-  |> last()
-  |> keep(columns: ["_time", "_value"])'''
-    def q_weather_series(field, label, measurement="weather"):
-        return HEAD + f'''from(bucket: "{BUCKET}")
-  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
-  |> filter(fn: (r) => r._measurement == "{measurement}" and r._field == "{field}")
-  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
-  |> keep(columns: ["_time", "_value"])
-  |> rename(columns: {{_value: "{label}"}})'''
-    cond_map = [{"type": "value", "options": {str(k): {"text": _(v)} for k, v in {0: "Klar", 1: "Überwiegend klar", 2: "Teilweise bewölkt", 3: "Bedeckt", 45: "Nebel", 48: "Reifnebel",
-                 51: "Sprühregen", 53: "Sprühregen", 55: "Sprühregen", 61: "Leichter Regen", 63: "Regen", 65: "Starker Regen", 71: "Schneefall", 73: "Schneefall", 75: "Schneefall",
-                 80: "Regenschauer", 81: "Regenschauer", 82: "Regenschauer", 95: "Gewitter", 96: "Gewitter", 99: "Gewitter"}.items()}}]
+    # ============================================================ Kosten und Ersparnis
+    panels.append(row(_("Kosten und Ersparnis"), y)); y += 1
+    C_EUR = "green"
+    saved_desc = _("Ins Haus abgegebene Energie × Strompreis: so viel Netzstrom musste nicht gekauft werden.")
     panels += [
-        stat(_("Außentemperatur"), 0, y, 4, 4, q_weather_last("temperature"), "celsius", None, 1, thr=thresholds((None, "blue"), (5, "light-blue"), (15, "green"), (25, "orange"), (30, "red")),
-             desc=_("Open-Meteo für den Anlagenstandort, alle 10 Minuten")),
-        stat(_("Wetterzustand"), 4, y, 4, 4, q_weather_last("weather_code"), None, "text", mapping=cond_map, desc=_("WMO-Wettercode von Open-Meteo")),
-        stat(_("Bewölkung"), 8, y, 4, 4, q_weather_last("cloud_cover"), "percent", None, 0, thr=thresholds((None, "yellow"), (40, "light-yellow"), (70, "blue"), (90, "dark-blue"))),
-        stat(_("Globalstrahlung"), 12, y, 4, 4, q_weather_last("shortwave_radiation"), "suffix: W/m²", C_PV, 0, desc=_("Kurzwellige Einstrahlung auf die Horizontale in W/m², Referenz für die PV-Leistung")),
-        panel("stat", _("Sonnenaufgang / -untergang"), 16, y, 4, 4, [target(q_last_named("sunrise", "↑", "weather", "-2h"), "A"), target(q_last_named("sunset", "↓", "weather", "-2h"), "B")], None,
-              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/.*/", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
-              defaults={"color": {"mode": "fixed", "fixedColor": "text"}}, desc=_("Heute, lokale Zeit")),
-        stat(_("Sonnenschein heute"), 20, y, 4, 4, q_weather_last("sunshine_hours_today"), "suffix: h", C_PV, 1, desc=_("Prognostizierte Sonnenscheindauer des Tages")),
-    ]
-    y += 4
-    panels += [
-        panel("stat", _("Strahlungssumme heute / morgen"), 0, y, 4, 9, [target(q_last_named("radiation_sum_today", _("heute"), "weather", "-2h"), "A"), target(q_last_named("radiation_sum_tomorrow", _("morgen"), "weather", "-2h"), "B")], None,
-              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center", "orientation": "vertical"},
-              defaults={"decimals": 1, "unit": "suffix: MJ/m²", "color": {"mode": "fixed", "fixedColor": C_PV}}, desc=_("Tagessumme der Globalstrahlung in MJ/m² laut Vorhersage (1 MJ/m² ≈ 0,28 kWh/m²)")),
-        panel("timeseries", _("Globalstrahlung und PV-Leistung"), 4, y, 10, 9, [
-            target(q_weather_series("shortwave_radiation", _("Globalstrahlung W/m²")), "A"),
-            target(q_flow_series({_("PV-Leistung W"): "pv"}), "B")], None,
-              opts={"legend": {"displayMode": "list", "placement": "bottom", "showLegend": True, "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi", "sort": "none"}},
-              defaults={"custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "gradientMode": "opacity", "showPoints": "never", "spanNulls": True}},
-              overrides=[color_override(_("Globalstrahlung W/m²"), "orange"),
-                         {"matcher": {"id": "byName", "options": _("PV-Leistung W")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": C_PV}}, {"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": "watt"}]}],
-              desc=_("Verhältnis von PV-Leistung zu Einstrahlung zeigt Verschattung, Ausrichtung und Verschmutzung. Strahlung links (W/m²), PV rechts (W).")),
-        ts(_("Bewölkung und Temperatur"), 14, y, 10, 9, [target(q_weather_series("cloud_cover", _("Bewölkung %")), "A"), target(q_weather_series("temperature", _("Temperatur °C")), "B")], None, fill=5,
-           overrides=[color_override(_("Bewölkung %"), "blue"), {"matcher": {"id": "byName", "options": _("Temperatur °C")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}, {"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": "celsius"}]}]),
-    ]
-    y += 9
-    panels += [
-        panel("barchart", _("Vorhersage 48 h: Einstrahlung und Bewölkung"), 0, y, 24, 8, [target(HEAD + f'''from(bucket: "{BUCKET}")
-  |> range(start: -1h, stop: 48h)
-  |> filter(fn: (r) => r._measurement == "weather_forecast" and (r._field == "shortwave_radiation" or r._field == "cloud_cover"))
+        stat(_("Strompreis"), 0, y, 4, 4, q_tariff_value(), "suffix: ct/kWh", "text", 1, desc=_("Auf der Einstellungsseite unter „Strompreis und Ersparnis“ eingestellt (retained grolo/config/tariff). Ohne Eintrag rechnet das Dashboard mit 30 ct/kWh.")),
+        stat(_("Ersparnis heute"), 4, y, 4, 4, q_saved("today()"), "currencyEUR", C_EUR, 2, desc=saved_desc),
+        stat(_("Ersparnis Monat"), 8, y, 4, 4, q_saved("date.truncate(t: now(), unit: 1mo)"), "currencyEUR", C_EUR, 2, desc=saved_desc),
+        stat(_("Ersparnis Jahr"), 12, y, 4, 4, q_saved("date.truncate(t: now(), unit: 1y)"), "currencyEUR", C_EUR, 2, desc=saved_desc),
+        stat(_("Ersparnis gesamt"), 16, y, 4, 4, q_saved("0"), "currencyEUR", C_EUR, 2, desc=saved_desc),
+        panel("gauge", _("Amortisation"), 20, y, 4, 8, [target(q_payback())], "percent",
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
+              defaults={"min": 0, "max": 100, "decimals": 1, "thresholds": thresholds((None, "red"), (25, "orange"), (50, "yellow"), (100, "green"))},
+              desc=_("Gesamte Ersparnis im Verhältnis zum Anlagenpreis (Einstellungsseite). 0 %, solange kein Anlagenpreis eingetragen ist.")),
+        stat(_("Netzkosten heute"), 0, y + 4, 4, 4, HEAD + tariff_head() + q_sh_energy("+", "today()", factor="price / 100.0"), "currencyEUR", "red", 2, desc=_("Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.")),
+        stat(_("Netzkosten Monat"), 4, y + 4, 4, 4, HEAD + tariff_head() + q_sh_energy("+", "date.truncate(t: now(), unit: 1mo)", factor="price / 100.0"), "currencyEUR", "red", 2, desc=_("Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.")),
+        stat(_("Hausverbrauch heute"), 8, y + 4, 4, 4, HEAD + q_sh_energy("h", "today()"), "kwatth", C_HOUSE, 2, desc=_("Netz + NEXA-Ausgang laut Shelly, integriert seit Tagesbeginn")),
+        stat(_("Eigenversorgung heute"), 12, y + 4, 4, 4, HEAD + f'''house = {q_sh_energy("h", "today()", "house")}
+  |> findColumn(fn: (key) => true, column: "house")
+from(bucket: "{BUCKET}")
+  |> range(start: today())
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-  |> map(fn: (r) => {{
-      wd = date.weekDay(t: r._time, location: location)
-      names = ["{_("So")}", "{_("Mo")}", "{_("Di")}", "{_("Mi")}", "{_("Do")}", "{_("Fr")}", "{_("Sa")}"]
-      h = date.hour(t: r._time, location: location)
-      return {{ _time: r._time, "{_("Stunde")}": names[wd] + " " + (if h < 10 then "0" else "") + string(v: h) + ":00", "{_("Globalstrahlung W/m²")}": r.shortwave_radiation, "{_("Bewölkung %")}": r.cloud_cover }}
-    }})
-  |> keep(columns: ["{_("Stunde")}", "{_("Globalstrahlung W/m²")}", "{_("Bewölkung %")}"])''')], None,
-              opts={"xField": _("Stunde"), "orientation": "auto", "barWidth": 0.8, "groupWidth": 0.7, "showValue": "never", "stacking": "none",
-                    "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True}, "tooltip": {"mode": "multi", "sort": "none"}, "xTickLabelRotation": -45, "xTickLabelSpacing": 100},
-              defaults={"color": {"mode": "palette-classic"}, "custom": {"fillOpacity": 80, "lineWidth": 1}},
-              overrides=[color_override(_("Globalstrahlung W/m²"), "orange"), color_override(_("Bewölkung %"), "blue")],
-              desc=_("Stündliche Open-Meteo-Vorhersage ab jetzt. Zeitraum des Dashboards ist hier ohne Wirkung, das Panel zeigt immer die nächsten 48 Stunden.")),
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> integral(unit: 1h)
+  |> map(fn: (r) => ({{ r with _value: if length(arr: house) > 0 and house[0] > 0.0 then r._value / 1000.0 / house[0] * 100.0 else 0.0 }}))
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "Value"}})''', "percent", None, 0, thr=thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green")),
+             desc=_("Anteil des Hausverbrauchs, den der NEXA geliefert hat (Shelly)")),
+        ts(_("Ersparnis und Netzkosten pro Tag (30 Tage)"), 0, y + 8, 24, 8, [target(q_saved_daily(_("Ersparnis")), "A"), target(q_gridcost_daily(_("Netzkosten")), "B")], "currencyEUR", bars=True,
+           overrides=[color_override(_("Ersparnis"), C_EUR), color_override(_("Netzkosten"), "red")],
+           desc=_("Ersparnis = Abgabe ins Haus × Strompreis, Netzkosten = Netzbezug (Shelly) × Strompreis. Balken auf Tagesmitte.")),
     ]
-    y += 8
+    y += 16
 
     # ============================================================ PV-Strings
     panels.append(row(_("PV-Strings"), y)); y += 1
@@ -753,6 +827,72 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
               desc=_("Täglich mit der Schätzung berechnet. Jahresmodell aus dem Open-Meteo-Archiv für den Standort: Ertrag der aktuellen Ausrichtung (konfiguriert, sonst geschätzt) in kWh je kWp, Anteil am Optimum und Gewinn durch Alternativen (gleiche Richtung mit bester Neigung, senkrecht mit bestem Azimut, flach, Optimum). Verschattung: Anteil der Sonnenstunden-Energie, der in Sonnenrichtungen fehlt, in denen die Messung weit unter dem Modell bleibt; Zonen mit Uhrzeiten auf der Einstellungsseite und der Website.")),
     ]
     y += 6
+
+    # ============================================================ Wetter
+    panels.append(row(_("Wetter"), y)); y += 1
+    def q_weather_last(field, rng="-2h"):
+        return f'''from(bucket: "{BUCKET}")
+  |> range(start: {rng})
+  |> filter(fn: (r) => r._measurement == "weather" and r._field == "{field}")
+  |> last()
+  |> keep(columns: ["_time", "_value"])'''
+    def q_weather_series(field, label, measurement="weather"):
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "{measurement}" and r._field == "{field}")
+  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value"])
+  |> rename(columns: {{_value: "{label}"}})'''
+    cond_map = [{"type": "value", "options": {str(k): {"text": _(v)} for k, v in {0: "Klar", 1: "Überwiegend klar", 2: "Teilweise bewölkt", 3: "Bedeckt", 45: "Nebel", 48: "Reifnebel",
+                 51: "Sprühregen", 53: "Sprühregen", 55: "Sprühregen", 61: "Leichter Regen", 63: "Regen", 65: "Starker Regen", 71: "Schneefall", 73: "Schneefall", 75: "Schneefall",
+                 80: "Regenschauer", 81: "Regenschauer", 82: "Regenschauer", 95: "Gewitter", 96: "Gewitter", 99: "Gewitter"}.items()}}]
+    panels += [
+        stat(_("Außentemperatur"), 0, y, 4, 4, q_weather_last("temperature"), "celsius", None, 1, thr=thresholds((None, "blue"), (5, "light-blue"), (15, "green"), (25, "orange"), (30, "red")),
+             desc=_("Open-Meteo für den Anlagenstandort, alle 10 Minuten")),
+        stat(_("Wetterzustand"), 4, y, 4, 4, q_weather_last("weather_code"), None, "text", mapping=cond_map, desc=_("WMO-Wettercode von Open-Meteo")),
+        stat(_("Bewölkung"), 8, y, 4, 4, q_weather_last("cloud_cover"), "percent", None, 0, thr=thresholds((None, "yellow"), (40, "light-yellow"), (70, "blue"), (90, "dark-blue"))),
+        stat(_("Globalstrahlung"), 12, y, 4, 4, q_weather_last("shortwave_radiation"), "suffix: W/m²", C_PV, 0, desc=_("Kurzwellige Einstrahlung auf die Horizontale in W/m², Referenz für die PV-Leistung")),
+        panel("stat", _("Sonnenaufgang / -untergang"), 16, y, 4, 4, [target(q_last_named("sunrise", "↑", "weather", "-2h"), "A"), target(q_last_named("sunset", "↓", "weather", "-2h"), "B")], None,
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/.*/", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
+              defaults={"color": {"mode": "fixed", "fixedColor": "text"}}, desc=_("Heute, lokale Zeit")),
+        stat(_("Sonnenschein heute"), 20, y, 4, 4, q_weather_last("sunshine_hours_today"), "suffix: h", C_PV, 1, desc=_("Prognostizierte Sonnenscheindauer des Tages")),
+    ]
+    y += 4
+    panels += [
+        panel("stat", _("Strahlungssumme heute / morgen"), 0, y, 4, 9, [target(q_last_named("radiation_sum_today", _("heute"), "weather", "-2h"), "A"), target(q_last_named("radiation_sum_tomorrow", _("morgen"), "weather", "-2h"), "B")], None,
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center", "orientation": "vertical"},
+              defaults={"decimals": 1, "unit": "suffix: MJ/m²", "color": {"mode": "fixed", "fixedColor": C_PV}}, desc=_("Tagessumme der Globalstrahlung in MJ/m² laut Vorhersage (1 MJ/m² ≈ 0,28 kWh/m²)")),
+        panel("timeseries", _("Globalstrahlung und PV-Leistung"), 4, y, 10, 9, [
+            target(q_weather_series("shortwave_radiation", _("Globalstrahlung W/m²")), "A"),
+            target(q_flow_series({_("PV-Leistung W"): "pv"}), "B")], None,
+              opts={"legend": {"displayMode": "list", "placement": "bottom", "showLegend": True, "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi", "sort": "none"}},
+              defaults={"custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "gradientMode": "opacity", "showPoints": "never", "spanNulls": True}},
+              overrides=[color_override(_("Globalstrahlung W/m²"), "orange"),
+                         {"matcher": {"id": "byName", "options": _("PV-Leistung W")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": C_PV}}, {"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": "watt"}]}],
+              desc=_("Verhältnis von PV-Leistung zu Einstrahlung zeigt Verschattung, Ausrichtung und Verschmutzung. Strahlung links (W/m²), PV rechts (W).")),
+        ts(_("Bewölkung und Temperatur"), 14, y, 10, 9, [target(q_weather_series("cloud_cover", _("Bewölkung %")), "A"), target(q_weather_series("temperature", _("Temperatur °C")), "B")], None, fill=5,
+           overrides=[color_override(_("Bewölkung %"), "blue"), {"matcher": {"id": "byName", "options": _("Temperatur °C")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}, {"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": "celsius"}]}]),
+    ]
+    y += 9
+    panels += [
+        panel("barchart", _("Vorhersage 48 h: Einstrahlung und Bewölkung"), 0, y, 24, 8, [target(HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: -1h, stop: 48h)
+  |> filter(fn: (r) => r._measurement == "weather_forecast" and (r._field == "shortwave_radiation" or r._field == "cloud_cover"))
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> map(fn: (r) => {{
+      wd = date.weekDay(t: r._time, location: location)
+      names = ["{_("So")}", "{_("Mo")}", "{_("Di")}", "{_("Mi")}", "{_("Do")}", "{_("Fr")}", "{_("Sa")}"]
+      h = date.hour(t: r._time, location: location)
+      return {{ _time: r._time, "{_("Stunde")}": names[wd] + " " + (if h < 10 then "0" else "") + string(v: h) + ":00", "{_("Globalstrahlung W/m²")}": r.shortwave_radiation, "{_("Bewölkung %")}": r.cloud_cover }}
+    }})
+  |> keep(columns: ["{_("Stunde")}", "{_("Globalstrahlung W/m²")}", "{_("Bewölkung %")}"])''')], None,
+              opts={"xField": _("Stunde"), "orientation": "auto", "barWidth": 0.8, "groupWidth": 0.7, "showValue": "never", "stacking": "none",
+                    "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True}, "tooltip": {"mode": "multi", "sort": "none"}, "xTickLabelRotation": -45, "xTickLabelSpacing": 100},
+              defaults={"color": {"mode": "palette-classic"}, "custom": {"fillOpacity": 80, "lineWidth": 1}},
+              overrides=[color_override(_("Globalstrahlung W/m²"), "orange"), color_override(_("Bewölkung %"), "blue")],
+              desc=_("Stündliche Open-Meteo-Vorhersage ab jetzt. Zeitraum des Dashboards ist hier ohne Wirkung, das Panel zeigt immer die nächsten 48 Stunden.")),
+    ]
+    y += 8
 
     # ============================================================ Batterie und Technik
     panels.append(row(_("Batterie und Technik"), y)); y += 1

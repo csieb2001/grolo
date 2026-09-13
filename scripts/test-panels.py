@@ -5,7 +5,7 @@ import base64, json, os, sys, time, urllib.request
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 auth = base64.b64encode(f"{os.environ.get('GRAFANA_ADMIN_USER','admin')}:{os.environ.get('GRAFANA_ADMIN_PASSWORD','')}".encode()).decode()
-port = os.environ.get("GRAFANA_PORT", "3000")
+port = os.environ.get("GRAFANA_PORT", "3000"); ghost = os.environ.get("GRAFANA_HOST", "127.0.0.1")
 import glob
 files = sorted(glob.glob(os.path.join(root, "grafana/dashboards/nexa-*.json")))
 d = {"panels": [p for f in files for p in json.load(open(f))["panels"]]}
@@ -17,7 +17,7 @@ for p in d["panels"]:
     for t in p.get("targets", []):
         body = {"from": str(frm), "to": str(now), "queries": [{"refId": t["refId"], "datasource": {"type": "influxdb", "uid": "influx-nexa"},
                                                               "query": t["query"].replace("${string}", "1"), "intervalMs": 60000, "maxDataPoints": 500}]}
-        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/ds/query", data=json.dumps(body).encode(),
+        req = urllib.request.Request(f"http://{ghost}:{port}/api/ds/query", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json", "Authorization": "Basic " + auth})
         try:
             r = json.load(urllib.request.urlopen(req, timeout=60)); res = r["results"][t["refId"]]
