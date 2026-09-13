@@ -88,7 +88,7 @@ def read_shelly(host):
 def publish_state(grid, household, out, target, ok, reason, limited=False):
     payload = {"ts": int(time.time()), "grid_w": grid, "household_w": household, "out_w": out,
                "target_w": target, "setpoint_w": state["cfg"]["setpoint_w"], "ok": ok, "limited": bool(limited), "reason": reason,
-               "soc": state["soc"], "soc_limit": state["soc_limit"],
+               "soc": state["soc"], "soc_limit": state["soc_limit"], "min_w": state["cfg"]["min_w"], "max_w": state["cfg"]["max_w"],
                "enabled": state["cfg"]["enabled"], "host": state["cfg"]["host"]}
     if mq is not None:
         mq.publish(f"{BASE}/grolo/shelly/state", json.dumps(payload), retain=True)
