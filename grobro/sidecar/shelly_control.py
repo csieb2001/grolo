@@ -16,6 +16,9 @@ Konfiguration als retained MQTT-Nachricht <BASE>/grolo/config/shelly (Einstellun
   interval_s  num     Abfrageintervall in s (Standard 2)
   gain        num     Reglerverstärkung 0..1 (Standard 0.8)
   fallback_w  int     Ausgangsleistung, wenn der Shelly ausfällt (Standard 0)
+  hold_w      int     "folgt nicht"-Toleranz: ab dieser Abweichung Ziel > Ausgang gilt der NEXA als begrenzt, und um so viel
+                      wird das Ziel dann über dem gemessenen Ausgang gehalten (Standard 100)
+  hold_s      num     ... wenn die Abweichung so lange anhält, in s (Standard 60)
   device      str     NEXA-Seriennummer (Standard: automatisch aus dem State-Topic)
 
 Veröffentlicht retained <BASE>/grolo/shelly/state (JSON: grid_w, household_w, out_w, target_w, setpoint_w, ok, limited, reason)
@@ -40,13 +43,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 LOG = logging.getLogger("shelly-control")
 
 DEFAULTS = {"enabled": False, "host": "", "setpoint_w": 20, "min_w": 0, "max_w": 800,
-            "slot": 1, "deadband_w": 10, "interval_s": 2.0, "gain": 0.8, "fallback_w": 0, "device": None}
+            "slot": 1, "deadband_w": 10, "interval_s": 2.0, "gain": 0.8, "fallback_w": 0, "hold_w": 100, "hold_s": 60.0, "device": None}
 
 state = {"cfg": dict(DEFAULTS), "device": os.getenv("DEVICE_ID") or None, "out_w": None, "out_ts": 0.0,
          "last_write": 0.0, "last_target": None, "fail_since": None,
          "soc": None, "soc_limit": None, "online": None, "lag_since": None, "limited": False}
-LAG_W = 100.0       # ab dieser Abweichung Ziel > Ausgang gilt der NEXA als "folgt nicht"
-LAG_S = 60.0        # ... wenn sie so lange anhält
 STALE_S = 120.0     # Gerätewerte älter als das gelten als unbekannt
 lock = threading.Lock()
 mq = None
@@ -88,7 +89,7 @@ def read_shelly(host):
 def publish_state(grid, household, out, target, ok, reason, limited=False):
     payload = {"ts": int(time.time()), "grid_w": grid, "household_w": household, "out_w": out,
                "target_w": target, "setpoint_w": state["cfg"]["setpoint_w"], "ok": ok, "limited": bool(limited), "reason": reason,
-               "soc": state["soc"], "soc_limit": state["soc_limit"], "min_w": state["cfg"]["min_w"], "max_w": state["cfg"]["max_w"],
+               "soc": state["soc"], "soc_limit": state["soc_limit"], "min_w": state["cfg"]["min_w"], "max_w": state["cfg"]["max_w"], "hold_w": state["cfg"]["hold_w"],
                "enabled": state["cfg"]["enabled"], "host": state["cfg"]["host"]}
     if mq is not None:
         mq.publish(f"{BASE}/grolo/shelly/state", json.dumps(payload), retain=True)
@@ -154,19 +155,20 @@ def control_step():
     target = max(cfg["min_w"], min(cfg["max_w"], target))
     # Folgt der NEXA nicht (Ziel liegt dauerhaft weit über dem gemessenen Ausgang, z. B. Batterie an der Entladegrenze),
     # Ziel nicht weiter aufziehen, sondern knapp über dem Ausgang halten; sobald er wieder liefert, geht es normal weiter.
+    hold_w, hold_s = float(cfg["hold_w"]), float(cfg["hold_s"])
     if not state["limited"]:
-        if device_ok and state["last_target"] is not None and state["last_target"] - real_out > LAG_W:
+        if device_ok and state["last_target"] is not None and state["last_target"] - real_out > hold_w:
             state["lag_since"] = state["lag_since"] or now
         else:
             state["lag_since"] = None
-        limited = state["lag_since"] is not None and now - state["lag_since"] > LAG_S
+        limited = state["lag_since"] is not None and now - state["lag_since"] > hold_s
     else:
         # Hysterese: erst loslassen, wenn der NEXA dem (begrenzten) Ziel bis auf die halbe Toleranz folgt
-        limited = not (device_ok and state["last_target"] is not None and real_out >= state["last_target"] - LAG_W / 2)
+        limited = not (device_ok and state["last_target"] is not None and real_out >= state["last_target"] - hold_w / 2)
         if not limited:
             state["lag_since"] = None
     if limited:
-        target = max(cfg["min_w"], min(target, real_out + LAG_W))
+        target = max(cfg["min_w"], min(target, real_out + hold_w))
     if limited != state["limited"]:
         state["limited"] = limited
         if limited:
@@ -196,14 +198,15 @@ def apply_cfg(payload):
     with lock:
         cfg = dict(DEFAULTS)
         cfg.update({k: d[k] for k in DEFAULTS if k in d and d[k] is not None})
-        for k in ("setpoint_w", "min_w", "max_w", "slot", "deadband_w", "fallback_w"):
+        for k in ("setpoint_w", "min_w", "max_w", "slot", "deadband_w", "fallback_w", "hold_w"):
             cfg[k] = int(num(cfg[k], DEFAULTS[k]))
-        for k in ("interval_s", "gain"):
+        for k in ("interval_s", "gain", "hold_s"):
             cfg[k] = num(cfg[k], DEFAULTS[k])
+        cfg["hold_w"] = max(10, cfg["hold_w"]); cfg["hold_s"] = max(5.0, cfg["hold_s"])
         cfg["enabled"] = bool(cfg["enabled"])
         was = state["cfg"].get("enabled")
         state["cfg"] = cfg
-        LOG.info("Konfiguration: %s", {k: cfg[k] for k in ("enabled", "host", "setpoint_w", "min_w", "max_w", "slot")})
+        LOG.info("Konfiguration: %s", {k: cfg[k] for k in ("enabled", "host", "setpoint_w", "min_w", "max_w", "slot", "hold_w", "hold_s")})
         switched_off = bool(was and not cfg["enabled"])
         if switched_off:
             state["last_target"] = None; state["lag_since"] = None; state["limited"] = False  # bei Abschalten Regelung loslassen

@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.37.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.37.4** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
 
 ## Screenshots
 
@@ -273,9 +273,10 @@ flagged. Works for any Shelly, so other users can use it by pointing it at their
 `reason` tells you why the output does not match the target: `ok`, `shelly_unreachable`, `device_offline` (no data from the
 dongle), `battery_low` (the pack sits at the discharge limit; the NEXA stops the output there and resumes a few percent
 higher, which looks like a 10 ↔ 13 % cycle on an empty battery) or `device_limited` (the NEXA delivers less than requested
-for another reason). While limited, the controller stops winding the target up and holds it about 100 W above the measured
-output, so nothing is exported when the NEXA resumes; it releases the limit as soon as the output follows again. Each
-transition is logged (`docker compose logs shelly-control`).
+for another reason). While limited, the controller stops winding the target up and holds it `hold_w` (default 100 W) above
+the measured output, so nothing is exported when the NEXA resumes; it releases the limit as soon as the output follows again.
+Tolerance and delay are set on the settings page under **Not-following detection** (`hold_w`, `hold_s`, default 100 W after
+60 s). Each transition is logged (`docker compose logs shelly-control`).
 
 ## Cloud relay (optional)
 
