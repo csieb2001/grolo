@@ -330,6 +330,12 @@ Things learned from the raw frames that GroBro does not (yet) expose, kept here 
 Settings the Growatt cloud knows but no register is known for: Power+ (1000 W), AC coupling, anti-backflow limit,
 "never power off". Identify them by toggling in the app and comparing the next hourly dump.
 
+**Output above 800 W?** Tested 2026-09-14: holding register 299 (reads 800) is writable through a mapped GroBro register
+(values 900 and 1000 were accepted and read back), but it does **not** lift the slot power limit: with 299 = 1000 a slot power
+of 850 or 1000 W is still rejected and the NEXA keeps 800 W (register 116 = 800.0 W). The 1000 W option in ShinePhone is
+therefore a different, so far unknown setting (possibly the cloud-only "Power+" / `ac_couple_power_control`). Register 299 was
+set back to 800 and the mapping removed. In Germany the simplified balcony registration ends at 800 W anyway.
+
 ## Dongle parameters and the Shelly lab
 
 The Wi-Fi dongle (an ESP32, `GTSW0000`) keeps about 145 configuration parameters that can be read with message type
