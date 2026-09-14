@@ -44,7 +44,7 @@ EN = {
     "Leistung und Ladezustand": "Power and state of charge", "Leistungsverlauf": "Power history", "PV": "PV", "Ins Haus": "To house",
     "Batterie (+ laden / − entladen)": "Battery (+ charge / − discharge)", "Batterie: positiv = laden, negativ = entladen": "Battery: positive = charging, negative = discharging",
     "Energie": "Energy", "PV-Ertrag pro Tag (30 Tage)": "PV yield per day (30 days)", "PV-Ertrag": "PV yield",
-    "Aus den gemessenen Leistungswerten integriert, Tagesgrenzen lokale Zeit, Balken auf Tagesmitte. Zeitraum auf 30 Tage stellen, um alle Tage zu sehen.": "Integrated from measured power, day boundaries in local time, bars at midday. Set the time range to 30 days to see all days.",
+    "Aus den gemessenen Leistungswerten integriert, Tagesgrenzen lokale Zeit, Balken auf Tagesmitte. Zeitraum auf 30 Tage stellen, um alle Tage zu sehen.": "Integrated from measured power (sum of minute means, gaps count as zero), day boundaries in local time, bars at midday. Set the time range to 30 days to see all days.",
     "Abgabe ins Haus pro Tag (30 Tage)": "Output to house per day (30 days)",
     "Wohin ging der PV-Strom heute?": "Where did today's PV energy go?", "Direkt ins Haus": "Directly to house", "In die Batterie": "Into the battery",
     "Woher kam der Hausstrom heute?": "Where did today's house energy come from?", "Direkt aus PV": "Directly from PV", "Aus der Batterie": "From the battery",
@@ -192,8 +192,9 @@ def build(lang):
         return HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: -{days}d)
   |> filter(fn: (r) => r._measurement == "nexa" and r._field == "{field}")
-  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false)
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 }}))
   |> keep(columns: ["_time", "_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -271,9 +272,9 @@ def build(lang):
       direct = if pv < outp then pv else outp
       return {{ r with _value: {expr} }}
     }})
-  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
+  |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false)
   |> timeShift(duration: 12h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 }}))
   |> keep(columns: ["_time", "_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -282,6 +283,7 @@ def build(lang):
         return HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: today())
   |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
   |> map(fn: (r) => {{
@@ -294,8 +296,8 @@ def build(lang):
       dis = if out - pv > 0.0 then out - pv else 0.0
       return {{ r with _value: {expr} }}
     }})
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -315,8 +317,8 @@ def build(lang):
       direct = if pv < outp then pv else outp
       return {{ r with _value: {expr} }}
     }})
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -341,8 +343,8 @@ def build(lang):
   |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> map(fn: (r) => ({{ r with _value: {expr} }}))
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * {factor} }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 * {factor} }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -355,8 +357,8 @@ def build(lang):
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
   |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 * price / 100.0 }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -368,9 +370,9 @@ def build(lang):
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
   |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
-  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
+  |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false)
   |> timeShift(duration: 12h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 * price / 100.0 }}))
   |> keep(columns: ["_time", "_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -380,9 +382,9 @@ def build(lang):
   |> filter(fn: (r) => r._measurement == "shelly" and r._field == "grid_w")
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> map(fn: (r) => ({{ r with _value: if r._value > 0.0 then r._value else 0.0 }}))
-  |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
+  |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false)
   |> timeShift(duration: 12h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 * price / 100.0 }}))
   |> keep(columns: ["_time", "_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -395,8 +397,8 @@ def build(lang):
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
   |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: if cost > 0.0 then (r._value / 1000.0 * price / 100.0) / cost * 100.0 else 0.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: if cost > 0.0 then (r._value / 60000.0 * price / 100.0) / cost * 100.0 else 0.0 }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "Value"}})'''
 
@@ -407,6 +409,7 @@ def build(lang):
         return HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: today())
   |> filter(fn: (r) => r._measurement == "nexa" and ({filt}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.ppv and exists r.pac and exists r.totalBatteryPackChargingPower)
   |> map(fn: (r) => {{
@@ -415,8 +418,8 @@ def build(lang):
       dis = if r.totalBatteryPackChargingStatus == "Discharging" then p else 0.0
       return {{ r with _value: {expr} }}
     }})
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "{label}"}})'''
 
@@ -611,8 +614,8 @@ from(bucket: "{BUCKET}")
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
   |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ r with _value: if length(arr: house) > 0 and house[0] > 0.0 then r._value / 1000.0 / house[0] * 100.0 else 0.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: if length(arr: house) > 0 and house[0] > 0.0 then r._value / 60000.0 / house[0] * 100.0 else 0.0 }}))
   |> keep(columns: ["_value"])
   |> rename(columns: {{_value: "Value"}})''', "percent", None, 0, thr=thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green")),
              desc=_("Anteil des Hausverbrauchs, den der NEXA geliefert hat (Shelly)")),
@@ -659,8 +662,8 @@ from(bucket: "{BUCKET}")
   |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
 e = union(tables: [{maps}])
   |> group(columns: ["string", "_start", "_stop"])
-  |> integral(unit: 1h)
-  |> map(fn: (r) => ({{ string: r.string, _value: r._value / 1000.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ string: r.string, _value: r._value / 60000.0 }}))
   |> group()
 tot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: "_value"), v: [0.0]))[0]
 e
