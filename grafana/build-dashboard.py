@@ -577,10 +577,11 @@ def build(lang):
         stat(_("PV gesamt"), 21, y, 3, 4, q_flow_range("pv", "Value", "0"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Aufzeichnungsbeginn")),
         panel("stat", _("Heute aus Messwerten"), 12, y + 4, 12, 5, [
             target(q_flow_today("pv", _("PV-Ertrag")), "A"), target(q_flow_today("outp", _("Ins Haus")), "B"),
-            target(q_flow_today("chg", _("Batterie geladen")), "C"), target(q_flow_today("dis", _("Batterie entladen")), "D"), target(q_flow_today("acin", _("Aus dem Netz geladen")), "E")], "kwatth",
+            target(q_flow_today("chg", _("Batterie geladen")), "C"), target(q_flow_today("dis", _("Batterie entladen")), "D"), target(q_flow_today("acin", _("Aus dem Netz geladen")), "E"),
+            target(HEAD + q_sh_energy("h", "today()", _("Hausverbrauch (Shelly)")), "F"), target(HEAD + q_sh_energy("+", "today()", _("Netzbezug")), "G")], "kwatth",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
               defaults={"decimals": 2, "color": {"mode": "fixed", "fixedColor": "text"}},
-              overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange"), color_override(_("Aus dem Netz geladen"), "blue")]),
+              overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange"), color_override(_("Aus dem Netz geladen"), "blue"), color_override(_("Hausverbrauch (Shelly)"), "purple"), color_override(_("Netzbezug"), "red")]),
     ]
     y += 9
 
