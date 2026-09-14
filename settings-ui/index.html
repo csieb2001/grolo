@@ -216,6 +216,7 @@
       'x.export': 'Exporting {grid}: the controller lowers the NEXA output (target {target}).', 'x.balanced': 'Zero feed-in reached: the NEXA covers {out} of the {house} household load, grid draw {grid} (setpoint {setpoint}).',
       'x.noMeter': 'Smart control is on but no fresh meter reading yet; the NEXA delivers {out}.', 'x.charging': ' Surplus of {bat} from solar charges the battery ({soc} %).', 'x.discharging': ' {bat} of that comes from the battery ({soc} %).', 'x.solarOnly': ' Solar covers it directly ({pv}).',
       'flow.why': 'Why',
+      'flow.acIn': 'Charging from grid', 'x.offAc': 'Smart control is off. The NEXA runs in “{mode}” and charges the battery ({soc} %) with {acin} from the grid plus {pv} solar; the house gets nothing from it right now.', 'x.acTail': ' In addition it draws {acin} from the grid into the battery.',
       'flow.pv': 'Solar', 'flow.out': 'NEXA → house', 'flow.bat': 'Battery', 'flow.soc': 'State of charge', 'flow.gridIn': 'Grid draw', 'flow.gridOut': 'Feed-in', 'flow.house': 'Household (Shelly)',
       'sec.device': 'Device and hardware', 'sec.device.hint': 'Reported by the NEXA and its Wi-Fi dongle, read-only. Battery packs appear as soon as the NEXA counts them.',
       'packs.title': 'Battery packs', 'packs.pack': 'Pack / serial', 'packs.temp': 'Temperature', 'packs.cells': 'Cell voltage min / max', 'packs.cycles': 'Cycles', 'packs.soh': 'Health',
@@ -291,6 +292,7 @@
       'x.export': 'Einspeisung {grid}: der Regler senkt die NEXA-Abgabe (Ziel {target}).', 'x.balanced': 'Nulleinspeisung erreicht: der NEXA deckt {out} von {house} Hausverbrauch, Netzbezug {grid} (Sollwert {setpoint}).',
       'x.noMeter': 'Smart-Regelung ist an, aber noch kein frischer Zählerwert; der NEXA gibt {out} ab.', 'x.charging': ' Der Überschuss von {bat} aus Solar lädt die Batterie ({soc} %).', 'x.discharging': ' {bat} davon kommen aus der Batterie ({soc} %).', 'x.solarOnly': ' Solar deckt das direkt ({pv}).',
       'flow.why': 'Warum',
+      'flow.acIn': 'Laden aus dem Netz', 'x.offAc': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ und lädt die Batterie ({soc} %) mit {acin} aus dem Netz plus {pv} Solar; das Haus bekommt gerade nichts von ihm.', 'x.acTail': ' Zusätzlich zieht er {acin} aus dem Netz in die Batterie.',
       'flow.pv': 'Solar', 'flow.out': 'NEXA → Haus', 'flow.bat': 'Batterie', 'flow.soc': 'Ladezustand', 'flow.gridIn': 'Netzbezug', 'flow.gridOut': 'Einspeisung', 'flow.house': 'Haushalt (Shelly)',
       'sec.device': 'Gerät und Hardware', 'sec.device.hint': 'Vom NEXA und vom WLAN-Dongle gemeldet, nur Anzeige. Batteriepacks erscheinen, sobald der NEXA sie zählt.',
       'packs.title': 'Batteriepacks', 'packs.pack': 'Pack / Seriennummer', 'packs.temp': 'Temperatur', 'packs.cells': 'Zellspannung min / max', 'packs.cycles': 'Zyklen', 'packs.soh': 'Gesundheit',
@@ -897,15 +899,16 @@
     const bat = out != null ? pv - out : null;
     const soc = Number(st.totalBatteryPackSoc), lim = st.dischargeSocLimit != null ? Number(st.dischargeSocLimit) : null, packs = Number(st.batteryPackageQuantity) || null;
     const live = sh && sh.enabled && sh.ok && sh.ts && (Date.now() / 1000 - sh.ts) < 600;
-    const grid = live ? sh.grid_w : null, house = live ? sh.household_w : (out != null ? out : null);
+    const acIn = (out ?? 0) < -2;   // Register 116 negativ: NEXA zieht aus dem Netz (AC-Laden)
+    const grid = live ? sh.grid_w : null, house = live ? sh.household_w : (out != null && !acIn ? out : null);
     const gridDraw = (grid ?? 0) > 0; const hasGrid = grid != null;
-    const self = house && house > 0 && out != null ? Math.max(0, Math.min(100, out / house * 100)) : null;
+    const self = house && house > 0 && out != null && !acIn ? Math.max(0, Math.min(100, out / house * 100)) : null;
     const socPct = isNaN(soc) ? 0 : Math.max(0, Math.min(100, soc)); const socColor = socPct <= (lim ?? 8) + 2 ? FC.red : socPct < 30 ? FC.house : FC.bat;
     const batTxt = bat == null ? '' : `${bat > 2 ? '▲ ' : bat < -2 ? '▼ ' : ''}${fmtW(Math.abs(bat))} ${bat > 2 ? t('flow.charging') : bat < -2 ? t('flow.discharging') : t('flow.idle')}`;
     const limited = sh && sh.enabled && sh.limited;
     const siteName = state.site && state.site.name ? state.site.name : t('flow.home');
     el.innerHTML = `<svg class="flow" viewBox="0 0 440 320" role="img">
-      ${edge('M85 92 L85 200', pv, FC.pv)}${edge('M160 222 C 176 222, 182 200, 193 192', out, FC.house)}
+      ${edge('M85 92 L85 200', pv, FC.pv)}${edge('M160 222 C 176 222, 182 200, 193 192', out, acIn ? FC.grid : FC.house, acIn)}
       ${hasGrid ? edge('M333 170 L263 170', grid, gridDraw ? FC.grid : FC.bat, !gridDraw) : '<path class="base" d="M263 170 L333 170" opacity=".3"/>'}
       ${hasGrid ? `<text class="ns" x="298" y="188" text-anchor="middle" fill="${gridDraw ? FC.grid : FC.bat}">${gridDraw ? '←' : '→'} ${fmtW(Math.abs(grid))}</text>` : ''}
       ${node(85, 62, FC.pv, t('flow.solar'), fmtW(pv), '', '<circle r="7"/><path d="M0 -13 V-17 M0 13 V17 M-13 0 H-17 M13 0 H17 M-9 -9 L-12 -12 M9 9 L12 12 M9 -9 L12 -12 M-9 9 L-12 12"/>', 30, true)}
@@ -916,12 +919,12 @@
         ${lim != null ? `<line x1="${-59 + 54 * Math.min(100, lim) / 100}" x2="${-59 + 54 * Math.min(100, lim) / 100}" y1="-22" y2="6" stroke="${FC.red}" stroke-width="1.5" stroke-dasharray="2 2"/>` : ''}
         <text class="nv" x="38" y="-3" text-anchor="middle" fill="${socColor}">${isNaN(soc) ? '–' : Math.round(soc) + ' %'}</text>
         <text class="ns" y="22" text-anchor="middle" fill="${bat != null && Math.abs(bat) > 2 ? (bat > 0 ? FC.bat : FC.house) : FC.muted}">${batTxt}</text>
-        <text class="ns" y="38" text-anchor="middle" fill="${FC.house}">→ ${t('flow.home')}: ${fmtW(out)}</text></g>
+        <text class="ns" y="38" text-anchor="middle" fill="${acIn ? FC.grid : FC.house}">${acIn ? `← ${t('flow.acIn')}: ${fmtW(-out)}` : `→ ${t('flow.home')}: ${fmtW(out)}`}</text></g>
       ${node(225, 170, FC.house, siteName, fmtW(house), self != null ? `${Math.round(self)} % ${t('flow.self')}` : '', '<path d="M-16 2 L0 -14 L16 2 M-12 -1 V14 H12 V-1 M-4 14 V5 H4 V14"/>', 36)}
       ${node(365, 170, hasGrid ? (gridDraw ? FC.grid : FC.bat) : FC.muted, t('flow.grid'), hasGrid ? fmtW(Math.abs(grid)) : '–', hasGrid ? '' : t('flow.noGrid'), '<path d="M-9 14 L-4 -12 H4 L9 14 M-8 -4 H8 M-10 4 H10 M-4 -12 L-14 -6 M4 -12 L14 -6 M-6 14 L0 4 L6 14"/>')}
     </svg>`;
     const cell = (label, val, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
-    $('flow-cells').innerHTML = cell(t('flow.pv'), fmtW(pv), FC.pv) + cell(t('flow.out'), fmtW(out), FC.house) + cell(t('flow.bat'), batTxt || '–', bat != null && bat > 2 ? FC.bat : bat != null && bat < -2 ? FC.house : '')
+    $('flow-cells').innerHTML = cell(t('flow.pv'), fmtW(pv), FC.pv) + (acIn ? cell(t('flow.acIn'), fmtW(-out), FC.grid) : cell(t('flow.out'), fmtW(out), FC.house)) + cell(t('flow.bat'), batTxt || '–', bat != null && bat > 2 ? FC.bat : bat != null && bat < -2 ? FC.house : '')
       + cell(t('flow.soc'), isNaN(soc) ? '–' : `${Math.round(soc)} %`, socColor)
       + (hasGrid ? cell(gridDraw ? t('flow.gridIn') : t('flow.gridOut'), fmtW(Math.abs(grid)), gridDraw ? FC.grid : FC.bat) + cell(t('flow.house'), fmtW(house), FC.house) : '');
     const why = $('flow-why'); why.hidden = false; why.innerHTML = `<b>${t('flow.why')}:</b> ${explainSmart(pv, out, bat, soc, live)}`;
@@ -934,10 +937,11 @@
     out = out ?? 0; bat = bat ?? 0;
     const soc = sh && sh.soc != null ? sh.soc : socDev, lim = sh ? sh.soc_limit : null;
     const grid = live ? sh.grid_w : null, house = live ? sh.household_w : null, target = sh ? sh.target_w : null, setpoint = (sh && sh.setpoint_w) ?? 20, max = sh && sh.max_w != null ? sh.max_w : (cfg ? cfg.max_w : null);
-    const m = { mode: state.st ? modeText(state.st.workMode) : '–', out: fmtW(out), target: fmtW(target), house: fmtW(house), grid: fmtW(grid == null ? null : Math.abs(grid)), soc: pct(soc), lim: pct(lim), bat: fmtW(Math.abs(bat)), pv: fmtW(pv), setpoint: fmtW(setpoint), max: fmtW(max) };
-    const tail = bat > 2 ? fill('x.charging', m) : bat < -2 ? fill('x.discharging', m) : (out > 2 ? fill('x.solarOnly', m) : '');
+    const acIn = out < -2;
+    const m = { mode: state.st ? modeText(state.st.workMode) : '–', out: fmtW(Math.max(0, out)), acin: fmtW(-out), target: fmtW(target), house: fmtW(house), grid: fmtW(grid == null ? null : Math.abs(grid)), soc: pct(soc), lim: pct(lim), bat: fmtW(Math.abs(bat)), pv: fmtW(pv), setpoint: fmtW(setpoint), max: fmtW(max) };
+    const tail = acIn ? fill('x.acTail', m) : bat > 2 ? fill('x.charging', m) : bat < -2 ? fill('x.discharging', m) : (out > 2 ? fill('x.solarOnly', m) : '');
     const enabled = (sh && sh.enabled) || (cfg && cfg.enabled);
-    if (!enabled) return fill('x.off', m);
+    if (!enabled) return fill(acIn ? 'x.offAc' : 'x.off', m);
     if (!sh) return fill('x.noMeter', m) + tail;
     if (sh.ok === false || sh.reason === 'shelly_unreachable') return fill('x.unreachable', m);
     if (sh.reason === 'device_offline') return fill('x.offline', m);

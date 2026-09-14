@@ -49,7 +49,9 @@ EN = {
     "Wohin ging der PV-Strom heute?": "Where did today's PV energy go?", "Direkt ins Haus": "Directly to house", "In die Batterie": "Into the battery",
     "Woher kam der Hausstrom heute?": "Where did today's house energy come from?", "Direkt aus PV": "Directly from PV", "Aus der Batterie": "From the battery",
     "PV heute": "PV today", "Aus Messungen berechnet. Die Energiezähler-Register des Geräts (eacToday usw.) bleiben auf aktueller Firmware bei 0.": "Computed from measurements. The device energy counter registers (eacToday etc.) stay at 0 on current firmware.", "Aus Messungen berechnet, seit Monatsbeginn": "Computed from measurements, since start of month", "Aus Messungen berechnet, seit Jahresbeginn": "Computed from measurements, since start of year", "Aus Messungen berechnet, seit Aufzeichnungsbeginn": "Computed from measurements, since recording began", "PV Monat": "PV month", "PV Jahr": "PV year", "PV gesamt": "PV total",
-    "Heute aus Messwerten": "Today from measurements", "Batterie geladen": "Battery charged", "Batterie entladen": "Battery discharged",
+    "Heute aus Messwerten": "Today from measurements", "Aus dem Netz geladen": "Charged from the grid",
+    "Ins Haus = positiver Ausgang (Register 116). Aus dem Netz geladen = negativer Ausgang, der NEXA zieht Netzstrom in die Batterie (z. B. Batterie zuerst).": "To house = positive output (register 116). Charged from the grid = negative output, the NEXA pulls grid power into the battery (e.g. Battery first).",
+    "AC-Ausgang aus Register 116 (0,1-W-Schritte, Offset 30000). Negativ = der NEXA zieht Netzstrom in die Batterie (AC-Laden). Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.": "AC output from register 116 (0.1 W steps, offset 30000). Negative = the NEXA pulls grid power into the battery (AC charging). Register pac (5) reports a constant 0 on current firmware.", "Batterie geladen": "Battery charged", "Batterie entladen": "Battery discharged",
     "PV-Strings": "PV strings", "Leistung je String": "Power per string", "Leistung = Spannung × Strom je Eingang": "Power = voltage × current per input",
     "Spannung je String": "Voltage per string", "Strom je String": "Current per string", "String": "String",
     "Tagesspitzen, Sonnenstand und Modell": "Daily peaks, sun position and model",
@@ -228,6 +230,9 @@ def build(lang):
   |> map(fn: (r) => {{
       pv = {PV_EXPR}
       out = {OUT_EXPR}
+      outp = if out > 0.0 then out else 0.0
+      acin = if out < 0.0 then -out else 0.0
+      direct = if pv < outp then pv else outp
       return {{ _time: r._time, {maps} }}
     }})
   |> keep(columns: ["_time", {keep}])'''
@@ -243,6 +248,9 @@ def build(lang):
   |> map(fn: (r) => {{
       pv = {PV_EXPR}
       out = {OUT_EXPR}
+      outp = if out > 0.0 then out else 0.0
+      acin = if out < 0.0 then -out else 0.0
+      direct = if pv < outp then pv else outp
       return {{ _time: r._time, _value: {expr} }}
     }})
   |> keep(columns: ["_time", "_value"])'''
@@ -258,6 +266,9 @@ def build(lang):
   |> map(fn: (r) => {{
       pv = {PV_EXPR}
       out = {OUT_EXPR}
+      outp = if out > 0.0 then out else 0.0
+      acin = if out < 0.0 then -out else 0.0
+      direct = if pv < outp then pv else outp
       return {{ r with _value: {expr} }}
     }})
   |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
@@ -276,6 +287,9 @@ def build(lang):
   |> map(fn: (r) => {{
       pv = {PV_EXPR}
       out = {OUT_EXPR}
+      outp = if out > 0.0 then out else 0.0
+      acin = if out < 0.0 then -out else 0.0
+      direct = if pv < outp then pv else outp
       chg = if pv - out > 0.0 then pv - out else 0.0
       dis = if out - pv > 0.0 then out - pv else 0.0
       return {{ r with _value: {expr} }}
@@ -296,6 +310,9 @@ def build(lang):
   |> map(fn: (r) => {{
       pv = {PV_EXPR}
       out = {OUT_EXPR}
+      outp = if out > 0.0 then out else 0.0
+      acin = if out < 0.0 then -out else 0.0
+      direct = if pv < outp then pv else outp
       return {{ r with _value: {expr} }}
     }})
   |> integral(unit: 1h)
@@ -337,7 +354,7 @@ def build(lang):
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
-  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
   |> integral(unit: 1h)
   |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
   |> keep(columns: ["_value"])
@@ -350,7 +367,7 @@ def build(lang):
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
-  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
   |> aggregateWindow(every: 1d, fn: (tables=<-, column) => tables |> integral(unit: 1h, column: column), timeSrc: "_start", createEmpty: false)
   |> timeShift(duration: 12h)
   |> map(fn: (r) => ({{ r with _value: r._value / 1000.0 * price / 100.0 }}))
@@ -377,7 +394,7 @@ def build(lang):
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
-  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
   |> integral(unit: 1h)
   |> map(fn: (r) => ({{ r with _value: if cost > 0.0 then (r._value / 1000.0 * price / 100.0) / cost * 100.0 else 0.0 }}))
   |> keep(columns: ["_value"])
@@ -480,7 +497,7 @@ def build(lang):
     panels.append(row(_("Jetzt"), y)); y += 1
     panels += [
         stat(_("PV-Leistung"), 0, y, 4, 5, q_flow_last("pv"), "watt", C_PV, desc=_("Summe Spannung × Strom aller Strings. Feiner und aktueller als das Geräteregister, das auf ganze Watt rundet.")),
-        stat(_("Ausgang ins Haus"), 4, y, 4, 5, q_flow_last("out"), "watt", C_HOUSE, desc=_("AC-Ausgang aus Register 116 (0,1-W-Schritte, Offset 30000). Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.")),
+        stat(_("Ausgang ins Haus"), 4, y, 4, 5, q_flow_last("out"), "watt", C_HOUSE, desc=_("AC-Ausgang aus Register 116 (0,1-W-Schritte, Offset 30000). Negativ = der NEXA zieht Netzstrom in die Batterie (AC-Laden). Das Register pac (5) meldet auf aktueller Firmware dauerhaft 0.")),
         stat(_("Batterie-Leistung"), 8, y, 4, 5, q_flow_last("pv - out"), "watt", C_BAT, desc=_("Bilanz PV minus Ausgang: positiv = laden, negativ = entladen. Register 11 meldet auf aktueller Firmware dauerhaft 0.")),
         panel("gauge", _("Ladezustand"), 12, y, 6, 10, [target(q_last("totalBatteryPackSoc"))], "percent",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
@@ -539,30 +556,31 @@ def build(lang):
     panels += [
         ts(_("PV-Ertrag pro Tag (30 Tage)"), 0, y, 12, 9, [target(q_flow_daily("pv", _("PV-Ertrag")))], "kwatth", bars=True,
            overrides=[color_override(_("PV-Ertrag"), C_PV)], desc=_("Aus den gemessenen Leistungswerten integriert, Tagesgrenzen lokale Zeit, Balken auf Tagesmitte. Zeitraum auf 30 Tage stellen, um alle Tage zu sehen.")),
-        ts(_("Abgabe ins Haus pro Tag (30 Tage)"), 12, y, 12, 9, [target(q_flow_daily("out", _("Ins Haus")))], "kwatth", bars=True, overrides=[color_override(_("Ins Haus"), C_HOUSE)]),
+        ts(_("Abgabe ins Haus pro Tag (30 Tage)"), 12, y, 12, 9, [target(q_flow_daily("outp", _("Ins Haus")), "A"), target(q_flow_daily("acin", _("Aus dem Netz geladen")), "B")], "kwatth", bars=True, overrides=[color_override(_("Ins Haus"), C_HOUSE), color_override(_("Aus dem Netz geladen"), "blue")],
+           desc=_("Ins Haus = positiver Ausgang (Register 116). Aus dem Netz geladen = negativer Ausgang, der NEXA zieht Netzstrom in die Batterie (z. B. Batterie zuerst).")),
     ]
     y += 9
     pie_opts = {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "pieType": "donut", "displayLabels": ["percent"],
                 "legend": {"displayMode": "table", "placement": "bottom", "showLegend": True, "values": ["value", "percent"]}}
     panels += [
         panel("piechart", _("Wohin ging der PV-Strom heute?"), 0, y, 6, 9, [
-            target(q_flow_today("if pv - chg > 0.0 then pv - chg else 0.0", _("Direkt ins Haus")), "A"),
-            target(q_flow_today("chg", _("In die Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
+            target(q_flow_today("direct", _("Direkt ins Haus")), "A"),
+            target(q_flow_today("pv - direct", _("In die Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
               overrides=[color_override(_("Direkt ins Haus"), C_HOUSE), color_override(_("In die Batterie"), C_BAT)]),
         panel("piechart", _("Woher kam der Hausstrom heute?"), 6, y, 6, 9, [
-            target(q_flow_today("if out - dis > 0.0 then out - dis else 0.0", _("Direkt aus PV")), "A"),
-            target(q_flow_today("dis", _("Aus der Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
+            target(q_flow_today("direct", _("Direkt aus PV")), "A"),
+            target(q_flow_today("outp - direct", _("Aus der Batterie")), "B")], "kwatth", opts=pie_opts, defaults={"decimals": 2},
               overrides=[color_override(_("Direkt aus PV"), C_PV), color_override(_("Aus der Batterie"), C_BAT)]),
         stat(_("PV heute"), 12, y, 3, 4, q_flow_range("pv", "Value", "today()"), "kwatth", C_PV, desc=_("Aus Messungen berechnet. Die Energiezähler-Register des Geräts (eacToday usw.) bleiben auf aktueller Firmware bei 0.")),
         stat(_("PV Monat"), 15, y, 3, 4, q_flow_range("pv", "Value", "date.truncate(t: now(), unit: 1mo)"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Monatsbeginn")),
         stat(_("PV Jahr"), 18, y, 3, 4, q_flow_range("pv", "Value", "date.truncate(t: now(), unit: 1y)"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Jahresbeginn")),
         stat(_("PV gesamt"), 21, y, 3, 4, q_flow_range("pv", "Value", "0"), "kwatth", C_PV, desc=_("Aus Messungen berechnet, seit Aufzeichnungsbeginn")),
         panel("stat", _("Heute aus Messwerten"), 12, y + 4, 12, 5, [
-            target(q_flow_today("pv", _("PV-Ertrag")), "A"), target(q_flow_today("out", _("Ins Haus")), "B"),
-            target(q_flow_today("chg", _("Batterie geladen")), "C"), target(q_flow_today("dis", _("Batterie entladen")), "D")], "kwatth",
+            target(q_flow_today("pv", _("PV-Ertrag")), "A"), target(q_flow_today("outp", _("Ins Haus")), "B"),
+            target(q_flow_today("chg", _("Batterie geladen")), "C"), target(q_flow_today("dis", _("Batterie entladen")), "D"), target(q_flow_today("acin", _("Aus dem Netz geladen")), "E")], "kwatth",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
               defaults={"decimals": 2, "color": {"mode": "fixed", "fixedColor": "text"}},
-              overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange")]),
+              overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange"), color_override(_("Aus dem Netz geladen"), "blue")]),
     ]
     y += 9
 
@@ -591,7 +609,7 @@ from(bucket: "{BUCKET}")
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
-  |> map(fn: (r) => ({{ r with _value: {OUT_EXPR} }}))
+  |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
   |> integral(unit: 1h)
   |> map(fn: (r) => ({{ r with _value: if length(arr: house) > 0 and house[0] > 0.0 then r._value / 1000.0 / house[0] * 100.0 else 0.0 }}))
   |> keep(columns: ["_value"])
