@@ -125,7 +125,7 @@ def on_message(client, userdata, msg):
             sh = json.loads(msg.payload)
             with lock:
                 shelly["state"] = sh; shelly["dirty"] = True
-                if sh.get("enabled") and sh.get("ok") and sh.get("grid_w") is not None:
+                if sh.get("ok") and sh.get("grid_w") is not None:   # auch bei ausgeschalteter Regelung (Messbetrieb)
                     shelly["n"] += 1; shelly["grid"] += float(sh["grid_w"]); shelly["house"] += float(sh.get("household_w") or 0)
         elif parts[-2:] == ["config", "tariff"]:
             with lock:

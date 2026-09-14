@@ -322,7 +322,7 @@
         "textMode": "value",
         "justifyMode": "center"
       },
-      "description": "Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur belegt, wenn die Shelly-Regelung läuft."
+      "description": "Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur mit konfiguriertem Shelly."
     },
     {
       "id": 7,
@@ -1095,7 +1095,7 @@
           "sort": "desc"
         }
       },
-      "description": "Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)"
+      "description": "Netz und Haushalt, sobald ein Shelly konfiguriert ist; Ausgabe und Ziel nur bei laufender Regelung"
     },
     {
       "id": 19,

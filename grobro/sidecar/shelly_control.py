@@ -7,7 +7,7 @@ und stellt die Ausgangsleistung des NEXA (Slot-Leistung, flüchtiges RAM-Registe
 so nach, dass am Netzanschluss nur noch ein kleiner Sollwert bezogen und nichts eingespeist wird.
 
 Konfiguration als retained MQTT-Nachricht <BASE>/grolo/config/shelly (Einstellungsseite), Felder:
-  enabled     bool    Regelung an/aus
+  enabled     bool    Regelung an/aus (aus = der Shelly wird trotzdem gelesen und Netz/Haushalt veröffentlicht, nur nicht gestellt)
   host        str     IP oder Hostname des Shelly (z. B. 192.168.1.158)
   setpoint_w  int     angestrebter Netzbezug in W (Standard 20, leicht positiv = nie einspeisen)
   min_w,max_w int     Grenzen der Ausgangsleistung (Standard 0 / 800)
@@ -126,11 +126,30 @@ def write_output(target):
     return True
 
 
+def measure_step(cfg, now):
+    """Regelung aus, Shelly konfiguriert: nur messen und Netz/Haushalt melden (Energiefluss, Netzkosten), nichts schreiben."""
+    try:
+        grid = read_shelly(cfg["host"])
+    except Exception as e:
+        if state["fail_since"] is None:
+            state["fail_since"] = now; LOG.warning("Shelly nicht erreichbar: %s", e)
+        publish_state(None, None, state["out_w"], None, False, "shelly_unreachable")
+        return
+    if state["fail_since"] is not None:
+        LOG.info("Shelly wieder erreichbar (Netz %.0f W)", grid)
+    state["fail_since"] = None
+    device_ok = state["online"] is not False and state["out_w"] is not None and now - state["out_ts"] < STALE_S
+    real_out = state["out_w"] if device_ok else (0.0 if state["online"] is False else None)
+    publish_state(grid, grid + (real_out or 0), real_out, None, True, "disabled")
+
+
 def control_step():
     cfg = state["cfg"]
-    if not cfg.get("enabled") or not cfg.get("host"):
+    if not cfg.get("host"):
         return
     now = time.time()
+    if not cfg.get("enabled"):
+        measure_step(cfg, now); return
     try:
         grid = read_shelly(cfg["host"])
     except Exception as e:

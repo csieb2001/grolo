@@ -322,7 +322,7 @@
         "textMode": "value",
         "justifyMode": "center"
       },
-      "description": "Measured from the Shelly (grid + NEXA output). Only populated while the Shelly control runs."
+      "description": "Measured from the Shelly (grid + NEXA output). Only with a configured Shelly."
     },
     {
       "id": 7,
@@ -1095,7 +1095,7 @@
           "sort": "desc"
         }
       },
-      "description": "Only present while the Shelly control runs (settings page)"
+      "description": "Grid and household as soon as a Shelly is configured; output and target only while the control runs"
     },
     {
       "id": 19,

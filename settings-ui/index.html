@@ -270,7 +270,7 @@
       'shelly.hold': 'Not-following detection', 'shelly.hold.desc': 'If the NEXA delivers this many W less than the target for this long (e.g. battery at the discharge limit), the controller stops raising the target and holds it this many W above the measured output. It lets go as soon as the output follows again.',
       'shelly.holdw': 'Tolerance W', 'shelly.holds': 'After s',
       'shelly.grid': 'grid', 'shelly.house': 'household', 'shelly.out': 'output', 'shelly.target': 'target', 'shelly.unreachable': 'Shelly unreachable', 'shelly.disabled': 'off', 'shelly.nohost': 'no Shelly address set',
-      'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
+      'shelly.measureOnly': 'off, measuring only', 'x.offGrid': ' The house ({house}) draws {grid} from the grid.', 'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
       'sec.tariff': 'Electricity price and savings', 'sec.tariff.hint': 'Used by the Grafana row “Costs and savings” and the website: savings = energy delivered to the house × price, grid cost = grid import (Shelly) × price, payback = total savings relative to the system price. Stored on the local broker (retained), takes effect immediately.',
       'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide).',
       'tariff.price.short': 'Price ct/kWh', 'tariff.feedin': 'Feed-in ct/kWh', 'tariff.cost': 'System price €', 'tariff.saved': 'saved, dashboards recalculate', 'tariff.invalid': 'Enter a price first', 'log.tariff': 'Electricity price saved',
@@ -346,7 +346,7 @@
       'shelly.hold': 'Folgt-nicht-Erkennung', 'shelly.hold.desc': 'Liefert der NEXA so lange so viele W weniger als das Ziel (z. B. Batterie an der Entladegrenze), zieht der Regler das Ziel nicht weiter auf, sondern hält es um diese W über dem gemessenen Ausgang. Er lässt los, sobald der Ausgang wieder folgt.',
       'shelly.holdw': 'Toleranz W', 'shelly.holds': 'Nach s',
       'shelly.grid': 'Netz', 'shelly.house': 'Haushalt', 'shelly.out': 'Ausgabe', 'shelly.target': 'Ziel', 'shelly.unreachable': 'Shelly nicht erreichbar', 'shelly.disabled': 'aus', 'shelly.nohost': 'keine Shelly-Adresse gesetzt',
-      'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
+      'shelly.measureOnly': 'aus, nur Messung', 'x.offGrid': ' Das Haus ({house}) holt {grid} aus dem Netz.', 'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
       'sec.tariff': 'Strompreis und Ersparnis', 'sec.tariff.hint': 'Grundlage für die Grafana-Zeile „Kosten und Ersparnis“ und die Website: Ersparnis = ins Haus abgegebene Energie × Preis, Netzkosten = Netzbezug (Shelly) × Preis, Amortisation = gesamte Ersparnis im Verhältnis zum Anlagenpreis. Liegt auf dem lokalen Broker (retained), gilt sofort.',
       'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden).',
       'tariff.price.short': 'Preis ct/kWh', 'tariff.feedin': 'Einspeisung ct/kWh', 'tariff.cost': 'Anlagenpreis €', 'tariff.saved': 'gespeichert, Dashboards rechnen neu', 'tariff.invalid': 'Bitte zuerst einen Preis eintragen', 'log.tariff': 'Strompreis gespeichert',
@@ -605,7 +605,8 @@
     const w = v => v == null ? '–' : `${Math.round(v)} W`;
     const lbadge = document.getElementById('shelly-live-badge');
     const cell = (label, val, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
-    if (!st.enabled) { el.innerHTML = `<span class="muted">${t('shelly.disabled')}</span>`; if (lbadge) { lbadge.textContent = t('shelly.off'); lbadge.className = 'cur'; } }
+    if (!st.enabled && !(st.ok && st.grid_w != null)) { el.innerHTML = `<span class="muted">${t('shelly.disabled')}</span>`; if (lbadge) { lbadge.textContent = t('shelly.off'); lbadge.className = 'cur'; } }
+    else if (!st.enabled) { const gc = st.grid_w < 0 ? 'var(--bat)' : 'var(--red)'; el.innerHTML = cell(t('shelly.grid'), w(st.grid_w), gc) + cell(t('shelly.house'), w(st.household_w), 'var(--accent)'); if (lbadge) { lbadge.textContent = t('shelly.measureOnly'); lbadge.className = 'cur'; } }
     else if (!st.ok) { el.innerHTML = `<span style="color:var(--red)">⚠ ${st.reason === 'shelly_unreachable' ? t('shelly.unreachable') : (st.reason || '')}</span>`; if (lbadge) { lbadge.textContent = '⚠'; lbadge.className = 'cur unknown'; } }
     else {
       const gridColor = st.grid_w != null && st.grid_w < 0 ? 'var(--bat)' : 'var(--red)';
@@ -898,7 +899,7 @@
     const out = st.onGridPower != null ? (Number(st.onGridPower) - 30000) / 10 : null;
     const bat = out != null ? pv - out : null;
     const soc = Number(st.totalBatteryPackSoc), lim = st.dischargeSocLimit != null ? Number(st.dischargeSocLimit) : null, packs = Number(st.batteryPackageQuantity) || null;
-    const live = sh && sh.enabled && sh.ok && sh.ts && (Date.now() / 1000 - sh.ts) < 600;
+    const live = sh && sh.ok && sh.grid_w != null && sh.ts && (Date.now() / 1000 - sh.ts) < 600;   // Messwerte auch bei ausgeschalteter Regelung
     const acIn = (out ?? 0) < -2;   // Register 116 negativ: NEXA zieht aus dem Netz (AC-Laden)
     const grid = live ? sh.grid_w : null, house = live ? sh.household_w : (out != null && !acIn ? out : null);
     const gridDraw = (grid ?? 0) > 0; const hasGrid = grid != null;
@@ -941,7 +942,7 @@
     const m = { mode: state.st ? modeText(state.st.workMode) : '–', out: fmtW(Math.max(0, out)), acin: fmtW(-out), target: fmtW(target), house: fmtW(house), grid: fmtW(grid == null ? null : Math.abs(grid)), soc: pct(soc), lim: pct(lim), bat: fmtW(Math.abs(bat)), pv: fmtW(pv), setpoint: fmtW(setpoint), max: fmtW(max) };
     const tail = acIn ? fill('x.acTail', m) : bat > 2 ? fill('x.charging', m) : bat < -2 ? fill('x.discharging', m) : (out > 2 ? fill('x.solarOnly', m) : '');
     const enabled = (sh && sh.enabled) || (cfg && cfg.enabled);
-    if (!enabled) return fill(acIn ? 'x.offAc' : 'x.off', m);
+    if (!enabled) return fill(acIn ? 'x.offAc' : 'x.off', m) + (live && grid != null && grid > 0 ? fill('x.offGrid', m) : '');
     if (!sh) return fill('x.noMeter', m) + tail;
     if (sh.ok === false || sh.reason === 'shelly_unreachable') return fill('x.unreachable', m);
     if (sh.reason === 'device_offline') return fill('x.offline', m);

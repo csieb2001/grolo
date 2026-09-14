@@ -21,10 +21,10 @@ EN = {
     "Batterie-Leistung": "Battery power", "Lade-/Entladeleistung der Batterie": "Battery charge/discharge power",
     "Ladezustand": "State of charge", "Hausverbrauch": "Household load", "Nur mit Smart Meter / GroPlug befüllt, sonst 0": "Only filled with a smart meter / GroPlug, otherwise 0",
     "Nulleinspeisung (Shelly)": "Zero feed-in (Shelly)", "Netzbezug": "Grid draw", "Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung": "Grid power at the meter: positive = draw, negative = feed-in",
-    "Hausverbrauch (Shelly)": "Household (Shelly)", "Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)": "Measured household load from the Shelly (grid + NEXA output)", "Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur belegt, wenn die Shelly-Regelung läuft.": "Measured from the Shelly (grid + NEXA output). Only populated while the Shelly control runs.",
+    "Hausverbrauch (Shelly)": "Household (Shelly)", "Gemessener Hausverbrauch aus dem Shelly (Netz + NEXA-Ausgang)": "Measured household load from the Shelly (grid + NEXA output)", "Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur mit konfiguriertem Shelly.": "Measured from the Shelly (grid + NEXA output). Only with a configured Shelly.",
     "Zielleistung": "Target output", "Vom Regler angeforderte NEXA-Ausgangsleistung": "NEXA output power requested by the controller",
     "Verlauf Nulleinspeisung": "Zero feed-in history", "Netz": "Grid", "Haushalt": "Household", "Ausgabe": "Output",
-    "Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)": "Only present while the Shelly control runs (settings page)",
+    "Netz und Haushalt, sobald ein Shelly konfiguriert ist; Ausgabe und Ziel nur bei laufender Regelung": "Grid and household as soon as a Shelly is configured; output and target only while the control runs",
     "Regler-Status": "Controller status", "regelt": "regulating", "Shelly nicht erreichbar": "Shelly unreachable", "NEXA offline": "NEXA offline",
     "Batterie an Entladegrenze": "Battery at discharge limit", "NEXA liefert weniger als Ziel": "NEXA delivers less than target", "aus": "off",
     "Zustand des Shelly-Reglers. „Batterie an Entladegrenze“: der NEXA liefert weniger als angefordert, weil der Akku leer ist; der Regler hält das Ziel dann knapp über dem Ausgang, bis wieder Energie da ist.": "State of the Shelly controller. “Battery at discharge limit”: the NEXA delivers less than requested because the pack is empty; the controller then holds the target just above the output until energy is available again.",
@@ -502,7 +502,7 @@ def build(lang):
         panel("gauge", _("Ladezustand"), 12, y, 6, 10, [target(q_last("totalBatteryPackSoc"))], "percent",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
               defaults={"min": 0, "max": 100, "decimals": 0, "thresholds": thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green"))}),
-        stat(_("Hausverbrauch"), 18, y, 6, 5, q_sh_last("household_w"), "watt", C_HOUSE, desc=_("Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur belegt, wenn die Shelly-Regelung läuft.")),
+        stat(_("Hausverbrauch"), 18, y, 6, 5, q_sh_last("household_w"), "watt", C_HOUSE, desc=_("Gemessen aus dem Shelly (Netz + NEXA-Ausgang). Nur mit konfiguriertem Shelly.")),
         stat_field(_("Batterie-Status"), 0, y + 5, 4, 5, "totalBatteryPackChargingStatus", None, "blue", mapping=status_map, desc=_("Statusregister 10 des Geräts. Auf aktueller Firmware oft „Ruhe“, obwohl die Bilanz Laden oder Entladen zeigt.")),
         stat_field(_("Betriebsmodus"), 4, y + 5, 4, 5, "workMode", None, "orange", mapping=mode_map),
         stat_field(_("Systemtemperatur"), 8, y + 5, 4, 5, "systemTemp", "celsius", None, 1, thr=thresholds((None, "blue"), (35, "green"), (50, "orange"), (60, "red"))),
@@ -534,7 +534,7 @@ def build(lang):
             target(q_sh_series("grid_w", _("Netz")), "A"), target(q_sh_series("household_w", _("Haushalt")), "B"), target(q_sh_series("out_w", _("Ausgabe")), "C"), target(q_sh_series("target_w", _("Zielleistung")), "D"),
         ], "watt", overrides=[color_override(_("Netz"), "red"), color_override(_("Haushalt"), C_HOUSE), color_override(_("Ausgabe"), C_PV),
                               {"matcher": {"id": "byName", "options": _("Zielleistung")}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-yellow"}}, {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.lineWidth", "value": 1}, {"id": "custom.fillOpacity", "value": 0}]}],
-           desc=_("Nur aktiv, wenn die Shelly-Regelung läuft (Einstellungsseite)")),
+           desc=_("Netz und Haushalt, sobald ein Shelly konfiguriert ist; Ausgabe und Ziel nur bei laufender Regelung")),
     ]
     y += 8
 
