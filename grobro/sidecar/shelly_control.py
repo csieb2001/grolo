@@ -192,9 +192,9 @@ def control_step():
     # Der NEXA folgt einer Slot-Aenderung erst nach 30-60 s. Deshalb: Shelly-Werte seit dem letzten Schreiben mitteln und erst
     # neu stellen, wenn der NEXA den letzten Wert erreicht hat ("settled") oder write_s abgelaufen ist; Basis ist dann der
     # gemessene Ausgang. Einspeisung ueber export_w wird sofort ausgeregelt.
-    state["grid_acc"].append(grid)
-    if len(state["grid_acc"]) > 200:
-        del state["grid_acc"][0]
+    # Nur die Shelly-Werte der letzten write_s Sekunden mitteln (ältere, z. B. aus einer Haltephase, verfälschen das Ziel)
+    state["grid_acc"].append((now, grid))
+    state["grid_acc"] = [(t, g) for t, g in state["grid_acc"] if now - t <= cfg["write_s"]]
     since_write = now - state["last_write"]
     settled = (device_ok and state["last_target"] is not None
                and abs(real_out - state["last_target"]) <= max(cfg["deadband_w"], 0.1 * abs(state["last_target"])))
@@ -202,7 +202,7 @@ def control_step():
     may_write = (state["last_target"] is None or export
                  or (since_write >= cfg["write_s"] and (settled or since_write >= 3 * cfg["write_s"])))
     base = real_out if (device_ok and (settled or state["last_target"] is None)) else (state["last_target"] if state["last_target"] is not None else (real_out or 0))
-    gmean = grid if export else sum(state["grid_acc"]) / len(state["grid_acc"])
+    gmean = grid if export else sum(g for _, g in state["grid_acc"]) / len(state["grid_acc"])
     error = gmean - cfg["setpoint_w"]
     target = (base or 0) + cfg["gain"] * error
     target = max(cfg["min_w"], min(cfg["max_w"], target))
@@ -230,7 +230,7 @@ def control_step():
         else:
             LOG.info("NEXA liefert wieder (Ausgang %.0f W), Begrenzung aufgehoben", real_out or 0)
     if may_write and (state["last_target"] is None or abs(target - state["last_target"]) >= cfg["deadband_w"]):
-        write_output(target); state["grid_acc"] = []
+        write_output(target)
     if state["online"] is False:
         reason = "device_offline"
     elif wrong_mode:
@@ -263,8 +263,8 @@ def apply_cfg(payload):
         state["cfg"] = cfg
         LOG.info("Konfiguration: %s", {k: cfg[k] for k in ("enabled", "host", "setpoint_w", "min_w", "max_w", "slot", "hold_w", "hold_s", "write_s", "export_w")})
         switched_off = bool(was and not cfg["enabled"])
-        if switched_off:
-            state["last_target"] = None; state["lag_since"] = None; state["limited"] = False  # bei Abschalten Regelung loslassen
+        if switched_off or (cfg["enabled"] and not was):
+            state["last_target"] = None; state["lag_since"] = None; state["limited"] = False; state["grid_acc"] = []  # Regelung neu ansetzen
     if switched_off:
         publish_state(None, None, state["out_w"], None, True, "disabled")
 
