@@ -801,6 +801,10 @@
                   "text": "NEXA offline",
                   "color": "red"
                 },
+                "wrong_mode": {
+                  "text": "Mode not Load first",
+                  "color": "orange"
+                },
                 "battery_low": {
                   "text": "Battery at discharge limit",
                   "color": "orange"

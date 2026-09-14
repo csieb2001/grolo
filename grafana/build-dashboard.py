@@ -25,7 +25,7 @@ EN = {
     "Zielleistung": "Target output", "Vom Regler angeforderte NEXA-Ausgangsleistung": "NEXA output power requested by the controller",
     "Verlauf Nulleinspeisung": "Zero feed-in history", "Netz": "Grid", "Haushalt": "Household", "Ausgabe": "Output",
     "Netz und Haushalt, sobald ein Shelly konfiguriert ist; Ausgabe und Ziel nur bei laufender Regelung": "Grid and household as soon as a Shelly is configured; output and target only while the control runs",
-    "Regler-Status": "Controller status", "regelt": "regulating", "Shelly nicht erreichbar": "Shelly unreachable", "NEXA offline": "NEXA offline",
+    "Regler-Status": "Controller status", "regelt": "regulating", "Shelly nicht erreichbar": "Shelly unreachable", "NEXA offline": "NEXA offline", "Modus nicht Last zuerst": "Mode not Load first",
     "Batterie an Entladegrenze": "Battery at discharge limit", "NEXA liefert weniger als Ziel": "NEXA delivers less than target", "aus": "off",
     "Zustand des Shelly-Reglers. „Batterie an Entladegrenze“: der NEXA liefert weniger als angefordert, weil der Akku leer ist; der Regler hält das Ziel dann knapp über dem Ausgang, bis wieder Energie da ist.": "State of the Shelly controller. “Battery at discharge limit”: the NEXA delivers less than requested because the pack is empty; the controller then holds the target just above the output until energy is available again.",
     "Netzbezug heute": "Grid import today", "Aus dem Shelly integriert (nur positive Netzleistung), seit Tagesbeginn": "Integrated from the Shelly (positive grid power only), since midnight",
@@ -520,7 +520,7 @@ def build(lang):
   |> rename(columns: {{_value: "{label}"}})'''
     panels.append(row(_("Nulleinspeisung (Shelly)"), y)); y += 1
     reason_map = [{"type": "value", "options": {"ok": {"text": _("regelt"), "color": "green"}, "shelly_unreachable": {"text": _("Shelly nicht erreichbar"), "color": "red"},
-                   "device_offline": {"text": _("NEXA offline"), "color": "red"}, "battery_low": {"text": _("Batterie an Entladegrenze"), "color": "orange"},
+                   "device_offline": {"text": _("NEXA offline"), "color": "red"}, "wrong_mode": {"text": _("Modus nicht Last zuerst"), "color": "orange"}, "battery_low": {"text": _("Batterie an Entladegrenze"), "color": "orange"},
                    "device_limited": {"text": _("NEXA liefert weniger als Ziel"), "color": "orange"}, "disabled": {"text": _("aus"), "color": "text"}}}]
     panels += [
         stat(_("Netzbezug"), 0, y, 4, 4, q_sh_last("grid_w"), "watt", "red", desc=_("Netzleistung am Zähler: positiv = Bezug, negativ = Einspeisung")),

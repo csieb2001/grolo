@@ -270,7 +270,7 @@
       'shelly.hold': 'Not-following detection', 'shelly.hold.desc': 'If the NEXA delivers this many W less than the target for this long (e.g. battery at the discharge limit), the controller stops raising the target and holds it this many W above the measured output. It lets go as soon as the output follows again.',
       'shelly.holdw': 'Tolerance W', 'shelly.holds': 'After s',
       'shelly.grid': 'grid', 'shelly.house': 'household', 'shelly.out': 'output', 'shelly.target': 'target', 'shelly.unreachable': 'Shelly unreachable', 'shelly.disabled': 'off', 'shelly.nohost': 'no Shelly address set',
-      'shelly.measureOnly': 'off, measuring only', 'x.offGrid': ' The house ({house}) draws {grid} from the grid.', 'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
+      'shelly.measureOnly': 'off, measuring only', 'shelly.reason.wrong_mode': 'NEXA is not in Load first, the controller is switching the slot mode back', 'x.wrongMode': 'The NEXA is in “{mode}” and keeps all solar ({pv}) for the battery ({soc} %); the house ({house}) runs on grid power. Smart control needs “Load first”: the controller has written the slot mode back, the NEXA should follow within a minute.', 'x.offGrid': ' The house ({house}) draws {grid} from the grid.', 'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
       'sec.tariff': 'Electricity price and savings', 'sec.tariff.hint': 'Used by the Grafana row “Costs and savings” and the website: savings = energy delivered to the house × price, grid cost = grid import (Shelly) × price, payback = total savings relative to the system price. Stored on the local broker (retained), takes effect immediately.',
       'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide).',
       'tariff.price.short': 'Price ct/kWh', 'tariff.feedin': 'Feed-in ct/kWh', 'tariff.cost': 'System price €', 'tariff.saved': 'saved, dashboards recalculate', 'tariff.invalid': 'Enter a price first', 'log.tariff': 'Electricity price saved',
@@ -346,7 +346,7 @@
       'shelly.hold': 'Folgt-nicht-Erkennung', 'shelly.hold.desc': 'Liefert der NEXA so lange so viele W weniger als das Ziel (z. B. Batterie an der Entladegrenze), zieht der Regler das Ziel nicht weiter auf, sondern hält es um diese W über dem gemessenen Ausgang. Er lässt los, sobald der Ausgang wieder folgt.',
       'shelly.holdw': 'Toleranz W', 'shelly.holds': 'Nach s',
       'shelly.grid': 'Netz', 'shelly.house': 'Haushalt', 'shelly.out': 'Ausgabe', 'shelly.target': 'Ziel', 'shelly.unreachable': 'Shelly nicht erreichbar', 'shelly.disabled': 'aus', 'shelly.nohost': 'keine Shelly-Adresse gesetzt',
-      'shelly.measureOnly': 'aus, nur Messung', 'x.offGrid': ' Das Haus ({house}) holt {grid} aus dem Netz.', 'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
+      'shelly.measureOnly': 'aus, nur Messung', 'shelly.reason.wrong_mode': 'NEXA steht nicht auf Last zuerst, der Regler stellt den Slot-Modus zurück', 'x.wrongMode': 'Der NEXA steht auf „{mode}“ und behält alle Solarleistung ({pv}) für die Batterie ({soc} %); das Haus ({house}) läuft aus dem Netz. Die Smart-Regelung braucht „Last zuerst“: der Regler hat den Slot-Modus zurückgeschrieben, der NEXA sollte binnen einer Minute folgen.', 'x.offGrid': ' Das Haus ({house}) holt {grid} aus dem Netz.', 'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
       'sec.tariff': 'Strompreis und Ersparnis', 'sec.tariff.hint': 'Grundlage für die Grafana-Zeile „Kosten und Ersparnis“ und die Website: Ersparnis = ins Haus abgegebene Energie × Preis, Netzkosten = Netzbezug (Shelly) × Preis, Amortisation = gesamte Ersparnis im Verhältnis zum Anlagenpreis. Liegt auf dem lokalen Broker (retained), gilt sofort.',
       'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden).',
       'tariff.price.short': 'Preis ct/kWh', 'tariff.feedin': 'Einspeisung ct/kWh', 'tariff.cost': 'Anlagenpreis €', 'tariff.saved': 'gespeichert, Dashboards rechnen neu', 'tariff.invalid': 'Bitte zuerst einen Preis eintragen', 'log.tariff': 'Strompreis gespeichert',
@@ -620,7 +620,7 @@
     if (badge && st.enabled) { const bad = !st.ok; badge.textContent = bad ? '⚠' : t('shelly.on'); badge.className = 'cur ' + (bad ? 'unknown' : 'ok'); }
     renderTariffLive();
   }
-  document.getElementById('shelly-on').onclick = () => publishShelly({ enabled: true });
+  document.getElementById('shelly-on').onclick = () => { publishShelly({ enabled: true }); const c = cmpOf(`slot${allDaySlot()}_mode`); if (c) send(c.id, modePayload(c, '0')); };   // Smart braucht Last zuerst
   document.getElementById('shelly-off').onclick = () => publishShelly({ enabled: false });
   document.getElementById('shelly-host-save').onclick = () => publishShelly({ host: document.getElementById('shelly-host').value.trim() });
   document.getElementById('shelly-save').onclick = () => publishShelly({ setpoint_w: +document.getElementById('shelly-setpoint').value || 0, min_w: +document.getElementById('shelly-min').value || 0, max_w: +document.getElementById('shelly-max').value || 800 });
@@ -946,6 +946,7 @@
     if (!sh) return fill('x.noMeter', m) + tail;
     if (sh.ok === false || sh.reason === 'shelly_unreachable') return fill('x.unreachable', m);
     if (sh.reason === 'device_offline') return fill('x.offline', m);
+    if (sh.reason === 'wrong_mode') return fill('x.wrongMode', m);
     if (sh.reason === 'battery_low') return fill('x.batteryLow', m);
     if (sh.limited || sh.reason === 'device_limited') return fill('x.limited', m) + tail;
     if (!live || grid == null) return fill('x.noMeter', m) + tail;

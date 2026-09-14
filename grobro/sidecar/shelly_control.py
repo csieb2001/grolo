@@ -24,7 +24,9 @@ Konfiguration als retained MQTT-Nachricht <BASE>/grolo/config/shelly (Einstellun
 Veröffentlicht retained <BASE>/grolo/shelly/state (JSON: grid_w, household_w, out_w, target_w, setpoint_w, ok, limited, reason)
 und schreibt dieselben Größen nach InfluxDB (Measurement "shelly"). Die Website (web-push) spiegelt den Zustand.
 
-reason: ok | shelly_unreachable | device_offline | battery_low | device_limited.
+reason: ok | shelly_unreachable | device_offline | wrong_mode | battery_low | device_limited.
+  wrong_mode = der NEXA meldet einen anderen Betriebsmodus als "Load First" (z. B. Battery First: alle Solarleistung geht in den
+  Akku, die Slot-Leistung wird ignoriert). Der Regler schreibt dann den Modus des geregelten Slots auf Load First zurück.
   limited = der NEXA liefert seit > 60 s deutlich weniger als angefordert (z. B. Batterie an der Entladegrenze). Der Regler
   zieht das Ziel dann nicht weiter auf (kein Integrator-Windup), sondern hält es knapp über dem gemessenen Ausgang.
 
@@ -47,7 +49,8 @@ DEFAULTS = {"enabled": False, "host": "", "setpoint_w": 20, "min_w": 0, "max_w":
 
 state = {"cfg": dict(DEFAULTS), "device": os.getenv("DEVICE_ID") or None, "out_w": None, "out_ts": 0.0,
          "last_write": 0.0, "last_target": None, "fail_since": None,
-         "soc": None, "soc_limit": None, "online": None, "lag_since": None, "limited": False}
+         "soc": None, "soc_limit": None, "online": None, "lag_since": None, "limited": False, "mode": None, "mode_fix_at": 0.0}
+MODE_FIX_S = 120.0  # Modus höchstens alle 2 min zurückschreiben
 STALE_S = 120.0     # Gerätewerte älter als das gelten als unbekannt
 lock = threading.Lock()
 mq = None
@@ -143,6 +146,19 @@ def measure_step(cfg, now):
     publish_state(grid, grid + (real_out or 0), real_out, None, True, "disabled")
 
 
+def ensure_load_first(now):
+    """Smart-Regelung braucht Load First: bei anderem Modus den geregelten Slot zurückschreiben (Zahl und Auswahltext, je nach
+    GroBro-Plattform des Registers; das jeweils unpassende Topic hat keinen Abnehmer)."""
+    dev = state["cfg"].get("device") or state["device"]
+    if not dev or mq is None or now - state["mode_fix_at"] < MODE_FIX_S:
+        return
+    slot = int(state["cfg"]["slot"])
+    mq.publish(f"{BASE}/number/grobro/{dev}/slot{slot}_mode/set", "0")
+    mq.publish(f"{BASE}/select/grobro/{dev}/slot{slot}_mode/set", "Load First")
+    state["mode_fix_at"] = now
+    LOG.warning("NEXA meldet Modus %r, Smart-Regelung braucht Load First: Slot %s auf Load First gestellt", state["mode"], slot)
+
+
 def control_step():
     cfg = state["cfg"]
     if not cfg.get("host"):
@@ -150,6 +166,9 @@ def control_step():
     now = time.time()
     if not cfg.get("enabled"):
         measure_step(cfg, now); return
+    wrong_mode = state["mode"] is not None and state["mode"] != "Load First" and state["online"] is not False
+    if wrong_mode:
+        ensure_load_first(now)
     try:
         grid = read_shelly(cfg["host"])
     except Exception as e:
@@ -199,6 +218,8 @@ def control_step():
         write_output(target)
     if state["online"] is False:
         reason = "device_offline"
+    elif wrong_mode:
+        reason = "wrong_mode"
     elif limited:
         reason = "battery_low" if (state["soc"] is not None and state["soc_limit"] is not None and state["soc"] <= state["soc_limit"] + 5) else "device_limited"
     else:
@@ -263,6 +284,8 @@ def on_message(client, userdata, msg):
         og = num(st.get("onGridPower"))
         if og is not None:
             state["out_w"] = (og - 30000.0) / 10.0; state["out_ts"] = time.time()
+        if st.get("workMode"):
+            state["mode"] = str(st.get("workMode"))
         if num(st.get("totalBatteryPackSoc")) is not None:
             state["soc"] = num(st.get("totalBatteryPackSoc"))
         if num(st.get("dischargeSocLimit")) is not None:
