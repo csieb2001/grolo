@@ -174,7 +174,7 @@ def flush():
     req = urllib.request.Request(f"{URL}/api/ingest", data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=60) as r:
             res = json.loads(r.read() or b"{}")
         for _ in batch:
             queue.popleft()
