@@ -147,6 +147,7 @@ services:
       TZ: "${TZ:-Europe/Berlin}"
     volumes:
       - ./grobro/sidecar:/sidecar:ro
+      - web-push-state:/state          # ungesendete Samples überleben einen Neustart
 
   # Nulleinspeisung ("Smart"-Modus) mit einem Shelly-Zähler, lokal ohne Growatt-Cloud
   shelly-control:
@@ -298,3 +299,4 @@ volumes:
   influxdb-data:
   grafana-data:
   cloud-gate-state:
+  web-push-state:

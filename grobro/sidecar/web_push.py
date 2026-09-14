@@ -25,6 +25,28 @@ LOG = logging.getLogger("web-push")
 lock = threading.Lock()
 acc = {}            # device -> {"n": int, sums: {...}, last: state}
 queue = deque(maxlen=2880)   # gepufferte Samples (24 h bei 30 s)
+QUEUE_FILE = os.getenv("QUEUE_FILE", "/state/queue.json")   # Puffer überlebt Neustarts, wenn /state ein Volume ist
+
+
+def queue_save():
+    try:
+        os.makedirs(os.path.dirname(QUEUE_FILE), exist_ok=True)
+        with open(QUEUE_FILE + ".tmp", "w") as f:
+            json.dump(list(queue), f)
+        os.replace(QUEUE_FILE + ".tmp", QUEUE_FILE)
+    except Exception as e:
+        LOG.debug("Puffer sichern: %s", e)
+
+
+def queue_load():
+    try:
+        with open(QUEUE_FILE) as f:
+            items = json.load(f)
+        queue.extend(items); LOG.info("Puffer geladen: %d Samples aus %s", len(items), QUEUE_FILE)
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        LOG.warning("Puffer laden: %s", e)
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
 shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "house": 0.0}   # n/grid/house: Mittelwert über das Intervall
@@ -178,13 +200,15 @@ def flush():
             res = json.loads(r.read() or b"{}")
         for _ in batch:
             queue.popleft()
+        if os.path.exists(QUEUE_FILE):
+            queue_save() if queue else os.remove(QUEUE_FILE)
         LOG.info("gesendet: %d Samples (Antwort %s, Wetter %s%s), Puffer %d", len(batch), res.get("inserted"), res.get("weather"), ", Tarif" if tf else "", len(queue))
     except urllib.error.HTTPError as e:
-        LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200])
+        LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200]); queue_save()
         with lock:
             info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh); tariff["dirty"] = tariff["dirty"] or bool(tf)
     except Exception as e:
-        LOG.warning("Senden fehlgeschlagen (%s), Puffer %d", e, len(queue))
+        LOG.warning("Senden fehlgeschlagen (%s), Puffer %d", e, len(queue)); queue_save()
         with lock:
             info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh); tariff["dirty"] = tariff["dirty"] or bool(tf)
 
@@ -192,6 +216,7 @@ def flush():
 def main():
     if not URL or not TOKEN:
         LOG.error("WEB_URL oder WEB_TOKEN fehlt"); time.sleep(3600); return
+    queue_load()
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
                                                      c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0)]))
