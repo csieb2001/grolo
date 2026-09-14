@@ -275,8 +275,10 @@ dongle), `battery_low` (the pack sits at the discharge limit; the NEXA stops the
 higher, which looks like a 10 ↔ 13 % cycle on an empty battery) or `device_limited` (the NEXA delivers less than requested
 for another reason). While limited, the controller stops winding the target up and holds it `hold_w` (default 100 W) above
 the measured output, so nothing is exported when the NEXA resumes; it releases the limit as soon as the output follows again.
-Tolerance and delay are set on the settings page under **Not-following detection** (`hold_w`, `hold_s`, default 100 W after
-60 s). Each transition is logged (`docker compose logs shelly-control`).
+Tolerance and delay are set on the settings page under **Response and not-following detection** (`hold_w`, `hold_s`, default
+100 W after 60 s). The NEXA follows a new slot power only after 30–60 s, so the controller adjusts at most every `write_s`
+(default 15 s) and only once the NEXA has reached the last value, using the Shelly mean since the last write; export above
+`export_w` (default 30 W) is corrected immediately. Each transition is logged (`docker compose logs shelly-control`).
 
 ## Cloud relay (optional)
 
