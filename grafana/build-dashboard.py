@@ -730,11 +730,15 @@ union(tables: [kwh, mins])
     panels.append(row(_("PV-Strings"), y)); y += 1
     sf = [f"pv{i}{s}" for i in range(1, 5) for s in ("Voltage", "Current")]
     S = _("String")
+    S_COL = {1: "yellow", 2: "orange", 3: "light-blue", 4: "purple"}
+    string_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{S} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}}, {"id": "displayName", "value": f"${{s{i}}}"}]} for i, c in S_COL.items()]
+    expected_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{_('Erwartet')} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}}, {"id": "displayName", "value": f"{_('Erwartet')} ${{s{i}}}"},
+                     {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.fillOpacity", "value": 0}, {"id": "custom.lineWidth", "value": 1}]} for i, c in S_COL.items()]
     panels += [
-        ts(_("Leistung je String"), 0, y, 12, 9, [target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5)}))], "watt", fill=5, stack=True,
+        ts(_("Leistung je String"), 0, y, 12, 9, [target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Voltage * r.pv{i}Current" for i in range(1, 5)}))], "watt", fill=5, stack=True, overrides=string_ovr,
            desc=_("Leistung = Spannung × Strom je Eingang")),
-        ts(_("Spannung je String"), 12, y, 6, 9, [target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Voltage" for i in range(1, 5)}))], "volt", fill=0),
-        ts(_("Strom je String"), 18, y, 6, 9, [target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Current" for i in range(1, 5)}))], "amp", fill=0),
+        ts(_("Spannung je String"), 12, y, 6, 9, [target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Voltage" for i in range(1, 5)}))], "volt", fill=0, overrides=string_ovr),
+        ts(_("Strom je String"), 18, y, 6, 9, [target(q_pivot_map(sf, {f"{S} {i}": f"r.pv{i}Current" for i in range(1, 5)}))], "amp", fill=0, overrides=string_ovr),
     ]
     y += 9
     panels += [
@@ -747,6 +751,7 @@ union(tables: [kwh, mins])
   |> rename(columns: {{_value: "{S} {i}"}})''', r) for i, r in zip(range(1, 5), "ABCD")], "volt",
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
               defaults={"decimals": 1, "color": {"mode": "thresholds"}, "thresholds": thresholds((None, "dark-red"), (15, "green"))},
+              overrides=[{"matcher": {"id": "byRegexp", "options": f"^{S} {i}$"}, "properties": [{"id": "displayName", "value": f"${{s{i}}}"}]} for i in range(1, 5)],
               desc=_("Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei.")),
     ]
     y += 4
@@ -783,7 +788,6 @@ e
 
     # ============================================================ Tagesspitzen, Sonnenstand, Modell
     panels.append(row(_("Tagesspitzen, Sonnenstand und Modell"), y)); y += 1
-    S_COL = {1: "yellow", 2: "orange", 3: "light-blue", 4: "purple"}
     PV_FILT = " or ".join(f'r._field == "{f}"' for f in sf)
 
     def q_string_union(start, stop, every):
@@ -882,9 +886,6 @@ pv = from(bucket: "{BUCKET}")
 join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) => ({{ azimuth: l.azimuth, power: r.power }}))
   |> filter(fn: (r) => r.power > 1.0)'''
 
-    string_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{S} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}}]} for i, c in S_COL.items()]
-    expected_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{_('Erwartet')} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}},
-                     {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.fillOpacity", "value": 0}, {"id": "custom.lineWidth", "value": 1}]} for i, c in S_COL.items()]
     panels += [
         panel("table", _("Tagesspitze je String (30 Tage)"), 0, y, 10, 10, [target(q_peaks_table)], None,
               opts={"showHeader": True, "cellHeight": "sm", "sortBy": [{"displayName": _("Tag"), "desc": True}]},
@@ -1152,7 +1153,11 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
         ],
         "schemaVersion": 39, "version": 1, "panels": panels, "annotations": {"list": []},
         "templating": {"list": [{"type": "custom", "name": "string", "label": _("String") + " (Heatmap)", "query": "1,2,3,4", "current": {"text": "1", "value": "1", "selected": True},
-                                 "options": [{"text": str(i), "value": str(i), "selected": i == 1} for i in range(1, 5)], "hide": 0, "includeAll": False, "multi": False}]},
+                                 "options": [{"text": str(i), "value": str(i), "selected": i == 1} for i in range(1, 5)], "hide": 0, "includeAll": False, "multi": False}]
+                       + [{"type": "query", "name": f"s{i}", "label": f"{_('String')} {i}", "hide": 2, "refresh": 1, "datasource": DS, "includeAll": False, "multi": False,
+                           "query": {"query": f'''import "array"
+array.from(rows: [{{_value: (array.concat(arr: from(bucket: "{BUCKET}") |> range(start: -10y) |> filter(fn: (r) => r._measurement == "string_names" and r._field == "s{i}") |> last() |> findColumn(fn: (key) => true, column: "_value"), v: ["{_('String')} {i}"]))[0]}}])'''},
+                           "current": {"text": f"{_('String')} {i}", "value": f"{_('String')} {i}", "selected": True}, "options": []} for i in range(1, 5)]},
     }
 
 

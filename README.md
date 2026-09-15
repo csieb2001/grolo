@@ -169,7 +169,9 @@ dongle model/software/Wi-Fi signal), operating mode switch, charge/discharge lim
 module off via dongle parameter 35, see below), and a log with
 confirmations from the device. Controls are generated from GroBro's Home Assistant discovery, so anything GroBro exposes appears
 automatically. Every write is confirmed by reading the register back. A **Location and panels** section sets the plant location
-by place or postcode search (Open-Meteo geocoding) and tilt/azimuth/Wp per string; it is stored as a retained MQTT message
+by place or postcode search (Open-Meteo geocoding), tilt/azimuth/Wp per string and an optional **name per string** (e.g. “balcony
+south”) that replaces “String n” on the settings page, the website and in Grafana (dashboard variables `s1`–`s4`, fed from the retained
+`grolo/config/string_names` via Telegraf); it is stored as a retained MQTT message
 (`homeassistant/grolo/config/site`) and picked up by the weather service immediately. **Electricity price and savings** stores
 your tariff (ct/kWh), an optional feed-in rate and the system price as a retained message (`homeassistant/grolo/config/tariff`);
 Telegraf copies it to InfluxDB (measurement `tariff`) and web-push to the website, and the page shows the money at the current

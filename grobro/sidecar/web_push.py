@@ -50,6 +50,7 @@ def queue_load():
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
 shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "house": 0.0}   # n/grid/house: Mittelwert über das Intervall
+site_cfg = {"cfg": None}   # retained grolo/config/site (String-Namen)
 tariff = {"cfg": None, "dirty": False}
 
 
@@ -93,7 +94,8 @@ def weather_payload():
     # Standort und Strings (Einstellungsseite bzw. Umgebung des weather-Sidecars) für Sonnenbahn und Erwartungsmodell der Website
     site_src = pick(c, "site", default={}) or {}
     site = {"name": site_src.get("name") or None, "lat": pick(site_src, "lat", default=pick(c, "latitude")), "lon": pick(site_src, "lon", default=pick(c, "longitude")),
-            "strings": {str(k): {"tilt": v.get("tilt"), "azimuth": v.get("azimuth"), "wp": v.get("wp")} for k, v in (pick(c, "strings", default={}) or {}).items() if isinstance(v, dict)}}
+            "strings": {str(k): {"tilt": v.get("tilt"), "azimuth": v.get("azimuth"), "wp": v.get("wp")} for k, v in (pick(c, "strings", default={}) or {}).items() if isinstance(v, dict)},
+            "names": {str(k): str(v)[:40] for k, v in ((site_cfg["cfg"] or {}).get("names") or {}).items() if v}}
     m = weather["model"] or {}
     site["assumed"] = {k: {"tilt": v.get("tilt"), "azimuth": v.get("azimuth"), "wp": v.get("wp"), "source": v.get("source")} for k, v in ((m.get("strings") or {}) if isinstance(m, dict) else {}).items() if isinstance(v, dict) and v.get("assumed")}
     model = [{"t": iso(pick(h, "time", "t")), "string": int(h["string"]), "gti": h.get("gti"), "expected_w": h.get("expected_w")}
@@ -149,6 +151,9 @@ def on_message(client, userdata, msg):
                 shelly["state"] = sh; shelly["dirty"] = True
                 if sh.get("ok") and sh.get("grid_w") is not None:   # auch bei ausgeschalteter Regelung (Messbetrieb)
                     shelly["n"] += 1; shelly["grid"] += float(sh["grid_w"]); shelly["house"] += float(sh.get("household_w") or 0)
+        elif parts[-2:] == ["config", "site"]:
+            with lock:
+                site_cfg["cfg"] = json.loads(msg.payload); weather["dirty"] = True
         elif parts[-2:] == ["config", "tariff"]:
             with lock:
                 tariff["cfg"] = json.loads(msg.payload); tariff["dirty"] = True
@@ -219,7 +224,7 @@ def main():
     queue_load()
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
-                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0)]))
+                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0), (f"{BASE}/grolo/config/site", 0)]))
     client.on_message = on_message
     while True:
         try:

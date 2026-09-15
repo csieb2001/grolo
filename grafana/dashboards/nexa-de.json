@@ -3105,7 +3105,84 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 1$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s1}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 2$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s2}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 3$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s3}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 4$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s4}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -3165,7 +3242,84 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 1$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s1}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 2$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s2}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 3$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s3}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 4$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s4}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -3224,7 +3378,84 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 1$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s1}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 2$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s2}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 3$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s3}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 4$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "${s4}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -3361,7 +3592,56 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 1$"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${s1}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 2$"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${s2}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 3$"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${s3}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^String 4$"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${s4}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -3913,6 +4193,10 @@
                   "mode": "fixed",
                   "fixedColor": "yellow"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s1}"
               }
             ]
           },
@@ -3928,6 +4212,10 @@
                   "mode": "fixed",
                   "fixedColor": "orange"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s2}"
               }
             ]
           },
@@ -3943,6 +4231,10 @@
                   "mode": "fixed",
                   "fixedColor": "light-blue"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s3}"
               }
             ]
           },
@@ -3958,6 +4250,10 @@
                   "mode": "fixed",
                   "fixedColor": "purple"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s4}"
               }
             ]
           }
@@ -4361,6 +4657,10 @@
                   "mode": "fixed",
                   "fixedColor": "yellow"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s1}"
               }
             ]
           },
@@ -4376,6 +4676,10 @@
                   "mode": "fixed",
                   "fixedColor": "orange"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s2}"
               }
             ]
           },
@@ -4391,6 +4695,10 @@
                   "mode": "fixed",
                   "fixedColor": "light-blue"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s3}"
               }
             ]
           },
@@ -4406,6 +4714,10 @@
                   "mode": "fixed",
                   "fixedColor": "purple"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "${s4}"
               }
             ]
           },
@@ -4421,6 +4733,10 @@
                   "mode": "fixed",
                   "fixedColor": "yellow"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Erwartet ${s1}"
               },
               {
                 "id": "custom.lineStyle",
@@ -4456,6 +4772,10 @@
                 }
               },
               {
+                "id": "displayName",
+                "value": "Erwartet ${s2}"
+              },
+              {
                 "id": "custom.lineStyle",
                 "value": {
                   "fill": "dash",
@@ -4489,6 +4809,10 @@
                 }
               },
               {
+                "id": "displayName",
+                "value": "Erwartet ${s3}"
+              },
+              {
                 "id": "custom.lineStyle",
                 "value": {
                   "fill": "dash",
@@ -4520,6 +4844,10 @@
                   "mode": "fixed",
                   "fixedColor": "purple"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Erwartet ${s4}"
               },
               {
                 "id": "custom.lineStyle",
@@ -7447,6 +7775,94 @@
         "hide": 0,
         "includeAll": false,
         "multi": false
+      },
+      {
+        "type": "query",
+        "name": "s1",
+        "label": "String 1",
+        "hide": 2,
+        "refresh": 1,
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influx-nexa"
+        },
+        "includeAll": false,
+        "multi": false,
+        "query": {
+          "query": "import \"array\"\narray.from(rows: [{_value: (array.concat(arr: from(bucket: \"nexa\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"string_names\" and r._field == \"s1\") |> last() |> findColumn(fn: (key) => true, column: \"_value\"), v: [\"String 1\"]))[0]}])"
+        },
+        "current": {
+          "text": "String 1",
+          "value": "String 1",
+          "selected": true
+        },
+        "options": []
+      },
+      {
+        "type": "query",
+        "name": "s2",
+        "label": "String 2",
+        "hide": 2,
+        "refresh": 1,
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influx-nexa"
+        },
+        "includeAll": false,
+        "multi": false,
+        "query": {
+          "query": "import \"array\"\narray.from(rows: [{_value: (array.concat(arr: from(bucket: \"nexa\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"string_names\" and r._field == \"s2\") |> last() |> findColumn(fn: (key) => true, column: \"_value\"), v: [\"String 2\"]))[0]}])"
+        },
+        "current": {
+          "text": "String 2",
+          "value": "String 2",
+          "selected": true
+        },
+        "options": []
+      },
+      {
+        "type": "query",
+        "name": "s3",
+        "label": "String 3",
+        "hide": 2,
+        "refresh": 1,
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influx-nexa"
+        },
+        "includeAll": false,
+        "multi": false,
+        "query": {
+          "query": "import \"array\"\narray.from(rows: [{_value: (array.concat(arr: from(bucket: \"nexa\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"string_names\" and r._field == \"s3\") |> last() |> findColumn(fn: (key) => true, column: \"_value\"), v: [\"String 3\"]))[0]}])"
+        },
+        "current": {
+          "text": "String 3",
+          "value": "String 3",
+          "selected": true
+        },
+        "options": []
+      },
+      {
+        "type": "query",
+        "name": "s4",
+        "label": "String 4",
+        "hide": 2,
+        "refresh": 1,
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influx-nexa"
+        },
+        "includeAll": false,
+        "multi": false,
+        "query": {
+          "query": "import \"array\"\narray.from(rows: [{_value: (array.concat(arr: from(bucket: \"nexa\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"string_names\" and r._field == \"s4\") |> last() |> findColumn(fn: (key) => true, column: \"_value\"), v: [\"String 4\"]))[0]}])"
+        },
+        "current": {
+          "text": "String 4",
+          "value": "String 4",
+          "selected": true
+        },
+        "options": []
       }
     ]
   }
