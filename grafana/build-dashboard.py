@@ -30,6 +30,11 @@ EN = {
     "Zustand des Shelly-Reglers. „Batterie an Entladegrenze“: der NEXA liefert weniger als angefordert, weil der Akku leer ist; der Regler hält das Ziel dann knapp über dem Ausgang, bis wieder Energie da ist.": "State of the Shelly controller. “Battery at discharge limit”: the NEXA delivers less than requested because the pack is empty; the controller then holds the target just above the output until energy is available again.",
     "Netzbezug heute": "Grid import today", "Aus dem Shelly integriert (nur positive Netzleistung), seit Tagesbeginn": "Integrated from the Shelly (positive grid power only), since midnight",
     "Eingespeist heute": "Exported today", "Aus dem Shelly integriert (nur negative Netzleistung). Bei funktionierender Nulleinspeisung nahe 0.": "Integrated from the Shelly (negative grid power only). Close to 0 while zero feed-in works.",
+    "Jahr und Rekorde": "Year and records", "Rekorde des Jahres": "Records of the year", "Rekord": "Record", "Stärkster Tag (kWh PV)": "Strongest day (kWh PV)",
+    "Schwächster Tag (kWh PV)": "Weakest day (kWh PV)", "Höchste PV-Spitze (W)": "Highest PV peak (W)", "Höchster Hausverbrauch (kWh)": "Highest household consumption (kWh)",
+    "Meister Netzbezug (kWh)": "Most grid import (kWh)", "Jahr bisher (kWh PV)": "Year so far (kWh PV)", "Tage mit Daten": "Days with data",
+    "Seit Jahresbeginn (lokale Zeit) aus den Tagessummen der Minutenmittel. Schwächster Tag nur unter Tagen mit mindestens 12 Stunden Daten.": "Since the start of the year (local time) from daily sums of minute means. Weakest day only among days with at least 12 hours of data.",
+    "PV-Ertrag: Tag × Monat (Jahr)": "PV yield: day × month (year)", "Tagessumme des PV-Ertrags in kWh, Zeile = Monat, Spalte = Tag im Monat. Leer = keine Daten.": "Daily PV yield in kWh, row = month, column = day of month. Empty = no data.",
     "Kosten und Ersparnis": "Costs and savings", "Strompreis": "Electricity price", "Auf der Einstellungsseite unter „Strompreis und Ersparnis“ eingestellt (retained grolo/config/tariff). Ohne Eintrag rechnet das Dashboard mit 30 ct/kWh.": "Set on the settings page under “Electricity price and savings” (retained grolo/config/tariff). Without an entry the dashboard assumes 30 ct/kWh.",
     "Ersparnis heute": "Saved today", "Ersparnis Monat": "Saved this month", "Ersparnis Jahr": "Saved this year", "Ersparnis gesamt": "Saved in total",
     "Ins Haus abgegebene Energie × Strompreis: so viel Netzstrom musste nicht gekauft werden.": "Energy delivered to the house × electricity price: grid power that did not have to be bought.",
@@ -495,6 +500,9 @@ def build(lang):
 
     panels = []
     y = 0
+    heat_opts = {"calculate": False, "cellGap": 1, "cellValues": {"unit": "watt"}, "color": {"mode": "scheme", "scheme": "YlOrRd", "steps": 48, "fill": "dark-orange", "reverse": False, "exponent": 0.6, "min": 0},
+                 "yAxis": {"axisPlacement": "left", "reverse": False, "unit": "none", "decimals": 0}, "rowsFrame": {"layout": "ge", "value": "W"}, "tooltip": {"mode": "single", "yHistogram": False, "showColorScale": False},
+                 "legend": {"show": True}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "showValue": "never"}
 
     # ============================================================ Jetzt
     panels.append(row(_("Jetzt"), y)); y += 1
@@ -624,6 +632,92 @@ from(bucket: "{BUCKET}")
            desc=_("Ersparnis = Abgabe ins Haus × Strompreis, Netzkosten = Netzbezug (Shelly) × Strompreis. Balken auf Tagesmitte.")),
     ]
     y += 16
+
+    # ============================================================ Jahr und Rekorde
+    panels.append(row(_("Jahr und Rekorde"), y)); y += 1
+    def q_daily_year(expr, need_minutes=0):
+        """Tagessummen (kWh) seit Jahresbeginn aus Minutenmitteln; Tage mit weniger als need_minutes Datenminuten ausblenden.
+        Ohne join: kWh und Minutenzahl als zwei Reihen (Spalte k) und per pivot zusammenführen."""
+        return HEAD + f'''base = from(bucket: "{BUCKET}")
+  |> range(start: date.truncate(t: now(), unit: 1y))
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => {{
+      pv = {PV_EXPR}
+      out = {OUT_EXPR}
+      outp = if out > 0.0 then out else 0.0
+      return {{ _time: r._time, _start: r._start, _stop: r._stop, _value: {expr}, n: 1.0 }}
+    }})
+  |> group(columns: ["_start", "_stop"])
+kwh = base |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false) |> map(fn: (r) => ({{ _time: r._time, k: "kwh", _value: r._value / 60000.0 }}))
+mins = base |> map(fn: (r) => ({{ r with _value: r.n }})) |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false) |> map(fn: (r) => ({{ _time: r._time, k: "min", _value: r._value }}))
+union(tables: [kwh, mins])
+  |> group()
+  |> pivot(rowKey: ["_time"], columnKey: ["k"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.kwh and exists r.min and r.min >= {float(need_minutes)})
+  |> map(fn: (r) => ({{ _time: r._time, _value: r.kwh, minutes: r.min }}))
+'''
+    def q_sh_daily_year(field, sign):
+        expr = {"+": "if r._value > 0.0 then r._value else 0.0", "h": "r._value"}[sign]
+        return HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: date.truncate(t: now(), unit: 1y))
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "{field}")
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> map(fn: (r) => ({{ r with _value: {expr} }}))
+  |> aggregateWindow(every: 1d, fn: sum, timeSrc: "_start", createEmpty: false)
+  |> map(fn: (r) => ({{ r with _value: r._value / 60000.0 }}))
+  |> keep(columns: ["_time", "_value"])
+'''
+    def rec(q, label, pick, extra=""):
+        """Ein Rekord als Tabellenzeile: pick = top/bottom, Spalten Rekord, Tag, Wert."""
+        return q + f'''  |> group()
+  |> keep(columns: ["_time", "_value"]){extra}
+  |> {pick}(n: 1, columns: ["_value"])
+  |> map(fn: (r) => ({{ "{_("Rekord")}": "{label}", "{_("Tag")}": r._time, "{_("Wert")}": r._value }}))
+'''
+    q_peak_year = HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: date.truncate(t: now(), unit: 1y))
+  |> filter(fn: (r) => r._measurement == "nexa" and ({" or ".join(f'r._field == "{f}"' for f in PV_FIELDS)}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
+  |> map(fn: (r) => ({{ _time: r._time, _value: {PV_EXPR} }}))
+'''
+    q_year_total = HEAD + f'''from(bucket: "{BUCKET}")
+  |> range(start: date.truncate(t: now(), unit: 1y))
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ _time: r._time, _value: {PV_EXPR} }}))
+  |> sum()
+  |> map(fn: (r) => ({{ "{_("Rekord")}": "{_("Jahr bisher (kWh PV)")}", "{_("Tag")}": now(), "{_("Wert")}": r._value / 60000.0 }}))
+  |> group()
+'''
+    rec_ovr = [{"matcher": {"id": "byName", "options": _("Tag")}, "properties": [{"id": "unit", "value": "time: DD.MM.YYYY HH:mm"}, {"id": "custom.width", "value": 150}]},
+               {"matcher": {"id": "byName", "options": _("Wert")}, "properties": [{"id": "decimals", "value": 2}, {"id": "custom.width", "value": 110}]}]
+    panels += [
+        panel("table", _("Rekorde des Jahres"), 0, y, 10, 9, [
+            target(rec(q_daily_year("pv", 60), _("Stärkster Tag (kWh PV)"), "top"), "A"),
+            target(rec(q_daily_year("pv", 720), _("Schwächster Tag (kWh PV)"), "bottom", '\n  |> filter(fn: (r) => r._value > 0.05)'), "B"),
+            target(rec(q_peak_year, _("Höchste PV-Spitze (W)"), "top"), "C"),
+            target(rec(q_sh_daily_year("household_w", "h"), _("Höchster Hausverbrauch (kWh)"), "top"), "D"),
+            target(rec(q_sh_daily_year("grid_w", "+"), _("Meister Netzbezug (kWh)"), "top"), "E"),
+            target(q_year_total, "F")], None,
+              opts={"showHeader": True, "cellHeight": "sm"}, overrides=rec_ovr,
+              desc=_("Seit Jahresbeginn (lokale Zeit) aus den Tagessummen der Minutenmittel. Schwächster Tag nur unter Tagen mit mindestens 12 Stunden Daten.")),
+        {**panel("heatmap", _("PV-Ertrag: Tag × Monat (Jahr)"), 10, y, 14, 9, [target(q_daily_year("pv", 60) + '''  |> map(fn: (r) => ({ _time: date.truncate(t: r._time, unit: 1mo), day: string(v: date.monthDay(t: r._time)), _value: r._value }))
+  |> group()
+  |> pivot(rowKey: ["_time"], columnKey: ["day"], valueColumn: "_value")
+  |> sort(columns: ["_time"])''')], "kwatth",
+                   opts={**heat_opts, "cellValues": {"unit": "kwatth", "decimals": 1}, "rowsFrame": {"layout": "ge", "value": "kWh"}, "showValue": "auto", "yAxis": {"axisPlacement": "left", "reverse": False, "unit": "none", "decimals": 0}},
+                   defaults={"custom": {"hideFrom": {"legend": False, "tooltip": False, "viz": False}, "scaleDistribution": {"type": "linear"}}},
+                   desc=_("Tagessumme des PV-Ertrags in kWh, Zeile = Monat, Spalte = Tag im Monat. Leer = keine Daten.")),
+         "transformations": [{"id": "organize", "options": {"indexByName": {"_time": 0, **{str(d): d for d in range(1, 32)}}}}]},
+    ]
+    y += 9
 
     # ============================================================ PV-Strings
     panels.append(row(_("PV-Strings"), y)); y += 1
@@ -781,9 +875,6 @@ pv = from(bucket: "{BUCKET}")
 join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) => ({{ azimuth: l.azimuth, power: r.power }}))
   |> filter(fn: (r) => r.power > 1.0)'''
 
-    heat_opts = {"calculate": False, "cellGap": 1, "cellValues": {"unit": "watt"}, "color": {"mode": "scheme", "scheme": "YlOrRd", "steps": 48, "fill": "dark-orange", "reverse": False, "exponent": 0.6, "min": 0},
-                 "yAxis": {"axisPlacement": "left", "reverse": False, "unit": "none", "decimals": 0}, "rowsFrame": {"layout": "ge", "value": "W"}, "tooltip": {"mode": "single", "yHistogram": False, "showColorScale": False},
-                 "legend": {"show": True}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "showValue": "never"}
     string_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{S} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}}]} for i, c in S_COL.items()]
     expected_ovr = [{"matcher": {"id": "byRegexp", "options": f"^{_('Erwartet')} {i}$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}},
                      {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [6, 4]}}, {"id": "custom.fillOpacity", "value": 0}, {"id": "custom.lineWidth", "value": 1}]} for i, c in S_COL.items()]
