@@ -180,7 +180,8 @@ power (saving per hour from the NEXA output, grid cost per hour from the Shelly)
 (daily bars, energy split pies, today/month/year/total), **Costs and savings** (price in use, saved today/month/year/total =
 output to house × price, grid cost today/month and self-sufficiency from the Shelly, payback gauge against the system price,
 savings and grid cost per day), **Year and records** (records table: strongest and weakest day, highest PV peak, highest household consumption, most grid import,
-year so far; a day × month heatmap of the daily PV yield), **PV strings**, **Daily peaks, sun position and model** (see below), **Weather**, **Battery and
+best earnings and most expensive grid day at the configured tariff, most battery discharge, PV and savings year to date, CO₂ avoided
+at 0.38 kg/kWh; a day × month heatmap of the daily PV yield), **PV strings**, **Daily peaks, sun position and model** (see below), **Weather**, **Battery and
 technical**, and a research row with the raw registers GroBro does not know yet. Without a tariff entry the dashboard assumes
 30 ct/kWh. Free MPPT inputs read about 7 V on the NEXA, connected panels 30 V and more.
 
