@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Schickt jede Panel-Abfrage aus grafana/dashboards/nexa.json an Grafana und meldet Flux-Fehler.
-Nutzt GRAFANA_ADMIN_USER / GRAFANA_ADMIN_PASSWORD / GRAFANA_PORT aus der Umgebung (.env)."""
+"""Schickt jede Panel-Abfrage der Dashboards an Grafana und meldet Flux-Fehler.
+Nutzt GRAFANA_ADMIN_USER / GRAFANA_ADMIN_PASSWORD / GRAFANA_PORT aus der Umgebung (.env).
+
+Aufruf: scripts/test-panels.py [Dateimuster]   Standard: nexa-*.json wolf-*.json"""
 import base64, json, os, sys, time, urllib.request
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 auth = base64.b64encode(f"{os.environ.get('GRAFANA_ADMIN_USER','admin')}:{os.environ.get('GRAFANA_ADMIN_PASSWORD','')}".encode()).decode()
 port = os.environ.get("GRAFANA_PORT", "3000"); ghost = os.environ.get("GRAFANA_HOST", "127.0.0.1")
 import glob
-files = sorted(glob.glob(os.path.join(root, "grafana/dashboards/nexa-*.json")))
+patterns = sys.argv[1:] or ["nexa-*.json", "wolf-*.json"]
+files = sorted(f for pat in patterns for f in glob.glob(os.path.join(root, "grafana/dashboards", pat)))
 d = {"panels": [p for f in files for p in json.load(open(f))["panels"]]}
 now = int(time.time() * 1000); frm = now - 24 * 3600 * 1000
 ok = bad = 0; errs = []

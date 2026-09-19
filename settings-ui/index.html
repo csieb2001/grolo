@@ -76,7 +76,7 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.37.4</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.38.0</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -84,6 +84,7 @@
   <div class="toggle lang" id="lang"><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
   <button id="readall" class="primary"></button>
   <a id="grafana" href="#" target="_blank"></a>
+  <a id="wolf" href="wolf.html"></a>
 </header>
 
 <main>
@@ -191,7 +192,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.37.4 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.38.0 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -208,6 +209,7 @@
       'connecting': 'connecting…', 'connected': 'connected', 'reconnecting': 'reconnecting…', 'disconnected': 'disconnected', 'error': 'error',
       'device': 'Device', 'online': 'device online', 'offline': 'device offline', 'readall': 'Read all values', 'dashboard': 'Dashboard',
       'on': 'On', 'off': 'Off', 'set': 'Set', 'setslot': 'Set slot', 'unknown': 'unknown', 'loading': 'loading…', 'setting': 'setting…', 'run': 'Run',
+      'heatpump': 'Heat pump',
       'sec.flow': 'Power flow', 'sec.flow.hint': 'Live: solar into the NEXA, the NEXA into the house, battery charging or discharging, and the grid when a Shelly meter is connected. Moving dots show the direction, their speed the power.',
       'flow.solar': 'Solar', 'flow.battery': 'Battery', 'flow.home': 'Home', 'flow.grid': 'Grid', 'flow.nexa': 'NEXA', 'flow.noGrid': 'grid only with a Shelly meter', 'flow.self': 'self-sufficiency', 'flow.charging': 'charging', 'flow.discharging': 'discharging', 'flow.idle': 'idle',
       'x.off': 'Smart control is off. The NEXA runs in “{mode}” with the slot power set by hand and delivers {out}.', 'x.unreachable': 'Shelly unreachable: the controller cannot measure the grid and holds {target} as the safe value.',
@@ -284,6 +286,7 @@
       'connecting': 'verbinde…', 'connected': 'verbunden', 'reconnecting': 'verbinde neu…', 'disconnected': 'getrennt', 'error': 'Fehler',
       'device': 'Gerät', 'online': 'Gerät online', 'offline': 'Gerät offline', 'readall': 'Alle Werte lesen', 'dashboard': 'Dashboard',
       'on': 'An', 'off': 'Aus', 'set': 'Setzen', 'setslot': 'Slot setzen', 'unknown': 'unbekannt', 'loading': 'lädt…', 'setting': 'wird gesetzt…', 'run': 'Ausführen',
+      'heatpump': 'Wärmepumpe',
       'sec.flow': 'Energiefluss', 'sec.flow.hint': 'Live: Solar in den NEXA, der NEXA ins Haus, Batterie lädt oder entlädt, und das Netz, sobald ein Shelly-Zähler angebunden ist. Laufende Punkte zeigen die Richtung, ihre Geschwindigkeit die Leistung.',
       'flow.solar': 'Solar', 'flow.battery': 'Batterie', 'flow.home': 'Haus', 'flow.grid': 'Netz', 'flow.nexa': 'NEXA', 'flow.noGrid': 'Netz nur mit Shelly-Zähler', 'flow.self': 'Eigenversorgung', 'flow.charging': 'lädt', 'flow.discharging': 'entlädt', 'flow.idle': 'Ruhe',
       'x.off': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ mit der von Hand gesetzten Slot-Leistung und gibt {out} ab.', 'x.unreachable': 'Shelly nicht erreichbar: der Regler kann den Netzbezug nicht messen und hält {target} als Sicherheitswert.',
@@ -383,6 +386,7 @@
     document.documentElement.lang = lang;
     for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
     document.getElementById('readall').textContent = t('readall'); document.getElementById('grafana').textContent = t('dashboard'); document.getElementById('grafana').href = grafanaUrl();
+    document.getElementById('wolf').textContent = t('heatpump');
     for (const b of document.querySelectorAll('#lang button')) b.className = b.dataset.lang === lang ? 'on' : '';
   }
   for (const b of document.querySelectorAll('#lang button')) b.onclick = () => { lang = b.dataset.lang; try { localStorage.setItem('grolo.lang', lang); } catch {} applyStatic(); render(); renderAll(); log(`${t('log.lang')}: ${lang.toUpperCase()}`, 'log-info'); };

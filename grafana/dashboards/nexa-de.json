@@ -36,6 +36,16 @@
       "asDropdown": false
     },
     {
+      "title": "Wärmepumpe",
+      "type": "link",
+      "url": "/d/wolf-de",
+      "icon": "external link",
+      "tooltip": "",
+      "targetBlank": false,
+      "asDropdown": false,
+      "keepTime": true
+    },
+    {
       "title": "English",
       "type": "link",
       "url": "/d/nexa2000",
@@ -7733,6 +7743,369 @@
         ]
       },
       "description": "Kommt stündlich vom Gerät (Nachricht 0x0103)."
+    },
+    {
+      "type": "row",
+      "title": "Wärmepumpe",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 208,
+        "w": 24,
+        "h": 1
+      },
+      "id": 102
+    },
+    {
+      "type": "timeseries",
+      "title": "Haus, Solar und Wärmepumpe",
+      "description": "Was das Haus zieht (Shelly), was die Module liefern und wie viel davon die Wärmepumpe nimmt. Die Wolf meldet ihre Aufnahme nur in ganzen kW.",
+      "gridPos": {
+        "x": 0,
+        "y": 209,
+        "w": 16,
+        "h": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage)\n  |> map(fn: (r) => ({ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }))\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Solar\")"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"household_w\")\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Haus\")"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"strom_w\")\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Wärmepumpe\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1.6,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Solar"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Haus"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Wärmepumpe"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "id": 103
+    },
+    {
+      "type": "stat",
+      "title": "Betriebsart",
+      "gridPos": {
+        "x": 16,
+        "y": 209,
+        "w": 8,
+        "h": 3
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"betriebsart_heizgeraet\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "ODU Test",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Test",
+                  "index": 1
+                },
+                "2": {
+                  "text": "Frostschutz HK",
+                  "index": 2
+                },
+                "3": {
+                  "text": "Frostschutz Warmwasser",
+                  "index": 3
+                },
+                "4": {
+                  "text": "Durchfluss gering",
+                  "index": 4
+                },
+                "5": {
+                  "text": "Vorwärmung",
+                  "index": 5
+                },
+                "6": {
+                  "text": "Abtaubetrieb",
+                  "index": 6
+                },
+                "7": {
+                  "text": "Antilegionellenfunktion",
+                  "index": 7
+                },
+                "8": {
+                  "text": "Warmwasser",
+                  "index": 8
+                },
+                "9": {
+                  "text": "WW-Nachlauf",
+                  "index": 9
+                },
+                "10": {
+                  "text": "Heizbetrieb",
+                  "index": 10
+                },
+                "11": {
+                  "text": "HZ-Nachlauf",
+                  "index": 11
+                },
+                "12": {
+                  "text": "Aktive Kühlung",
+                  "index": 12
+                },
+                "13": {
+                  "text": "Kaskade",
+                  "index": 13
+                },
+                "14": {
+                  "text": "GLT",
+                  "index": 14
+                },
+                "15": {
+                  "text": "Standby",
+                  "index": 15
+                },
+                "16": {
+                  "text": "Pump Down",
+                  "index": 16
+                },
+                "17": {
+                  "text": "Nachlauf K",
+                  "index": 17
+                },
+                "18": {
+                  "text": "Undefiniert",
+                  "index": 18
+                },
+                "19": {
+                  "text": "Pool",
+                  "index": 19
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "id": 104
+    },
+    {
+      "type": "stat",
+      "title": "Wärme heute",
+      "gridPos": {
+        "x": 16,
+        "y": 212,
+        "w": 4,
+        "h": 6
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"erzeugte_waermemenge_aktueller_tag\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "unit": "kwatth",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "id": 105
+    },
+    {
+      "type": "stat",
+      "title": "Strom heute",
+      "gridPos": {
+        "x": 20,
+        "y": 212,
+        "w": 4,
+        "h": 6
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"verbrauch_aktueller_tag\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "unit": "kwatth",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "id": 106
     }
   ],
   "annotations": {

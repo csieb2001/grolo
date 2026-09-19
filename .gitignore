@@ -4,3 +4,4 @@ mosquitto/certs/*
 grobro/dump/*
 !grobro/dump/.gitkeep
 NOTES.local.md
+wolf/.resources/

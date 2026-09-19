@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GroLo · Wärmepumpe</title>
+<style>
+  :root { --bg:#111217; --panel:#181b1f; --line:#2c3235; --text:#d8d9da; --muted:#8e8e8e;
+          --accent:#f2cc0c; --green:#73bf69; --orange:#ff9830; --red:#f2495c; --blue:#5794f2; --purple:#b877d9; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif }
+  header { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:5 }
+  header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:.02em } header h1 small { color:var(--muted); font-weight:400; font-size:12px; margin-left:6px }
+  header .spacer { flex:1 }
+  .pill { padding:3px 10px; border-radius:12px; font-size:12px; background:#26292d; color:var(--muted) }
+  .pill.ok { background:#1f3a24; color:var(--green) } .pill.bad { background:#3f1e22; color:var(--red) } .pill.warn { background:#3f3018; color:var(--orange) }
+  main { max-width:1200px; margin:0 auto; padding:18px 20px 60px; display:grid; gap:18px }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:14px 16px }
+  section h2 { margin:0 0 4px; font-size:15px; font-weight:600 }
+  section h3 { margin:16px 0 8px; font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em }
+  section h3:first-of-type { margin-top:8px }
+  section p.hint { margin:0 0 12px; color:var(--muted); font-size:12.5px }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px }
+  .ctl { border:1px solid var(--line); border-radius:6px; padding:10px 12px; display:grid; gap:6px; background:#1c1f24; align-content:start }
+  .ctl .top { display:flex; justify-content:space-between; align-items:baseline; gap:8px }
+  .ctl label { font-weight:600; font-size:13px }
+  .ctl.ro { background:#16181c }
+  .cur { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; white-space:nowrap }
+  .cur.pending { color:var(--orange) } .cur.unknown { color:var(--muted); font-weight:400 }
+  .ctl .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+  .desc, .muted { color:var(--muted); font-size:12px }
+  input[type=number], input[type=time], input[type=text], input[type=password], select {
+    background:#0f1114; color:var(--text); border:1px solid #3a4046; border-radius:4px; padding:6px 8px; font-size:14px; min-width:0 }
+  .ctl .row input[type=number] { flex:0 0 auto; width:92px } .ctl .row select { flex:1 }
+  button { background:#2f3540; color:var(--text); border:1px solid #444b54; border-radius:4px; padding:6px 12px; font-size:13px; cursor:pointer; white-space:nowrap }
+  button:hover { background:#3a414d } button.primary { background:#3d5a80; border-color:#4a6d9a } button.primary:hover { background:#476a96 }
+  button:disabled { opacity:.45; cursor:default }
+  .toggle { display:inline-flex; border:1px solid #444b54; border-radius:4px; overflow:hidden }
+  .toggle button { border:0; border-radius:0; padding:6px 14px } .toggle button.on { background:var(--green); color:#111 } .toggle button.off { background:var(--red); color:#111 }
+  .toggle.lang button.on { background:var(--blue); color:#fff }
+  .sgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:12px 16px }
+  .scell { display:flex; flex-direction:column; gap:1px; background:#1c1f24; border:1px solid var(--line); border-radius:6px; padding:8px 10px }
+  .scell .sl { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.03em }
+  .scell .sv { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums; word-break:break-word }
+  .scell .sv.small { font-size:14px }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th, td { padding:5px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle }
+  th { color:var(--muted); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--panel) }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
+  td.key { color:var(--muted); font:11.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace }
+  .tablewrap { overflow:auto; max-height:560px; border:1px solid var(--line); border-radius:4px }
+  .lock { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#1c1f24; border:1px solid var(--line); border-radius:6px; padding:12px 14px }
+  .lock input { width:120px }
+  .warn { border-left:3px solid var(--orange); background:#221d15; border-radius:4px; padding:8px 12px; font-size:12.5px; margin:0 0 12px }
+  #log { font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:240px; overflow:auto; background:#0f1114; border:1px solid var(--line); border-radius:4px; padding:8px 10px; color:#b5b8bc; white-space:pre-wrap }
+  .log-ok { color:var(--green) } .log-err { color:var(--red) } .log-tx { color:var(--blue) } .log-info { color:#9aa0a6 }
+  a { color:var(--blue) }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px }
+  .filters input[type=text] { flex:1; min-width:180px }
+  @media (max-width:700px) { header { padding:10px 12px } main { padding:12px } }
+</style>
+</head>
+<body>
+<header>
+  <h1>GroLo <small data-t="head.sub"></small></h1>
+  <span id="conn" class="pill">…</span>
+  <span id="link" class="pill">–</span>
+  <span id="devs" class="pill">–</span>
+  <span class="spacer"></span>
+  <div class="toggle lang" id="lang"><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
+  <a id="dash" href="#" target="_blank"></a>
+  <a id="back" href="index.html"></a>
+</header>
+
+<main>
+  <section id="sec-live"><h2 data-t="sec.live"></h2><p class="hint" data-t="sec.live.hint"></p>
+    <div class="sgrid" id="live"><span class="muted" data-t="loading"></span></div>
+  </section>
+
+  <section id="sec-ctl"><h2 data-t="sec.ctl"></h2><p class="hint" data-t="sec.ctl.hint"></p>
+    <div id="ctl"><span class="muted" data-t="loading"></span></div>
+  </section>
+
+  <section id="sec-expert"><h2 data-t="sec.expert"></h2><p class="hint" data-t="sec.expert.hint"></p>
+    <div class="lock" id="lock">
+      <span data-t="expert.locked"></span>
+      <input type="password" id="pin" inputmode="numeric" autocomplete="off" placeholder="••••">
+      <button class="primary" id="unlock" data-t="expert.unlock"></button>
+      <span class="muted" id="lock-note"></span>
+    </div>
+    <div id="expert" hidden></div>
+  </section>
+
+  <section id="sec-all"><h2 data-t="sec.all"></h2><p class="hint" data-t="sec.all.hint"></p>
+    <div class="filters">
+      <input type="text" id="search" placeholder="…">
+      <label class="muted"><input type="checkbox" id="only-known" checked> <span data-t="all.onlyKnown"></span></label>
+      <span class="muted" id="all-count"></span>
+    </div>
+    <div class="tablewrap"><table><thead><tr>
+      <th data-t="all.device"></th><th data-t="all.name"></th><th data-t="all.value"></th>
+      <th data-t="all.level"></th><th data-t="all.field"></th>
+    </tr></thead><tbody id="all"></tbody></table></div>
+  </section>
+
+  <section id="sec-log"><h2 data-t="sec.log"></h2><div id="log"></div></section>
+</main>
+
+<footer><span data-t="foot"></span> · <span id="ws-url"></span></footer>
+
+<script src="mqtt.min.js"></script>
+<script>
+(() => {
+  // ------------------------------------------------------------------ Konfiguration / config
+  const BASE = 'homeassistant';
+  const host = location.hostname || 'localhost';
+  const WS_URL = `ws://${host}:9001`;
+  const dashUrl = () => `http://${host}:3000/d/wolf-${lang}`;
+
+  // ------------------------------------------------------------------ Sprache / language
+  const I18N = {
+    en: {
+      'head.sub': 'Heat pump · local, without the Wolf cloud',
+      'connecting': 'connecting…', 'connected': 'connected', 'reconnecting': 'reconnecting…', 'disconnected': 'disconnected',
+      'loading': 'loading…', 'dashboard': 'Dashboard', 'back': 'GroLo settings', 'set': 'Set', 'on': 'On', 'off': 'Off',
+      'unknown': 'no value yet', 'link.ok': 'bus connected', 'link.wait': 'waiting for the WOLF Link',
+      'devs': '{n} devices',
+      'sec.live': 'Right now',
+      'sec.live.hint': 'What the heat pump is doing at this moment. The values come from the eBus every few seconds.',
+      'sec.ctl': 'Controls',
+      'sec.ctl.hint': 'Everything the Smartset app offers on its user level: operating mode, target temperatures, time programs, party and holiday mode. A change is written to the eBus immediately and shows up again on the next read.',
+      'sec.expert': 'Installer level',
+      'sec.expert.hint': 'The parameters that sit behind the installer code in the Smartset app: bivalence points, hystereses, pump output, defrost timings, SG/PV behaviour. Wrong values here can stop the system heating or make it run expensively. The limits of each field are the ones the Wolf itself allows.',
+      'expert.locked': 'Installer code:', 'expert.unlock': 'Unlock', 'expert.wrong': 'Code is not correct',
+      'expert.open': 'Unlocked for this browser tab.', 'expert.none': 'No code configured, the level is open.',
+      'expert.lock': 'Lock again',
+      'sec.all': 'All values',
+      'sec.all.hint': 'Every parameter this system exposes, including the ones no Wolf menu shows. The field name is what you use in Grafana and InfluxDB.',
+      'all.device': 'Device', 'all.name': 'Parameter', 'all.value': 'Value', 'all.level': 'Level', 'all.field': 'Field name',
+      'all.onlyKnown': 'only with a value', 'all.count': '{n} of {total}',
+      'level.user': 'user', 'level.expert': 'installer', 'level.other': '–',
+      'sec.log': 'Log', 'foot': 'GroLo · heat pump over the local WOLF Link, no manufacturer cloud',
+      'search': 'Search parameter…',
+      'ro.note': 'read-only', 'schedule.note': 'switching times are shown here, editing them is done in the Wolf app or on the control module',
+      'log.mqtt': 'MQTT connected:', 'log.catalog': 'Parameter catalogue received:', 'log.set': 'set', 'log.ok': 'accepted', 'log.err': 'rejected',
+      'tile.mode': 'Mode', 'tile.comp': 'Compressor', 'tile.freq': 'Frequency', 'tile.heat': 'Heat output', 'tile.el': 'Power input',
+      'tile.cop': 'COP', 'tile.flow': 'Flow', 'tile.ret': 'Return', 'tile.spread': 'Spread', 'tile.dhw': 'Hot water',
+      'tile.out': 'Outside', 'tile.rate': 'Flow rate', 'tile.press': 'Pressure', 'tile.cycles': 'Cycles today',
+      'tile.runtime': 'Runtime today', 'tile.spf': 'SPF this year', 'tile.pf': 'Factor today', 'tile.heatday': 'Heat today',
+      'tile.elday': 'Electricity today', 'tile.eheat': 'Immersion heater',
+    },
+    de: {
+      'head.sub': 'Wärmepumpe · lokal, ohne Wolf-Cloud',
+      'connecting': 'verbinde…', 'connected': 'verbunden', 'reconnecting': 'verbinde neu…', 'disconnected': 'getrennt',
+      'loading': 'lädt…', 'dashboard': 'Dashboard', 'back': 'GroLo-Einstellungen', 'set': 'Setzen', 'on': 'Ein', 'off': 'Aus',
+      'unknown': 'noch kein Wert', 'link.ok': 'Bus verbunden', 'link.wait': 'warte auf den WOLF Link',
+      'devs': '{n} Geräte',
+      'sec.live': 'Jetzt gerade',
+      'sec.live.hint': 'Was die Wärmepumpe in diesem Moment tut. Die Werte kommen alle paar Sekunden vom eBus.',
+      'sec.ctl': 'Bedienung',
+      'sec.ctl.hint': 'Alles, was die Smartset-App auf der Benutzerebene anbietet: Betriebsart, Solltemperaturen, Zeitprogramme, Party- und Urlaubsmodus. Eine Änderung geht sofort auf den eBus und taucht beim nächsten Lesen wieder auf.',
+      'sec.expert': 'Fachmann-Ebene',
+      'sec.expert.hint': 'Die Parameter, die in der Smartset-App hinter dem Fachmann-Code liegen: Bivalenzpunkte, Hysteresen, Pumpenleistung, Abtauzeiten, SG/PV-Verhalten. Falsche Werte können dafür sorgen, dass die Anlage nicht mehr heizt oder teuer läuft. Die Grenzen jedes Feldes sind die, die die Wolf selbst zulässt.',
+      'expert.locked': 'Fachmann-Code:', 'expert.unlock': 'Entsperren', 'expert.wrong': 'Code stimmt nicht',
+      'expert.open': 'Für diesen Browser-Tab entsperrt.', 'expert.none': 'Kein Code hinterlegt, die Ebene ist offen.',
+      'expert.lock': 'Wieder sperren',
+      'sec.all': 'Alle Werte',
+      'sec.all.hint': 'Jeder Parameter, den diese Anlage kennt, auch die, die in keinem Wolf-Menü stehen. Der Feldname ist der, mit dem in Grafana und InfluxDB gearbeitet wird.',
+      'all.device': 'Gerät', 'all.name': 'Parameter', 'all.value': 'Wert', 'all.level': 'Ebene', 'all.field': 'Feldname',
+      'all.onlyKnown': 'nur mit Wert', 'all.count': '{n} von {total}',
+      'level.user': 'Benutzer', 'level.expert': 'Fachmann', 'level.other': '–',
+      'sec.log': 'Protokoll', 'foot': 'GroLo · Wärmepumpe über den lokalen WOLF Link, ohne Hersteller-Cloud',
+      'search': 'Parameter suchen…',
+      'ro.note': 'nur lesbar', 'schedule.note': 'Schaltzeiten werden hier angezeigt, geändert werden sie in der Wolf-App oder am Bedienmodul',
+      'log.mqtt': 'MQTT verbunden:', 'log.catalog': 'Parameterkatalog empfangen:', 'log.set': 'setze', 'log.ok': 'übernommen', 'log.err': 'abgelehnt',
+      'tile.mode': 'Betriebsart', 'tile.comp': 'Verdichter', 'tile.freq': 'Frequenz', 'tile.heat': 'Wärmeleistung', 'tile.el': 'Aufnahme',
+      'tile.cop': 'COP', 'tile.flow': 'Vorlauf', 'tile.ret': 'Rücklauf', 'tile.spread': 'Spreizung', 'tile.dhw': 'Warmwasser',
+      'tile.out': 'Außen', 'tile.rate': 'Durchfluss', 'tile.press': 'Druck', 'tile.cycles': 'Takte heute',
+      'tile.runtime': 'Laufzeit heute', 'tile.spf': 'JAZ Jahr', 'tile.pf': 'Arbeitszahl heute', 'tile.heatday': 'Wärme heute',
+      'tile.elday': 'Strom heute', 'tile.eheat': 'Heizstab',
+    },
+  };
+  let lang = 'en';
+  try { lang = localStorage.getItem('grolo.lang') || 'en'; } catch {}
+  if (!I18N[lang]) lang = 'en';
+  const t = (key, vars) => {
+    let s = I18N[lang][key] ?? I18N.en[key] ?? key;
+    if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v);
+    return s;
+  };
+
+  // ------------------------------------------------------------------ Zustand / state
+  const state = { catalog: null, status: null, values: {}, texts: {}, derived: {}, pending: {}, pin: '' };
+  try { state.pin = sessionStorage.getItem('grolo.wolf.pin') || ''; } catch {}
+
+  const logEl = document.getElementById('log');
+  const log = (msg, cls = '') => {
+    const d = document.createElement('div'); d.className = cls;
+    d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
+    logEl.prepend(d); while (logEl.children.length > 300) logEl.lastChild.remove();
+  };
+  const setPill = (id, text, cls) => { const e = document.getElementById(id); e.textContent = text; e.className = 'pill ' + (cls || ''); };
+  document.getElementById('ws-url').textContent = WS_URL;
+
+  function applyStatic() {
+    document.documentElement.lang = lang;
+    for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
+    document.getElementById('dash').textContent = t('dashboard'); document.getElementById('dash').href = dashUrl();
+    document.getElementById('back').textContent = t('back');
+    document.getElementById('search').placeholder = t('search');
+    for (const b of document.querySelectorAll('#lang button')) b.className = b.dataset.lang === lang ? 'on' : '';
+  }
+  for (const b of document.querySelectorAll('#lang button')) b.onclick = () => {
+    lang = b.dataset.lang; try { localStorage.setItem('grolo.lang', lang); } catch {}
+    applyStatic(); renderAll();
+  };
+  applyStatic();
+
+  // ------------------------------------------------------------------ MQTT
+  const client = mqtt.connect(WS_URL, { clientId: 'grolo-wolf-' + Math.random().toString(16).slice(2, 8), keepalive: 30, reconnectPeriod: 3000 });
+  setPill('conn', t('connecting'));
+  client.on('connect', () => {
+    setPill('conn', `${t('connected')} ${host}`, 'ok');
+    log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
+    client.subscribe([`${BASE}/grolo/wolf/catalog`, `${BASE}/grolo/wolf/status`, `${BASE}/grolo/wolf/derived`,
+                      `${BASE}/grolo/wolf/+/state`, `${BASE}/grolo/wolf/set/result`, `${BASE}/grolo/wolf/unlock/result`]);
+  });
+  client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
+  client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
+  client.on('message', (topic, payload) => {
+    let data; try { data = JSON.parse(payload.toString()); } catch { return; }
+    const parts = topic.split('/');
+    if (topic.endsWith('/wolf/catalog')) { state.catalog = data; log(`${t('log.catalog')} ${data.devices.length}`, 'log-info'); buildAll(); }
+    else if (topic.endsWith('/wolf/status')) { state.status = data; renderStatus(); }
+    else if (topic.endsWith('/wolf/derived')) { state.derived = data; renderLive(); }
+    else if (topic.endsWith('/wolf/set/result')) onResult(data);
+    else if (topic.endsWith('/wolf/unlock/result')) onUnlock(data);
+    else if (parts.length === 5 && parts[4] === 'state') {
+      const dev = parts[3];
+      state.values[dev] = state.values[dev] || {}; state.texts[dev] = state.texts[dev] || {};
+      for (const [k, v] of Object.entries(data)) {
+        if (k.endsWith('_text')) state.texts[dev][k.slice(0, -5)] = v;
+        else state.values[dev][k] = v;
+      }
+      renderValues(dev);
+    }
+  });
+
+  // ------------------------------------------------------------------ Werte formatieren
+  const P = (dev, key) => (state.catalog?.devices.find(d => d.id === dev)?.params || []).find(p => p.key === key);
+  const unitOf = p => (lang === 'de' ? p.unit : (p.unit_en || p.unit)) || '';
+
+  function display(dev, p) {
+    const text = state.texts[dev]?.[p.key];
+    const value = state.values[dev]?.[p.key];
+    if (p.options) {
+      const want = value === undefined ? null : String(Number.isInteger(value) ? value : value);
+      const opt = p.options.find(o => Number(o.v) === Number(value));
+      if (opt) return opt[lang] ?? opt.de;
+      return text ?? (value === undefined ? null : String(value));
+    }
+    if (p.type === 'time' || p.type === 'date' || p.type === 'text' || p.type === 'switchtimes') return text ?? null;
+    if (value === undefined) return text ?? null;
+    const dec = p.dec ?? (Number.isInteger(value) ? 0 : 1);
+    const n = value.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const u = unitOf(p);
+    return u ? `${n} ${u}` : n;
+  }
+
+  // ------------------------------------------------------------------ Schreiben
+  function publishSet(dev, p, payload) {
+    const req = { device: dev, key: p.key, ...payload };
+    if (p.menu === 'expert' && state.pin) req.pin = state.pin;
+    state.pending[`${dev}.${p.key}`] = Date.now();
+    client.publish(`${BASE}/grolo/wolf/set`, JSON.stringify(req));
+    log(`${t('log.set')} ${p[lang] ?? p.de} = ${payload.value ?? payload.text}`, 'log-tx');
+    renderValues(dev);
+  }
+
+  function onResult(res) {
+    const key = `${res.device}.${res.key}`;
+    if (res.ok) log(`${t('log.ok')}: ${res.key} = ${res.value}`, 'log-ok');
+    else { log(`${t('log.err')}: ${res.key} – ${res.error}`, 'log-err'); delete state.pending[key]; }
+    renderValues(res.device);
+  }
+
+  // ------------------------------------------------------------------ Fachmann-Ebene
+  function onUnlock(res) {
+    const note = document.getElementById('lock-note');
+    if (res.ok) {
+      try { sessionStorage.setItem('grolo.wolf.pin', state.pin); } catch {}
+      document.getElementById('expert').hidden = false;
+      note.textContent = res.required ? t('expert.open') : t('expert.none');
+      note.className = 'muted';
+      document.getElementById('unlock').textContent = t('expert.lock');
+      document.getElementById('unlock').dataset.mode = 'lock';
+    } else {
+      note.textContent = t('expert.wrong'); note.className = 'log-err';
+      state.pin = ''; try { sessionStorage.removeItem('grolo.wolf.pin'); } catch {}
+    }
+  }
+  document.getElementById('unlock').onclick = () => {
+    const btn = document.getElementById('unlock');
+    if (btn.dataset.mode === 'lock') {
+      state.pin = ''; try { sessionStorage.removeItem('grolo.wolf.pin'); } catch {}
+      document.getElementById('expert').hidden = true;
+      document.getElementById('lock-note').textContent = '';
+      btn.dataset.mode = ''; btn.textContent = t('expert.unlock');
+      document.getElementById('pin').value = '';
+      return;
+    }
+    state.pin = document.getElementById('pin').value.trim();
+    client.publish(`${BASE}/grolo/wolf/unlock`, JSON.stringify({ pin: state.pin }));
+  };
+  document.getElementById('pin').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('unlock').click(); });
+
+  // ------------------------------------------------------------------ Bedienelemente bauen
+  function control(dev, p) {
+    const box = document.createElement('div');
+    box.className = 'ctl' + (p.rw ? '' : ' ro');
+    box.dataset.dev = dev; box.dataset.key = p.key;
+
+    const top = document.createElement('div'); top.className = 'top';
+    const label = document.createElement('label'); label.textContent = p[lang] ?? p.de;
+    const cur = document.createElement('span'); cur.className = 'cur unknown'; cur.dataset.role = 'cur';
+    top.append(label, cur); box.append(top);
+
+    if (!p.rw) {
+      const d = document.createElement('div'); d.className = 'desc'; d.textContent = t('ro.note');
+      box.append(d);
+      return box;
+    }
+    if (p.type === 'switchtimes' || p.type === 'date' || p.type === 'text' || p.type === 'hidden') {
+      const d = document.createElement('div'); d.className = 'desc';
+      d.textContent = p.type === 'switchtimes' ? t('schedule.note') : t('ro.note');
+      box.append(d);
+      return box;
+    }
+
+    const row = document.createElement('div'); row.className = 'row';
+    if (p.options) {
+      const sel = document.createElement('select'); sel.dataset.role = 'input';
+      for (const o of p.options) {
+        const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o[lang] ?? o.de;
+        sel.append(opt);
+      }
+      const btn = document.createElement('button'); btn.className = 'primary'; btn.textContent = t('set');
+      btn.onclick = () => publishSet(dev, p, { value: sel.value });
+      row.append(sel, btn);
+    } else if (p.type === 'time') {
+      const inp = document.createElement('input'); inp.type = 'time'; inp.dataset.role = 'input';
+      const btn = document.createElement('button'); btn.className = 'primary'; btn.textContent = t('set');
+      btn.onclick = () => publishSet(dev, p, { value: inp.value + ':00' });
+      row.append(inp, btn);
+    } else {
+      const inp = document.createElement('input'); inp.type = 'number'; inp.dataset.role = 'input';
+      if (p.min !== null && p.min !== undefined) inp.min = p.min;
+      if (p.max !== null && p.max !== undefined) inp.max = p.max;
+      if (p.step) inp.step = p.step;
+      const btn = document.createElement('button'); btn.className = 'primary'; btn.textContent = t('set');
+      btn.onclick = () => publishSet(dev, p, { value: Number(inp.value) });
+      const unit = document.createElement('span'); unit.className = 'muted'; unit.textContent = unitOf(p);
+      row.append(inp, unit, btn);
+      if (p.min !== null && p.max !== null && p.min !== undefined && p.max !== undefined) {
+        const d = document.createElement('div'); d.className = 'desc';
+        d.textContent = `${p.min} … ${p.max}${unitOf(p) ? ' ' + unitOf(p) : ''}`;
+        box.append(row, d);
+        return box;
+      }
+    }
+    box.append(row);
+    return box;
+  }
+
+  // ------------------------------------------------------------------ Rendern
+  function deviceLabel(d) { return d[lang] ?? d.de; }
+
+  function section(target, level) {
+    target.textContent = '';
+    if (!state.catalog) return;
+    for (const d of state.catalog.devices) {
+      const rows = d.params.filter(p => p.menu === level && p.type !== 'hidden');
+      if (!rows.length) continue;
+      rows.sort((a, b) => (a.tab || '').localeCompare(b.tab || '') || a.sort - b.sort || (a[lang] ?? a.de).localeCompare(b[lang] ?? b.de));
+      const groups = new Map();
+      for (const p of rows) {
+        const key = `${deviceLabel(d)} · ${p.tab || '–'}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
+      }
+      for (const [title, list] of groups) {
+        const h = document.createElement('h3'); h.textContent = title; target.append(h);
+        const grid = document.createElement('div'); grid.className = 'grid';
+        for (const p of list) grid.append(control(d.id, p));
+        target.append(grid);
+      }
+    }
+  }
+
+  function buildAll() {
+    section(document.getElementById('ctl'), 'user');
+    section(document.getElementById('expert'), 'expert');
+    const note = document.getElementById('lock-note');
+    if (state.catalog && state.catalog.expert_pin === false) {
+      document.getElementById('expert').hidden = false;
+      note.textContent = t('expert.none');
+    } else if (state.pin) {
+      client.publish(`${BASE}/grolo/wolf/unlock`, JSON.stringify({ pin: state.pin }));
+    }
+    buildTable();
+    for (const d of state.catalog.devices) renderValues(d.id);
+    renderLive();
+  }
+
+  function renderValues(dev) {
+    for (const box of document.querySelectorAll(`.ctl[data-dev="${dev}"]`)) {
+      const p = P(dev, box.dataset.key);
+      if (!p) continue;
+      const cur = box.querySelector('[data-role=cur]');
+      const shown = display(dev, p);
+      const pendingKey = `${dev}.${p.key}`;
+      const pending = state.pending[pendingKey];
+      if (pending && Date.now() - pending > 90000) delete state.pending[pendingKey];
+      cur.textContent = shown ?? t('unknown');
+      cur.className = 'cur' + (shown === null ? ' unknown' : '') + (state.pending[pendingKey] ? ' pending' : '');
+      const input = box.querySelector('[data-role=input]');
+      if (input && document.activeElement !== input && !state.pending[pendingKey]) {
+        const value = state.values[dev]?.[p.key];
+        if (value !== undefined) {
+          if (input.tagName === 'SELECT') input.value = String(value);
+          else if (input.type === 'number') input.value = value;
+        }
+        if (input.type === 'time' && state.texts[dev]?.[p.key]) input.value = state.texts[dev][p.key].slice(0, 5);
+      }
+    }
+    updateTable(dev);
+  }
+
+  function tile(label, value, cls) {
+    const d = document.createElement('div'); d.className = 'scell';
+    const l = document.createElement('div'); l.className = 'sl'; l.textContent = label;
+    const v = document.createElement('div'); v.className = 'sv' + (cls || ''); v.textContent = value ?? '–';
+    d.append(l, v); return d;
+  }
+
+  function renderLive() {
+    const box = document.getElementById('live');
+    if (!state.catalog) return;
+    const hp = 'heatpump';
+    const val = key => state.values[hp]?.[key];
+    const txt = key => { const p = P(hp, key); return p ? display(hp, p) : null; };
+    const der = key => state.derived[key];
+    const num = (v, dec, unit) => v === undefined || v === null ? null :
+      v.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + (unit ? ' ' + unit : '');
+
+    box.textContent = '';
+    box.append(
+      tile(t('tile.mode'), txt('betriebsart_heizgeraet'), ' small'),
+      tile(t('tile.comp'), txt('verdichterstatus'), ' small'),
+      tile(t('tile.freq'), num(val('verdichterfrequenz'), 0, 'Hz')),
+      tile(t('tile.heat'), num(val('aktuelle_sekundaerleistung'), 1, 'kW')),
+      tile(t('tile.el'), num(val('leistungsaufnahme_wp_ehz'), 1, 'kW')),
+      tile(t('tile.cop'), num(der('cop'), 2)),
+      tile(t('tile.flow'), num(val('kesseltemperatur'), 1, '°C')),
+      tile(t('tile.ret'), num(val('ruecklauftemperatur'), 1, '°C')),
+      tile(t('tile.spread'), num(der('spreizung'), 1, 'K')),
+      tile(t('tile.dhw'), num(val('warmwassertemperatur'), 1, '°C')),
+      tile(t('tile.out'), num(val('aussentemperatur'), 1, '°C')),
+      tile(t('tile.rate'), num(val('heizkreisdurchfluss'), 1, 'l/min')),
+      tile(t('tile.press'), num(val('anlagendruck'), 1, 'bar')),
+      tile(t('tile.eheat'), txt('e_heizung'), ' small'),
+      tile(t('tile.cycles'), num(der('takte_heute'), 0)),
+      tile(t('tile.runtime'), num(der('laufzeit_min_heute'), 0, 'min')),
+      tile(t('tile.heatday'), num(val('erzeugte_waermemenge_aktueller_tag'), 0, 'kWh')),
+      tile(t('tile.elday'), num(val('verbrauch_aktueller_tag'), 0, 'kWh')),
+      tile(t('tile.pf'), num(der('az_tag'), 2)),
+      tile(t('tile.spf'), num(val('jaz_aktuelles_jahr'), 2)),
+    );
+  }
+
+  function renderStatus() {
+    if (!state.status) return;
+    const online = state.status.devices.filter(d => d.topic);
+    setPill('devs', t('devs', { n: online.length }), online.length ? 'ok' : 'warn');
+    setPill('link', online.length ? t('link.ok') : t('link.wait'), online.length ? 'ok' : 'warn');
+  }
+
+  // ------------------------------------------------------------------ Tabelle aller Werte
+  let tableRows = [];
+  function buildTable() {
+    const body = document.getElementById('all');
+    body.textContent = '';
+    tableRows = [];
+    for (const d of state.catalog.devices) {
+      for (const p of d.params) {
+        const tr = document.createElement('tr');
+        const td = (cls) => { const e = document.createElement('td'); if (cls) e.className = cls; tr.append(e); return e; };
+        td().textContent = deviceLabel(d);
+        td().textContent = p[lang] ?? p.de;
+        const v = td('num');
+        td().textContent = t('level.' + (p.menu === 'user' || p.menu === 'expert' ? p.menu : 'other'));
+        td('key').textContent = p.key;
+        body.append(tr);
+        tableRows.push({ dev: d.id, p, tr, valueCell: v });
+      }
+    }
+    filterTable();
+  }
+
+  function updateTable(dev) {
+    for (const row of tableRows) {
+      if (row.dev !== dev) continue;
+      row.valueCell.textContent = display(dev, row.p) ?? '–';
+    }
+    filterTable();
+  }
+
+  function filterTable() {
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const onlyKnown = document.getElementById('only-known').checked;
+    let shown = 0;
+    for (const row of tableRows) {
+      const hasValue = row.valueCell.textContent && row.valueCell.textContent !== '–';
+      const text = `${row.p.de} ${row.p.en} ${row.p.key}`.toLowerCase();
+      const ok = (!q || text.includes(q)) && (!onlyKnown || hasValue);
+      row.tr.hidden = !ok;
+      if (ok) shown++;
+    }
+    document.getElementById('all-count').textContent = t('all.count', { n: shown, total: tableRows.length });
+  }
+  document.getElementById('search').addEventListener('input', filterTable);
+  document.getElementById('only-known').addEventListener('change', filterTable);
+
+  function renderAll() {
+    if (!state.catalog) return;
+    buildAll();
+    renderStatus();
+  }
+})();
+</script>
+</body>
+</html>

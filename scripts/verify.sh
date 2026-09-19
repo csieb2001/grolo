@@ -170,6 +170,37 @@ wc=$(mosquitto_sub -h 127.0.0.1 -p $PLAIN_PORT -t 'homeassistant/grolo/weather/c
 wf=$(docker compose exec -T influxdb influx query --org "${INFLUX_ORG:-growatt}" --token "${INFLUX_TOKEN:-}" 'from(bucket:"'"${INFLUX_BUCKET:-nexa}"'") |> range(start:-1h, stop: 48h) |> filter(fn:(r)=> r._measurement=="weather_forecast" and r._field=="shortwave_radiation") |> count() |> group() |> sum()' 2>/dev/null | grep -E "^\s+[0-9]+" | awk '{print $1}')
 [[ -n "$wf" && "$wf" -gt 0 ]] && ok "Vorhersage in InfluxDB: $wf Stunden" || bad "keine Vorhersagedaten (Measurement weather_forecast)"
 
+step 16 "Wärmepumpe (WOLF Link, lokal)"
+if [[ -z "${WOLF_HOST:-}" ]]; then
+  info "WOLF_HOST nicht gesetzt, Wärmepumpe übersprungen"
+else
+  # Der lokale ISM7-Port muss offen sein, sonst spricht nur noch das Wolf-Portal mit dem Link
+  python3 - "$WOLF_HOST" <<'PYEOF' && ok "Port 9092 auf $WOLF_HOST erreichbar" || bad "Port 9092 auf $WOLF_HOST nicht erreichbar"
+import socket, sys
+s = socket.socket(); s.settimeout(4)
+try: s.connect((sys.argv[1], 9092))
+except Exception: sys.exit(1)
+finally: s.close()
+PYEOF
+  for f in wolf/parameter.json wolf/catalog.json; do
+    [[ -s "$f" ]] && ok "$f vorhanden" || bad "$f fehlt (scripts/wolf-config.sh, dann scripts/wolf-catalog.py)"
+  done
+  for svc in wolf wolf-bridge; do
+    st=$(docker compose ps --format '{{.Service}} {{.State}}' 2>/dev/null | awk -v s="$svc" '$1==s{print $2}')
+    [[ "$st" == running* ]] && ok "$svc: $st" || bad "$svc: ${st:-nicht gestartet} (COMPOSE_PROFILES=wolf in .env?)"
+  done
+  ws=$(mosquitto_sub -h 127.0.0.1 -p $PLAIN_PORT -t 'homeassistant/grolo/wolf/status' --retained-only -C 1 -W 5 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);on=[x for x in d["devices"] if x["topic"]];print(len(on), len(d["devices"]), ", ".join(x["de"] for x in on))' 2>/dev/null)
+  if [[ -n "$ws" ]]; then
+    set -- $ws; ok "Busteilnehmer erkannt: $1 von $2 (${ws#$1 $2 })"
+    [[ "$1" -gt 0 ]] || bad "kein Busteilnehmer gefunden (docker compose logs wolf)"
+  else bad "kein Status von wolf-bridge"; fi
+  hp=$(mosquitto_sub -h 127.0.0.1 -p $PLAIN_PORT -t 'homeassistant/grolo/wolf/heatpump/state' --retained-only -C 1 -W 5 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);print(len(d), d.get("betriebsart_heizgeraet_text","?"), d.get("kesseltemperatur","?"))' 2>/dev/null)
+  [[ -n "$hp" ]] && ok "Wärmepumpe: ${hp%% *} Felder, Betriebsart $(echo $hp | cut -d" " -f2-)" || bad "kein Zustand der Wärmepumpe"
+  wd=$(docker compose exec -T influxdb influx query --org "${INFLUX_ORG:-growatt}" --token "${INFLUX_TOKEN:-}" 'from(bucket:"'"${INFLUX_BUCKET:-nexa}"'") |> range(start:-10m) |> filter(fn:(r)=> r._measurement=="wolf" or r._measurement=="wolf_derived") |> count() |> group() |> sum()' 2>/dev/null | grep -E "^\s+[0-9]+" | awk '{print $1}')
+  [[ -n "$wd" && "$wd" -gt 0 ]] && ok "in InfluxDB: $wd Werte der letzten 10 min" || bad "keine Wärmepumpendaten in InfluxDB (Telegraf neu starten?)"
+  [[ -s settings-ui/wolf.html ]] && ok "Bedienseite settings-ui/wolf.html vorhanden" || bad "settings-ui/wolf.html fehlt"
+fi
+
 echo
 [[ $fail -eq 0 ]] && printf '\033[32mAlle Checks bestanden.\033[0m\n' || printf '\033[31mMindestens ein Check fehlgeschlagen.\033[0m\n'
 exit $fail

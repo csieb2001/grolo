@@ -1,11 +1,12 @@
 # GroLo · For Growatt but Local
 
-**Local monitoring and control for the Growatt NEXA 2000 balcony battery, without the manufacturer cloud.**
+**Local monitoring and control for the Growatt NEXA 2000 balcony battery and a Wolf CHA heat pump, without the manufacturer clouds.**
 A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](https://github.com/robertzaage/GroBro) for decoding,
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.37.4** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery packs).
+Version **2026.38.0** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
 
@@ -284,6 +285,95 @@ Tolerance and delay are set on the settings page under **Response and not-follow
 (default 15 s) and only once the NEXA has reached the last value, using the Shelly mean since the last write; export above
 `export_w` (default 30 W) is corrected immediately. Each transition is logged (`docker compose logs shelly-control`).
 
+## Heat pump (WOLF CHA over the local WOLF Link)
+
+A Wolf heat pump with a **WOLF Link home/pro** interface can be read *and* controlled completely locally — no Wolf Smartset
+portal involved. Besides its configuration website on port 80, the Link speaks the ISM7 protocol on **TCP 9092 over TLS**,
+authenticated with the same device password you use for `http://<link-ip>/`. [ism7mqtt](https://github.com/zivillian/ism7mqtt)
+implements that protocol and ships Wolf's own parameter resources, so names, units, limits and selection lists are exactly
+the ones the Smartset app shows.
+
+```
+WOLF Link ──TLS :9092──▶ ism7mqtt ──▶ mosquitto ──▶ wolf-bridge ──▶ mosquitto ──▶ Telegraf ──▶ InfluxDB ──▶ Grafana
+                             ▲                           │
+                             └──── writes ───────────────┴──▶ control page :8080/wolf.html
+```
+
+`ism7mqtt` publishes one JSON topic per bus device (`Wolf/<ip>/CHA_0x8`), but only with the values read in that cycle.
+`wolf-bridge` keeps the full picture, flattens it into stable field names for InfluxDB, computes the figures the Wolf does not
+provide, and turns control requests from the page back into ISM7 writes.
+
+### Setup
+
+1. Put the Link's address and password into `.env`, and enable the profile the two services live in:
+
+   ```
+   COMPOSE_PROFILES=wolf
+   WOLF_HOST=192.168.1.57
+   WOLF_PASSWORD=<the device password>
+   WOLF_EXPERT_PIN=1111        # code for the installer level of the control page, empty = no code
+   ```
+
+2. Ask the Link which devices are on the eBus, then build the catalogue:
+
+   ```bash
+   scripts/wolf-config.sh      # -> wolf/parameter.json
+   scripts/wolf-catalog.py     # -> wolf/catalog.json
+   scripts/wolf-dashboard.py   # -> grafana/dashboards/wolf-de.json, wolf-en.json
+   scripts/wolf-nexa-link.py   # adds the heat pump row to the NEXA dashboards
+   docker compose up -d
+   ```
+
+   `wolf-config.sh` runs Wolf's own `ism7config` and stops the `wolf` service while it does, because the Link accepts only one
+   local connection at a time. `wolf-catalog.py` downloads Wolf's `parameter.xml`, `gui.xml` and `dictionary.xml` (about 12 MB,
+   cached in `wolf/.resources/`, not committed) and keeps only what your system actually has, with German and English labels
+   and the original menu structure including the installer level.
+
+On our system (CHA-10 with BM-2, a mixer module and one mixer circuit) that is **329 parameters across 5 bus devices, 182 of
+them writable, 184 on the installer level**.
+
+### What you get
+
+- **Dashboards** `/d/wolf-de` and `/d/wolf-en`: live tiles, temperatures, power and COP, compressor and pumps, flow rate and
+  spread, an operating-mode timeline, efficiency (SPF from the Wolf's own counters plus daily performance factors computed
+  from heat and electricity per day), cycling (cycles per day, average runtime per cycle, defrosts, runtime split across
+  heating, hot water, defrost and blocking time), the refrigerant circuit, heating circuit and hot water, the Wolf's own
+  statistics registers, and a house row combining PV, household (Shelly) and heat pump with the real cost per kWh of heat.
+- **Control page** `http://<host>:8080/wolf.html` (also linked from the settings page and both dashboards): live tiles, the
+  user level (operating mode, target temperatures, time programs, party and holiday mode), the **installer level** behind
+  `WOLF_EXPERT_PIN`, and a searchable table of every parameter with its InfluxDB field name. Bilingual, same look as the
+  settings page, no login.
+- **A row in the NEXA dashboards** that puts solar, household and heat pump power in one picture.
+
+### Writing values
+
+The page publishes to `homeassistant/grolo/wolf/set`, and so can anything else:
+
+```bash
+mosquitto_pub -h <host> -t homeassistant/grolo/wolf/set \
+  -m '{"device":"dhw","key":"warmwassersolltemperatur_eingestellt_350009","value":50}'
+mosquitto_pub -h <host> -t homeassistant/grolo/wolf/set \
+  -m '{"device":"heatpump","key":"bivalenzpunkt_e_heizung","value":-7,"pin":"1111"}'
+```
+
+`wolf-bridge` checks every request against the catalogue before it touches the bus: the parameter must exist, be writable,
+stay inside the limits Wolf itself allows, and — for installer-level parameters — carry the right code. The answer comes back
+on `homeassistant/grolo/wolf/set/result` with a reason when it is refused. Device ids are `heatpump`, `control`, `dhw`,
+`circuit`, `mixer` and `gateway`; field names are in `wolf/catalog.json` and in the "All values" table on the page.
+
+### Worth knowing
+
+- The Link accepts **one** local connection. While the `wolf` service runs, the Smartset app can no longer connect locally —
+  through the portal it keeps working, and the portal connection is unaffected by all of this.
+- The Wolf reports its power input only in **whole kW**, so the live COP is coarsely stepped. The daily, monthly and yearly
+  performance factors come from the kWh counters and are accurate.
+- After the initial full read, `ism7mqtt` only sends values that changed. `wolf-bridge` therefore keeps the last known value
+  of every parameter in `/state/wolf.json`; without that a restart would leave you with only the handful of values that moved
+  since. Restarting the `wolf` service forces a fresh full read (a few minutes for all parameters).
+- Switching times (`DaySwitchTimes`) are shown but not editable here; the time *program* selection (1/2/3) is.
+- The `gateway` device (the Link's own network settings) has no eBus values, so it stays empty — that is why the check reports
+  5 of 6 devices.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -309,6 +399,8 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast, sun position every minute, expected power per string (`solar.py`) |
 | `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples to the optional GroLo website (Vercel) |
 | `shelly-control` | grobro image + `grobro/sidecar/shelly_control.py` | local zero-feed-in: reads a Shelly meter and steers the NEXA output power |
+| `wolf` | zivillian/ism7mqtt | ISM7 protocol to the WOLF Link on TLS 9092, one JSON topic per bus device (profile `wolf`) |
+| `wolf-bridge` | grobro image + `grobro/sidecar/wolf_bridge.py` | keeps the full heat pump state, computes COP, spread, cycling and performance factors, validates and forwards control writes (profile `wolf`) |
 
 `grobro/registers/growatt_nexa_registers.json` is a copy of GroBro's NEXA register map extended with the firmware registers
 (119/120) and the serial/temperature registers of battery packs 2–4. It is mounted into the GroBro container and can be removed
@@ -371,6 +463,11 @@ writes to protected dongle parameters (`PROTECTED_PARAMS`).
   [CERTIFICATES.md](https://github.com/robertzaage/GroBro/blob/main/CERTIFICATES.md).
 - [nexa-mqtt](https://github.com/mgerczuk/nexa-mqtt) for the list of cloud parameters, [Grott](https://github.com/johanmeijer/grott)
   for the datalogger register notes.
+- [ism7mqtt](https://github.com/zivillian/ism7mqtt) by zivillian: the local ISM7 protocol implementation this stack talks to the
+  WOLF Link with, including Wolf's own parameter, menu and translation resources. Its
+  [PROTOCOL.md](https://github.com/zivillian/ism7mqtt/blob/master/PROTOCOL.md) documents the wire format.
+- Home Assistant's [wolflink](https://www.home-assistant.io/integrations/wolflink/) integration for the parameter list to
+  cross-check against — it goes through the Wolf cloud and is read-only, which is why this stack does not use it.
 - [acme.sh](https://github.com/acmesh-official/acme.sh), [DuckDNS](https://www.duckdns.org), [Let's Encrypt chain](https://letsencrypt.org/certificates/).
 
 ## Repository layout
@@ -382,17 +479,23 @@ mosquitto/config/            broker configuration (three listeners)
 mosquitto/certs/             certificates (gitignored)
 scripts/setup-certs.sh       Let's Encrypt via acme.sh + DuckDNS
 scripts/build-chain.sh       assemble and verify the full chain
-scripts/verify.sh            14-step health check
+scripts/verify.sh            16-step health check
 scripts/test-panels.py       run every Grafana panel query
 scripts/fit-orientation.py   estimate tilt/azimuth per string from the measurements
+scripts/wolf-config.sh       ask the WOLF Link which devices are on the eBus -> wolf/parameter.json
+scripts/wolf-catalog.py      build wolf/catalog.json from Wolf's own resources (names, units, limits, menus)
+scripts/wolf-dashboard.py    generates grafana/dashboards/wolf-de.json and wolf-en.json
+scripts/wolf-nexa-link.py    adds the heat pump row and link to the NEXA dashboards
 telegraf/telegraf.conf       MQTT → InfluxDB
 grafana/build-dashboard.py   generates grafana/dashboards/nexa-en.json and nexa-de.json
 grafana/provisioning/        data source and dashboard provider
-settings-ui/                 GroLo settings page (static, MQTT over WebSocket)
-grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py, shelly_control.py
+settings-ui/                 GroLo settings page and wolf.html heat pump controls (static, MQTT over WebSocket)
+grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py,
+                             shelly_control.py, wolf_bridge.py
 grobro/registers/            extended NEXA register map
+wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.37.4
+VERSION                      2026.38.0
 ```
 
 License: MIT.

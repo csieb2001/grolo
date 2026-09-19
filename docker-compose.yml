@@ -216,6 +216,59 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
 
+  # ---------------- Wärmepumpe (WOLF Link, lokal) ----------------
+  # ism7mqtt spricht das ISM7-Protokoll direkt mit dem WOLF Link (TLS auf Port 9092) und veröffentlicht
+  # je Busteilnehmer ein JSON-Topic Wolf/<ip>/<Gerät>_<Bus>. Kein Wolf-Cloud-Portal beteiligt.
+  # Der Link nimmt nur eine lokale Verbindung an: solange dieser Dienst läuft, kann die Smartset-App
+  # nicht mehr lokal direkt verbinden (über das Portal funktioniert sie weiter).
+  # Beide Dienste starten nur mit COMPOSE_PROFILES=wolf in der .env.
+  wolf:
+    image: zivillian/ism7mqtt:latest
+    container_name: grolo-wolf
+    restart: unless-stopped
+    profiles: ["wolf"]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      ISM7_IP: "${WOLF_HOST}"
+      ISM7_PASSWORD: "${WOLF_PASSWORD}"
+      ISM7_MQTTHOST: mosquitto
+      ISM7_MQTTPORT: "1883"
+      ISM7_INTERVAL: "${WOLF_INTERVAL:-30}"
+      ISM7_LANGUAGE: DEU              # Klartexte kommen deutsch; die englischen stehen im Katalog
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      # Von scripts/wolf-config.sh erzeugt: welche Busteilnehmer die Anlage hat und welche Parameter je Teilnehmer
+      - ./wolf/parameter.json:/app/parameter.json:ro
+
+  # Übersetzt die Wolf-Topics in flache Zustände für Telegraf, rechnet COP/Taktung/Arbeitszahlen
+  # und nimmt Schreibaufträge der Bedienseite entgegen (siehe grobro/sidecar/wolf_bridge.py)
+  wolf-bridge:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-wolf-bridge
+    restart: unless-stopped
+    profiles: ["wolf"]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/wolf_bridge.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      WOLF_CATALOG: /wolf/catalog.json
+      WOLF_STATE: /state/wolf.json
+      WOLF_PUBLISH_INTERVAL: "${WOLF_PUBLISH_INTERVAL:-10}"
+      # Fachmann-Ebene: dieselbe Idee wie der Fachmann-Code der Smartset-App. Leer = kein Code nötig.
+      WOLF_EXPERT_PIN: "${WOLF_EXPERT_PIN:-}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - ./wolf:/wolf:ro
+      - wolf-state:/state                # Tageszähler (Takte, Laufzeiten) überleben einen Neustart
+
   # ---------------- Datenbank + Dashboard ----------------
   influxdb:
     image: influxdb:2.7
@@ -300,3 +353,4 @@ volumes:
   grafana-data:
   cloud-gate-state:
   web-push-state:
+  wolf-state:
