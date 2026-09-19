@@ -9,6 +9,12 @@ Erwartungsmodell je String (Sidecar weather) werden mitgeschickt, sobald sie sic
 jedes Sample zusätzlich den gemittelten Netzbezug (grid_w) und Hausverbrauch (house_w) des Intervalls; der Strompreis
 (retained <BASE>/grolo/config/tariff von der Einstellungsseite) geht als "tariff" mit, sobald er sich ändert.
 
+Läuft die Wärmepumpe (Sidecar wolf-bridge), kommt "heat" dazu, mit demselben Zeitstempel wie die Samples, damit die Website
+Wärmepumpe, Solar und Batterie Minute für Minute gegeneinander rechnen kann:
+  heat.samples  Mittel des Intervalls: Aufnahme und Wärmeleistung, Vor-/Rücklauf, Warmwasser, Außentemperatur, Frequenz
+  heat.days     Tageswerte aus den Zählern der Wolf (heute und Vortag, damit eine Lücke sich von selbst schließt)
+  heat.state    der aktuelle Stand für die Kacheln, inklusive Klartext von Betriebsart und Verdichterstatus
+
 Umgebung: WEB_URL (z. B. https://grolo.vercel.app), WEB_TOKEN, PUSH_INTERVAL (s, Standard 30), MQTT_HOST/MQTT_PORT, HA_BASE_TOPIC.
 """
 import json, logging, os, threading, time, urllib.request, urllib.error
@@ -32,7 +38,7 @@ def queue_save():
     try:
         os.makedirs(os.path.dirname(QUEUE_FILE), exist_ok=True)
         with open(QUEUE_FILE + ".tmp", "w") as f:
-            json.dump(list(queue), f)
+            json.dump({"samples": list(queue), "heat": list(heat_queue)}, f)
         os.replace(QUEUE_FILE + ".tmp", QUEUE_FILE)
     except Exception as e:
         LOG.debug("Puffer sichern: %s", e)
@@ -41,17 +47,24 @@ def queue_save():
 def queue_load():
     try:
         with open(QUEUE_FILE) as f:
-            items = json.load(f)
-        queue.extend(items); LOG.info("Puffer geladen: %d Samples aus %s", len(items), QUEUE_FILE)
+            saved = json.load(f)
     except FileNotFoundError:
-        pass
+        return
     except Exception as e:
-        LOG.warning("Puffer laden: %s", e)
+        LOG.warning("Puffer laden: %s", e); return
+    items = saved if isinstance(saved, list) else saved.get("samples", [])   # ältere Puffer waren eine reine Liste
+    heat = [] if isinstance(saved, list) else saved.get("heat", [])
+    queue.extend(items); heat_queue.extend(heat)
+    LOG.info("Puffer geladen: %d Samples, %d Wärmepumpe aus %s", len(items), len(heat), QUEUE_FILE)
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
 shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "house": 0.0}   # n/grid/house: Mittelwert über das Intervall
 site_cfg = {"cfg": None}   # retained grolo/config/site (String-Namen)
 tariff = {"cfg": None, "dirty": False}
+# Wärmepumpe: letzter Zustand je Gerät der wolf-bridge plus Mittelwerte des laufenden Intervalls
+wolf = {"state": {}, "derived": {}, "n": 0, "sums": {}, "last": {}}
+WOLF_AVG = ("hp_w", "heat_w", "flow_c", "return_c", "dhw_c", "outside_c", "spread", "freq", "flow_lpm")
+heat_queue = deque(maxlen=2880)
 
 
 def pick(d, *keys, default=None):
@@ -122,6 +135,92 @@ def derive(st):
     }
 
 
+def wolf_sample():
+    """Aus dem letzten Stand der Wärmepumpe die Größen bilden, die die Website als Zeitreihe braucht."""
+    hp = wolf["state"].get("heatpump") or {}
+    d = wolf["derived"] or {}
+    if not hp:
+        return None
+    return {
+        "hp_w": d.get("strom_w"),                              # Leistungsaufnahme Wärmepumpe + Heizstab
+        "heat_w": None if d.get("waerme_kw") is None else d["waerme_kw"] * 1000.0,
+        "flow_c": hp.get("kesseltemperatur"), "return_c": hp.get("ruecklauftemperatur"),
+        "dhw_c": hp.get("warmwassertemperatur"), "outside_c": hp.get("aussentemperatur"),
+        "spread": d.get("spreizung"), "freq": hp.get("verdichterfrequenz"),
+        "flow_lpm": hp.get("heizkreisdurchfluss"),
+        "compressor": hp.get("verdichter"), "mode": hp.get("betriebsart_heizgeraet"),
+    }
+
+
+def wolf_accumulate():
+    """Mittelwerte über das Push-Intervall bilden. Betriebsart und Verdichter werden nicht gemittelt,
+    sondern zuletzt gesehen übernommen – ein halber Betriebszustand wäre sinnlos."""
+    sample = wolf_sample()
+    if sample is None:
+        return
+    wolf["n"] += 1
+    for key in WOLF_AVG:
+        v = sample.get(key)
+        if v is not None:
+            acc_key = wolf["sums"].setdefault(key, [0.0, 0])
+            acc_key[0] += float(v); acc_key[1] += 1
+    wolf["last"] = sample
+
+
+def wolf_payload(now):
+    """heat-Abschnitt für /api/ingest: gemitteltes Sample, Tageswerte aus den Zählern der Wolf, aktueller Stand."""
+    hp = wolf["state"].get("heatpump") or {}
+    d = wolf["derived"] or {}
+    if not hp:
+        return None
+
+    if wolf["n"]:
+        sample = {"ts": now}
+        for key in WOLF_AVG:
+            total, count = wolf["sums"].get(key, (0.0, 0))
+            sample[key] = round(total / count, 2) if count else None
+        sample["compressor"] = wolf["last"].get("compressor")
+        sample["mode"] = wolf["last"].get("mode")
+        heat_queue.append(sample)
+    wolf["n"] = 0; wolf["sums"] = {}
+
+    # Tageswerte: die Wolf zählt Wärme und Strom je Tag und setzt um Mitternacht zurück. Der Vortag geht
+    # jedes Mal mit, damit ein Ausfall über Mitternacht den Tag nicht verschluckt.
+    today = time.strftime("%Y-%m-%d")
+    yesterday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
+    days = []
+    if hp.get("erzeugte_waermemenge_aktueller_tag") is not None:
+        days.append({"day": today, "heat_kwh": hp.get("erzeugte_waermemenge_aktueller_tag"),
+                     "el_kwh": hp.get("verbrauch_aktueller_tag")})
+    if hp.get("erzeugte_waermemenge_vortag"):
+        days.append({"day": yesterday, "heat_kwh": hp.get("erzeugte_waermemenge_vortag"),
+                     "el_kwh": hp.get("verbrauch_vortag"), "spf": hp.get("taz_vortag")})
+
+    state = {
+        "mode": hp.get("betriebsart_heizgeraet"), "mode_text": hp.get("betriebsart_heizgeraet_text"),
+        "compressor_status": hp.get("verdichterstatus"), "compressor_text": hp.get("verdichterstatus_text"),
+        "compressor": hp.get("verdichter"), "eheat": hp.get("e_heizung"), "eheat_text": hp.get("e_heizung_text"),
+        "hp_w": d.get("strom_w"), "heat_kw": d.get("waerme_kw"), "cop": d.get("cop"),
+        "flow_c": hp.get("kesseltemperatur"), "return_c": hp.get("ruecklauftemperatur"), "spread": d.get("spreizung"),
+        "dhw_c": hp.get("warmwassertemperatur"), "dhw_set_c": hp.get("warmwassersolltemperatur"),
+        "outside_c": hp.get("aussentemperatur"), "freq": hp.get("verdichterfrequenz"),
+        "flow_lpm": hp.get("heizkreisdurchfluss"), "pressure_bar": hp.get("anlagendruck"),
+        "heat_today": hp.get("erzeugte_waermemenge_aktueller_tag"), "el_today": hp.get("verbrauch_aktueller_tag"),
+        "heat_month": hp.get("erzeugte_waermemenge_aktueller_monat"), "el_month": hp.get("verbrauch_aktueller_monat"),
+        "heat_year": hp.get("erzeugte_waermemenge_aktuelles_jahr"), "el_year": hp.get("verbrauch_aktuelles_jahr"),
+        "spf_year": hp.get("jaz_aktuelles_jahr"), "spf_prev_year": hp.get("jaz_vorjahr"), "taz_yesterday": hp.get("taz_vortag"),
+        "pf_today": d.get("az_tag"), "pf_month": d.get("az_monat"), "pf_year": d.get("az_jahr"),
+        "cycles_today": d.get("takte_heute"), "runtime_today_min": d.get("laufzeit_min_heute"),
+        "runtime_per_cycle_min": d.get("laufzeit_je_takt_min"), "defrosts_today": d.get("abtauungen_heute"),
+        "dhw_min_today": d.get("ww_min_heute"), "heating_min_today": d.get("hz_min_heute"),
+        "eheat_min_today": d.get("eheiz_min_heute"),
+        "hours_compressor": hp.get("betriebsstunden_verdichter"), "hours_eheat": hp.get("betriebsstunden_e_heizung"),
+        "starts": hp.get("verdichterstarts"), "serial": hp.get("seriennummer"), "power_class": hp.get("leistungsklasse"),
+        "model": "Wolf CHA", "firmware": hp.get("hcm_4_firmware"),
+    }
+    return {"ts": now, "days": days, "state": state}
+
+
 def on_message(client, userdata, msg):
     parts = msg.topic.split("/")
     try:
@@ -154,6 +253,15 @@ def on_message(client, userdata, msg):
         elif parts[-2:] == ["config", "site"]:
             with lock:
                 site_cfg["cfg"] = json.loads(msg.payload); weather["dirty"] = True
+        elif len(parts) >= 3 and parts[-3] == "wolf" and parts[-1] == "state":
+            with lock:
+                wolf["state"][parts[-2]] = json.loads(msg.payload)
+                if parts[-2] == "heatpump":
+                    wolf_accumulate()
+        elif parts[-2:] == ["wolf", "derived"]:
+            with lock:
+                wolf["derived"] = json.loads(msg.payload)
+                wolf_accumulate()
         elif parts[-2:] == ["config", "tariff"]:
             with lock:
                 tariff["cfg"] = json.loads(msg.payload); tariff["dirty"] = True
@@ -186,9 +294,11 @@ def flush():
         shelly["dirty"] = False
         tf = tariff["cfg"] if (tariff["dirty"] and tariff["cfg"]) else None
         tariff["dirty"] = False
-    if not queue and not info and not wx and not sh and not tf:
+        heat = wolf_payload(now)
+    if not queue and not heat_queue and not info and not wx and not sh and not tf:
         return
     batch = list(queue)[:200]
+    heat_batch = list(heat_queue)[:200]
     body = {"samples": batch}
     if info:
         body["info"] = next(iter(info.values()))
@@ -198,6 +308,8 @@ def flush():
         body["shelly"] = sh
     if tf:
         body["tariff"] = tf
+    if heat or heat_batch:
+        body["heat"] = {**(heat or {}), "samples": heat_batch}
     req = urllib.request.Request(f"{URL}/api/ingest", data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"})
     try:
@@ -205,9 +317,13 @@ def flush():
             res = json.loads(r.read() or b"{}")
         for _ in batch:
             queue.popleft()
+        for _ in heat_batch:
+            heat_queue.popleft()
         if os.path.exists(QUEUE_FILE):
-            queue_save() if queue else os.remove(QUEUE_FILE)
-        LOG.info("gesendet: %d Samples (Antwort %s, Wetter %s%s), Puffer %d", len(batch), res.get("inserted"), res.get("weather"), ", Tarif" if tf else "", len(queue))
+            queue_save() if (queue or heat_queue) else os.remove(QUEUE_FILE)
+        LOG.info("gesendet: %d Samples%s (Antwort %s, Wetter %s%s), Puffer %d", len(batch),
+                 f" + {len(heat_batch)} Wärmepumpe" if heat_batch else "", res.get("inserted"), res.get("weather"),
+                 ", Tarif" if tf else "", len(queue) + len(heat_queue))
     except urllib.error.HTTPError as e:
         LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200]); queue_save()
         with lock:
@@ -224,7 +340,8 @@ def main():
     queue_load()
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
-                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0), (f"{BASE}/grolo/config/site", 0)]))
+                                                     c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0), (f"{BASE}/grolo/config/site", 0),
+                                                                  (f"{BASE}/grolo/wolf/+/state", 0), (f"{BASE}/grolo/wolf/derived", 0)]))
     client.on_message = on_message
     while True:
         try:

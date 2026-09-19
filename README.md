@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.38.0** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+Version **2026.38.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
 packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
@@ -344,6 +344,9 @@ them writable, 184 on the installer level**.
   `WOLF_EXPERT_PIN`, and a searchable table of every parameter with its InfluxDB field name. Bilingual, same look as the
   settings page, no login.
 - **A row in the NEXA dashboards** that puts solar, household and heat pump power in one picture.
+- **A heat pump section on the GroLo website** (if `WEB_URL`/`WEB_TOKEN` are set): the same figures plus the split of the heat
+  pump's electricity into solar, battery and grid, cost per kWh of heat and CO₂ against a gas boiler. `web-push` sends the heat
+  pump samples with the same timestamps as the NEXA samples, which is what lets the site pair the two minute by minute.
 
 ### Writing values
 
@@ -397,7 +400,7 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `raw-registers` | grobro image + `grobro/sidecar/raw_registers.py` | publishes registers GroBro does not map, for research |
 | `cloud-gate` | grobro image + `grobro/sidecar/cloud_gate.py` | switchable, filtering TLS relay to the Growatt cloud |
 | `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast, sun position every minute, expected power per string (`solar.py`) |
-| `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples to the optional GroLo website (Vercel) |
+| `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples, weather and heat pump data to the optional GroLo website (Vercel) |
 | `shelly-control` | grobro image + `grobro/sidecar/shelly_control.py` | local zero-feed-in: reads a Shelly meter and steers the NEXA output power |
 | `wolf` | zivillian/ism7mqtt | ISM7 protocol to the WOLF Link on TLS 9092, one JSON topic per bus device (profile `wolf`) |
 | `wolf-bridge` | grobro image + `grobro/sidecar/wolf_bridge.py` | keeps the full heat pump state, computes COP, spread, cycling and performance factors, validates and forwards control writes (profile `wolf`) |
@@ -495,7 +498,7 @@ grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, we
 grobro/registers/            extended NEXA register map
 wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.38.0
+VERSION                      2026.38.1
 ```
 
 License: MIT.
