@@ -195,12 +195,16 @@ class Builder:
             panel["description"] = self.t(desc)
         self.add(panel, w, h)
 
-    def table(self, title, query, w=12, h=9, desc=None, overrides=None, rename=None, exclude=None):
+    def table(self, title, query, w=12, h=9, desc=None, overrides=None, rename=None, exclude=None, order=None):
         organize = {"excludeByName": {"_start": True, "_stop": True, "result": True, "table": True}}
         for name in exclude or []:
             organize["excludeByName"][name] = True
         if rename:
             organize["renameByName"] = {k: self.t(v) for k, v in rename.items()}
+        if order:
+            # Flux gibt die Spalten in beliebiger Reihenfolge zurück – die Tabelle soll aber mit dem
+            # Bezeichner beginnen und nicht mit einer Kennzahl, die häufig leer ist.
+            organize["indexByName"] = {self.t(name): i for i, name in enumerate(order)}
         panel = {"type": "table", "title": self.t(title),
                  "targets": [{"query": query, "refId": "A", "format": "table"}],
                  "fieldConfig": {"defaults": {"custom": {"align": "auto"}}, "overrides": overrides or []},
@@ -770,14 +774,16 @@ from(bucket: "{BUCKET}")
   |> filter(fn: (r) => r._measurement == "tado" and r._field == "online")
   |> last()
   |> group()
-  |> count()''', w=3, h=5, decimals=0, color="text", no_value="–",
+  |> count()
+  |> rename(columns: {{_value: "Value"}})''', w=3, h=5, decimals=0, color="text", no_value="–",
            desc=L("Wie viele Räume gerade Messwerte liefern.", "How many rooms are currently reporting."))
     b.stat(L("Mittlere Raumtemperatur", "Mean room temperature"), f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "tado" and r._field == "temp_c")
   |> last()
   |> group()
-  |> mean()''', w=4, h=5, unit="celsius", decimals=1, color="orange", no_value="–",
+  |> mean()
+  |> rename(columns: {{_value: "Value"}})''', w=4, h=5, unit="celsius", decimals=1, color="orange", no_value="–",
            desc=L("Der Bezugspunkt, mit dem die Jahresprognose rechnet: Heizgrenze und Heizkurve hängen beide "
                   "daran. Zwei Grad mehr im Haus sind kein Detail, sondern verschieben den Wärmebedarf spürbar.",
                   "The reference the annual forecast works from: heating limit and heating curve both depend on "
@@ -787,19 +793,25 @@ from(bucket: "{BUCKET}")
   |> filter(fn: (r) => r._measurement == "tado" and r._field == "temp_c")
   |> last()
   |> group()
-  |> min()''', w=3, h=5, unit="celsius", decimals=1, color="blue", no_value="–")
+  |> min()
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "Value"}})''', w=3, h=5, unit="celsius", decimals=1, color="blue", no_value="–")
     b.stat(L("Wärmster Raum", "Warmest room"), f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "tado" and r._field == "temp_c")
   |> last()
   |> group()
-  |> max()''', w=3, h=5, unit="celsius", decimals=1, color="red", no_value="–")
+  |> max()
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "Value"}})''', w=3, h=5, unit="celsius", decimals=1, color="red", no_value="–")
     b.stat(L("Schwächste Batterie", "Weakest battery"), f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "tado" and r._field == "battery_level")
   |> last()
   |> group()
-  |> max()''', w=4, h=5, decimals=0, no_value="–",
+  |> max()
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "Value"}})''', w=4, h=5, decimals=0, no_value="–",
            mappings=[{"type": "value", "options": {"0": {"text": "ok" if de else "ok", "index": 0},
                                                    "1": {"text": "niedrig" if de else "low", "index": 1},
                                                    "2": {"text": "kritisch" if de else "critical", "index": 2}}}],
@@ -810,6 +822,9 @@ from(bucket: "{BUCKET}")
                   "percentage."))
 
     b.table(L("Räume jetzt", "Rooms now"), tado_table(de), w=24, h=9,
+            order=[L("Raum", "Room"), L("Ist °C", "Actual °C"), L("Soll °C", "Target °C"),
+                   L("Feuchte %", "Humidity %"), L("Stau K", "Build-up K"),
+                   L("Batterie", "Battery"), L("Online", "Online")],
             desc=L("„Stau“ ist die Differenz zwischen dem Thermostat am Heizkörper und einem frei hängenden "
                    "Funkfühler im selben Raum: um so viel misst das Thermostat zu warm und regelt entsprechend "
                    "zu früh ab. Nur dort gefüllt, wo ein Fühler hängt.",
@@ -983,7 +998,7 @@ array.from(rows: [{{ _time: now(), _value: (if length(arr: preis) > 0 then preis
     other = "wolf-en" if de else "wolf-de"
     return {
         "uid": f"wolf-{lang}",
-        "title": "GroLo · Wärmepumpe CHA" if de else "GroLo · Heat pump CHA",
+        "title": ("GroLo · Wärmepumpe CHA (DE)" if de else "GroLo · Heat pump CHA"),
         "tags": ["wolf", "waermepumpe" if de else "heatpump", "grolo", lang],
         "timezone": "browser",
         "editable": True,

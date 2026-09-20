@@ -3616,7 +3616,7 @@
    "title": "Rooms",
    "targets": [
     {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"online\")\n  |> last()\n  |> group()\n  |> count()",
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"online\")\n  |> last()\n  |> group()\n  |> count()\n  |> rename(columns: {_value: \"Value\"})",
      "refId": "A",
      "datasource": {
       "type": "influxdb",
@@ -3667,7 +3667,7 @@
    "title": "Mean room temperature",
    "targets": [
     {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> mean()",
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> mean()\n  |> rename(columns: {_value: \"Value\"})",
      "refId": "A",
      "datasource": {
       "type": "influxdb",
@@ -3719,7 +3719,7 @@
    "title": "Coldest room",
    "targets": [
     {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> min()",
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> min()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
      "refId": "A",
      "datasource": {
       "type": "influxdb",
@@ -3770,7 +3770,7 @@
    "title": "Warmest room",
    "targets": [
     {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> max()",
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> max()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
      "refId": "A",
      "datasource": {
       "type": "influxdb",
@@ -3821,7 +3821,7 @@
    "title": "Weakest battery",
    "targets": [
     {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"battery_level\")\n  |> last()\n  |> group()\n  |> max()",
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"battery_level\")\n  |> last()\n  |> group()\n  |> max()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
      "refId": "A",
      "datasource": {
       "type": "influxdb",
@@ -3945,6 +3945,15 @@
        "_stop": true,
        "result": true,
        "table": true
+      },
+      "indexByName": {
+       "Room": 0,
+       "Actual °C": 1,
+       "Target °C": 2,
+       "Humidity %": 3,
+       "Build-up K": 4,
+       "Battery": 5,
+       "Online": 6
       }
      }
     }
