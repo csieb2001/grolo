@@ -16,6 +16,60 @@ OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboards")
 
 # ----------------------------------------------------------------- Übersetzung: Deutsch ist der Schlüssel
 EN = {
+    # Jahresprognose
+    "Unsicherheit der Prognose": "Forecast uncertainty",
+    "Rechnung, untere Kante": "Bill, lower edge",
+    "Rechnung, obere Kante": "Bill, upper edge",
+    "Heizstab im Jahr": "Immersion heater per year",
+    "PV-Eichfaktor": "PV calibration factor",
+    "Wie weit die Rechnung danebenliegen kann. Jede Annahme bringt eine eigene Streuung mit – Wärmebedarf, COP, Haushalt, PV, Wetterjahr –, und sie werden quadratisch addiert, weil sie unabhängig voneinander danebenliegen. Je mehr Angaben eingetragen und je mehr Wochen gemessen sind, desto schmaler wird das Band.": "How far the calculation can be off. Every assumption brings its own spread – heat demand, COP, household, PV, weather year – and they are added in quadrature because they can be wrong independently of each other. The more entries made and the more weeks measured, the narrower the band gets.",
+    "Wer keine Nachzahlung riskieren will, legt den Abschlag auf diese Kante geteilt durch zwölf.": "If you would rather not risk a bill at the end, set the monthly payment to this edge divided by twelve.",
+    "Wärme, die der Verdichter an den kältesten Stunden nicht mehr schafft und die der Heizstab elektrisch nachlegt – mit Arbeitszahl 1, also zum vollen Strompreis.": "Heat the compressor can no longer deliver in the coldest hours and the immersion heater adds electrically – at a performance factor of 1, so at the full electricity price.",
+    "Gemessener Ertrag geteilt durch den, den das Modell für dieselben Sonnenstunden erwartet hätte. Unter 1 heißt: Verschattung, Schmutz oder eine zu optimistische Annahme zur Ausrichtung. Ein Wert weit unter 1 ist ein Grund, Neigung und Azimut nachzutragen.": "Measured yield divided by what the model would have expected for the same sunny hours. Below 1 means shading, dirt or too optimistic an assumption about the orientation. A value far below 1 is a reason to enter tilt and azimuth.",
+    "Monat": "Month",
+    "Jan": "Jan",
+    "Feb": "Feb",
+    "Mär": "Mar",
+    "Apr": "Apr",
+    "Mai": "May",
+    "Jun": "Jun",
+    "Jul": "Jul",
+    "Aug": "Aug",
+    "Sep": "Sep",
+    "Okt": "Oct",
+    "Nov": "Nov",
+    "Dez": "Dec",
+    "Jahresprognose": "Annual forecast",
+    "Verbrauch im Jahr": "Consumption per year",
+    "davon Wärmepumpe": "of it heat pump",
+    "PV-Ertrag": "PV yield",
+    "Netzbezug im Jahr": "Grid import per year",
+    "Autarkie": "Self-sufficiency",
+    "Güte der Prognose": "Forecast quality",
+    "Jahresrechnung": "Annual bill",
+    "davon Grundpreis": "of it base fee",
+    "Ersparnis durch die Anlage": "Saved by the system",
+    "Empfohlener Abschlag": "Recommended monthly payment",
+    "Aktueller Abschlag": "Current monthly payment",
+    "Verbrauch je Monat": "Consumption per month",
+    "Netzbezug und Kosten je Monat": "Grid import and cost per month",
+    "aus Messwerten": "from measurements",
+    "teils geschätzt": "partly estimated",
+    "angenommen": "assumed",
+    "Haushalt plus Wärmepumpe, modelliert über ein volles Jahr mit dem echten Wetter des Standorts. Grundlage sind deine Angaben auf der Einstellungsseite und alles, was bis jetzt gemessen wurde.": "Household plus heat pump, modelled over a full year with the real weather of your location. It builds on your entries on the settings page and on everything measured so far.",
+    "Wärmebedarf des Hauses, verteilt nach Heizgradstunden, geteilt durch den COP der jeweiligen Stunde.": "The building's heat demand, spread by heating degree hours, divided by the COP of each hour.",
+    "Aus Neigung, Azimut und Wp jedes Strings und der Einstrahlung des Wetterjahres. Leer, solange keine Modulleistung eingetragen ist.": "From tilt, azimuth and Wp of each string and the irradiance of the weather year. Empty as long as no module power is configured.",
+    "Was nach Direktverbrauch und Batterie übrig bleibt. Die Abgabegrenze von 800 W begrenzt, wie viel der NEXA überhaupt beisteuern kann.": "What is left after direct use and the battery. The 800 W output limit caps how much the NEXA can contribute at all.",
+    "Anteil des Jahresverbrauchs, den die eigene Anlage deckt.": "Share of the annual consumption covered by your own system.",
+    "„aus Messwerten“ heißt: Wärmebedarf, Haushalt, Module und COP-Kennlinie stehen alle auf eigenen Zahlen. „angenommen“ heißt, es fehlen noch Angaben auf der Einstellungsseite.": "“From measurements” means heat demand, household, modules and the COP curve all rest on your own figures. “Assumed” means entries are still missing on the settings page.",
+    "Netzbezug × Arbeitspreis plus Grundpreis × 12, abzüglich Einspeisevergütung.": "Grid import × unit price plus base fee × 12, less any feed-in payment.",
+    "Differenz zu einer Jahresrechnung ohne PV und Batterie, bei gleichem Verbrauch.": "Difference from an annual bill without PV and battery, at the same consumption.",
+    "Jahresrechnung geteilt durch zwölf, auf die nächsten fünf Euro aufgerundet. Zu niedrig heißt Nachzahlung, zu hoch heißt, dem Versorger zinslos Geld zu leihen.": "The annual bill divided by twelve, rounded up to the next five euros. Too low means paying on top later, too high means lending the supplier money interest-free.",
+    "Was du laut Einstellungsseite heute zahlst. 0 = noch nicht eingetragen.": "What you pay today according to the settings page. 0 = not entered yet.",
+    "Das modellierte Jahr, aufgeteilt auf die Monate. Der Winter trägt fast den ganzen Wärmepumpenanteil, die PV steht ihm genau gegenläufig.": "The modelled year split across the months. Winter carries almost the whole heat pump share, and the PV runs exactly counter to it.",
+    "Woher der Abschlag kommt: die Monate sind sehr ungleich, der Abschlag glättet sie auf zwölf gleiche Raten.": "Where the monthly payment comes from: the months are very uneven, and the payment smooths them into twelve equal instalments.",
+    "Haushalt": "Household",
+    "Kosten": "Cost",
     "Jetzt": "Now", "PV-Leistung": "PV power", "Aktuelle Leistung aller PV-Strings": "Current power of all PV strings",
     "Ausgang ins Haus": "Output to house", "AC-Ausgangsleistung des NEXA": "AC output power of the NEXA",
     "Batterie-Leistung": "Battery power", "Lade-/Entladeleistung der Batterie": "Battery charge/discharge power",
@@ -634,6 +688,99 @@ from(bucket: "{BUCKET}")
            desc=_("Ersparnis = Abgabe ins Haus × Strompreis, Netzkosten = Netzbezug (Shelly) × Strompreis. Balken auf Tagesmitte.")),
     ]
     y += 16
+
+    # ============================================================ Jahresprognose
+    # Nichts davon ist gemessen: der Sidecar forecast rechnet ein volles Jahr Stunde für Stunde mit dem echten
+    # Wetter des Standorts durch und legt das Ergebnis als Measurement "forecast" (Jahr) und "forecast_month"
+    # (je Monat) ab. Hier wird es nur gezeigt.
+    def q_fc(field, rng="-30d"):
+        return q_last(field, measurement="forecast", rng=rng)
+
+    def bar_cat(title, x, y, w, h, query, unit=None, overrides=None, desc=None, xfield=None):
+        """Balken über einer Kategorieachse statt über der Zeit: die Monatszeilen der Prognose tragen
+        keinen Zeitstempel, den man zeigen wollte, sondern einen Monatsnamen."""
+        opts = {"xTickLabelRotation": 0, "showValue": "auto", "stacking": "none",
+                "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True},
+                "tooltip": {"mode": "multi"}}
+        if xfield:
+            opts["xField"] = xfield
+        return panel("barchart", title, x, y, w, h, [target(query)], unit,
+                     opts=opts, defaults={"custom": {"lineWidth": 1, "fillOpacity": 80}},
+                     overrides=overrides, desc=desc)
+
+    MONTHS = [_("Jan"), _("Feb"), _("Mär"), _("Apr"), _("Mai"), _("Jun"),
+              _("Jul"), _("Aug"), _("Sep"), _("Okt"), _("Nov"), _("Dez")]
+
+    def month_label():
+        """Flux-Ausdruck, der aus dem Tag month den Monatsnamen macht."""
+        parts = [f'if r.month == "{i + 1:02d}" then "{name}" ' for i, name in enumerate(MONTHS[:-1])]
+        return "".join("else " + p if i else p for i, p in enumerate(parts)) + f'else "{MONTHS[-1]}"'
+
+    def q_fc_month(fields):
+        """Eine Tabelle: je Monat eine Zeile, je gewünschtem Feld eine Spalte mit sprechendem Namen."""
+        filt = " or ".join(f'r._field == "{f}"' for f, _label in fields)
+        cols = ", ".join(f'"{label}": r.{f}' for f, label in fields)
+        return f'''from(bucket: "{BUCKET}")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r._measurement == "forecast_month" and ({filt}))
+  |> last()
+  |> group()
+  |> pivot(rowKey: ["month"], columnKey: ["_field"], valueColumn: "_value")
+  |> sort(columns: ["month"])
+  |> map(fn: (r) => ({{ "{_("Monat")}": {month_label()}, {cols} }}))'''
+
+    fc_quality = [{"type": "value", "options": {
+        "measured": {"text": _("aus Messwerten"), "color": "green"},
+        "partial": {"text": _("teils geschätzt"), "color": "blue"},
+        "assumed": {"text": _("angenommen"), "color": "orange"}}}]
+    panels.append(row(_("Jahresprognose"), y)); y += 1
+    panels += [
+        stat(_("Verbrauch im Jahr"), 0, y, 4, 5, q_fc("load_kwh"), "kwatth", C_HOUSE, 0,
+             desc=_("Haushalt plus Wärmepumpe, modelliert über ein volles Jahr mit dem echten Wetter des Standorts. Grundlage sind deine Angaben auf der Einstellungsseite und alles, was bis jetzt gemessen wurde.")),
+        stat(_("davon Wärmepumpe"), 4, y, 4, 5, q_fc("heatpump_kwh"), "kwatth", "purple", 0,
+             desc=_("Wärmebedarf des Hauses, verteilt nach Heizgradstunden, geteilt durch den COP der jeweiligen Stunde.")),
+        stat(_("PV-Ertrag"), 8, y, 4, 5, q_fc("pv_kwh"), "kwatth", C_PV, 0,
+             desc=_("Aus Neigung, Azimut und Wp jedes Strings und der Einstrahlung des Wetterjahres. Leer, solange keine Modulleistung eingetragen ist.")),
+        stat(_("Netzbezug im Jahr"), 12, y, 4, 5, q_fc("grid_kwh"), "kwatth", "red", 0,
+             desc=_("Was nach Direktverbrauch und Batterie übrig bleibt. Die Abgabegrenze von 800 W begrenzt, wie viel der NEXA überhaupt beisteuern kann.")),
+        stat(_("Autarkie"), 16, y, 4, 5, q_fc("autarky_pct"), "percent", C_BAT, 0,
+             desc=_("Anteil des Jahresverbrauchs, den die eigene Anlage deckt.")),
+        stat(_("Güte der Prognose"), 20, y, 4, 5, q_fc("quality"), None, "text", mapping=fc_quality,
+             desc=_("„aus Messwerten“ heißt: Wärmebedarf, Haushalt, Module und COP-Kennlinie stehen alle auf eigenen Zahlen. „angenommen“ heißt, es fehlen noch Angaben auf der Einstellungsseite.")),
+        stat(_("Jahresrechnung"), 0, y + 5, 6, 5, q_fc("cost_total_eur"), "currencyEUR", "red", 0,
+             desc=_("Netzbezug x Arbeitspreis plus Grundpreis x 12, abzüglich Einspeisevergütung.")),
+        stat(_("davon Grundpreis"), 6, y + 5, 4, 5, q_fc("cost_base_eur"), "currencyEUR", None, 0),
+        stat(_("Ersparnis durch die Anlage"), 10, y + 5, 5, 5, q_fc("saving_eur"), "currencyEUR", C_EUR, 0,
+             desc=_("Differenz zu einer Jahresrechnung ohne PV und Batterie, bei gleichem Verbrauch.")),
+        stat(_("Empfohlener Abschlag"), 15, y + 5, 5, 5, q_fc("abschlag_eur"), "currencyEUR", C_BAT, 0,
+             desc=_("Jahresrechnung geteilt durch zwölf, auf die nächsten fünf Euro aufgerundet. Zu niedrig heißt Nachzahlung, zu hoch heißt, dem Versorger zinslos Geld zu leihen.")),
+        stat(_("Aktueller Abschlag"), 20, y + 5, 4, 5, q_fc("abschlag_ist_eur"), "currencyEUR", None, 0,
+             desc=_("Was du laut Einstellungsseite heute zahlst. 0 = noch nicht eingetragen.")),
+        stat(_("Unsicherheit der Prognose"), 0, y + 10, 5, 4, q_fc("uncertainty_pct"), "percent", None, 0,
+             thr=thresholds((None, "green"), (10, "yellow"), (18, "orange"), (28, "red")),
+             desc=_("Wie weit die Rechnung danebenliegen kann. Jede Annahme bringt eine eigene Streuung mit – Wärmebedarf, COP, Haushalt, PV, Wetterjahr –, und sie werden quadratisch addiert, weil sie unabhängig voneinander danebenliegen. Je mehr Angaben eingetragen und je mehr Wochen gemessen sind, desto schmaler wird das Band.")),
+        stat(_("Rechnung, untere Kante"), 5, y + 10, 5, 4, q_fc("cost_low_eur"), "currencyEUR", C_BAT, 0),
+        stat(_("Rechnung, obere Kante"), 10, y + 10, 5, 4, q_fc("cost_high_eur"), "currencyEUR", "red", 0,
+             desc=_("Wer keine Nachzahlung riskieren will, legt den Abschlag auf diese Kante geteilt durch zwölf.")),
+        stat(_("Heizstab im Jahr"), 15, y + 10, 4, 4, q_fc("eheat_kwh"), "kwatth", "orange", 0,
+             desc=_("Wärme, die der Verdichter an den kältesten Stunden nicht mehr schafft und die der Heizstab elektrisch nachlegt – mit Arbeitszahl 1, also zum vollen Strompreis.")),
+        stat(_("PV-Eichfaktor"), 19, y + 10, 5, 4, q_fc("pv_factor"), None, None, 2,
+             thr=thresholds((None, "red"), (0.7, "orange"), (0.85, "yellow"), (0.95, "green")),
+             desc=_("Gemessener Ertrag geteilt durch den, den das Modell für dieselben Sonnenstunden erwartet hätte. Unter 1 heißt: Verschattung, Schmutz oder eine zu optimistische Annahme zur Ausrichtung. Ein Wert weit unter 1 ist ein Grund, Neigung und Azimut nachzutragen.")),
+        bar_cat(_("Verbrauch je Monat"), 0, y + 14, 12, 9,
+                q_fc_month([("household_kwh", _("Haushalt")), ("heatpump_kwh", _("Wärmepumpe")), ("pv_kwh", _("PV-Ertrag"))]),
+                "kwatth", xfield=_("Monat"),
+                overrides=[color_override(_("Haushalt"), C_HOUSE), color_override(_("Wärmepumpe"), "purple"), color_override(_("PV-Ertrag"), C_PV)],
+                desc=_("Das modellierte Jahr, aufgeteilt auf die Monate. Der Winter trägt fast den ganzen Wärmepumpenanteil, die PV steht ihm genau gegenläufig.")),
+        bar_cat(_("Netzbezug und Kosten je Monat"), 12, y + 14, 12, 9,
+                q_fc_month([("grid_kwh", _("Netzbezug")), ("cost_eur", _("Kosten"))]), "kwatth", xfield=_("Monat"),
+                overrides=[color_override(_("Netzbezug"), "red"),
+                           {"matcher": {"id": "byName", "options": _("Kosten")},
+                            "properties": [{"id": "unit", "value": "currencyEUR"}, {"id": "custom.axisPlacement", "value": "right"},
+                                           {"id": "color", "value": {"mode": "fixed", "fixedColor": C_EUR}}]}],
+                desc=_("Woher der Abschlag kommt: die Monate sind sehr ungleich, der Abschlag glättet sie auf zwölf gleiche Raten.")),
+    ]
+    y += 24
 
     # ============================================================ Jahr und Rekorde
     panels.append(row(_("Jahr und Rekorde"), y)); y += 1

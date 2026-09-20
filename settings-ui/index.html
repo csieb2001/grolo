@@ -48,6 +48,12 @@
   td input, td select { width:100%; padding:4px 6px; font-size:13px }
   td.slotno { font-weight:600 }
   .tablewrap { overflow-x:auto }
+  /* Zahlen mit Einheit gehören in eine Zeile – „21,5 °C" über zwei Zeilen liest sich wie zwei Werte. */
+  table.rooms td, table.rooms th { white-space:nowrap }
+  table.rooms td.sub { white-space:normal }
+  table.rooms .stepper { display:flex; gap:4px; align-items:center }
+  table.rooms .stepper button { padding:2px 8px; font-size:13px; line-height:1.3; min-width:28px }
+  table.rooms .stepper input { width:64px; min-width:64px; text-align:center }
   .info { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px }
   .kv { background:#1c1f24; border:1px solid var(--line); border-radius:6px; padding:8px 10px }
   .kv .k { color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.03em }
@@ -76,7 +82,7 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.38.1</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.40.1</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
@@ -169,6 +175,8 @@
           <span class="sfield"><label class="slab" data-t="tariff.price.short"></label><input type="number" id="tariff-price" step="0.1" min="0" inputmode="decimal" placeholder="30"></span>
           <span class="sfield"><label class="slab" data-t="tariff.feedin"></label><input type="number" id="tariff-feedin" step="0.1" min="0" inputmode="decimal" placeholder="0"></span>
           <span class="sfield"><label class="slab" data-t="tariff.cost"></label><input type="number" id="tariff-cost" step="1" min="0" inputmode="numeric" placeholder="0"></span>
+          <span class="sfield"><label class="slab" data-t="tariff.base"></label><input type="number" id="tariff-base" step="0.5" min="0" inputmode="decimal" placeholder="12"></span>
+          <span class="sfield"><label class="slab" data-t="tariff.abschlag"></label><input type="number" id="tariff-abschlag" step="1" min="0" inputmode="numeric" placeholder="–"></span>
           <button class="primary" id="tariff-save" data-t="set"></button>
         </div>
         <div class="muted" id="tariff-status"></div>
@@ -177,6 +185,64 @@
         <div class="top"><label data-t="tariff.live"></label></div>
         <div class="desc" data-t="tariff.live.desc"></div>
         <div id="tariff-live" class="sgrid"><span class="muted">–</span></div>
+      </div>
+    </div>
+  </section>
+  <section id="sec-tado"><h2 data-t="sec.tado"></h2><p class="hint" data-t="sec.tado.hint"></p>
+    <div class="ctl" style="margin-bottom:10px">
+      <div class="top"><label data-t="tado.rooms"></label><span class="cur unknown" id="tado-cur">–</span></div>
+      <div class="desc" data-t="tado.rooms.desc"></div>
+      <div class="tablewrap"><table class="rooms"><thead><tr>
+        <th data-t="tado.room"></th><th data-t="tado.temp"></th><th data-t="tado.set"></th>
+        <th data-t="tado.hum"></th><th data-t="tado.control"></th><th data-t="tado.dev"></th><th data-t="tado.batt"></th>
+      </tr></thead><tbody id="tado-rooms"><tr><td colspan="7" class="muted" data-t="tado.waiting"></td></tr></tbody></table></div>
+    </div>
+    <div class="grid">
+      <div class="ctl">
+        <div class="top"><label data-t="tado.pair"></label></div>
+        <div class="desc" data-t="tado.pair.desc"></div>
+        <div class="row">
+          <span class="sfield"><label class="slab" data-t="tado.code"></label><input type="text" id="tado-code" inputmode="numeric" maxlength="24" placeholder="12345678901"></span>
+          <span class="sfield"><label class="slab" data-t="tado.name"></label><input type="text" id="tado-name" maxlength="32" placeholder="Wohnzimmer"></span>
+          <button class="primary" id="tado-pair" data-t="tado.pair.go"></button>
+        </div>
+        <div class="muted" id="tado-status"></div>
+      </div>
+      <div class="ctl">
+        <div class="top"><label data-t="shift.title"></label><span class="cur unknown" id="shift-cur">–</span></div>
+        <div class="desc" data-t="shift.desc"></div>
+        <div class="row">
+          <span class="sfield"><label class="slab" data-t="shift.on"></label>
+            <select id="shift-enabled"><option value="0" data-t="off"></option><option value="1" data-t="on"></option></select></span>
+          <span class="sfield"><label class="slab" data-t="shift.boost"></label><input type="number" id="shift-boost" step="0.1" min="0" max="1.5" inputmode="decimal" placeholder="0.5"></span>
+          <span class="sfield"><label class="slab" data-t="shift.min"></label><input type="number" id="shift-min" step="10" min="0" inputmode="numeric" placeholder="150"></span>
+          <button class="primary" id="shift-save" data-t="set"></button>
+        </div>
+        <div class="muted" id="shift-state"></div>
+      </div>
+    </div>
+  </section>
+  <section id="sec-house"><h2 data-t="sec.house"></h2><p class="hint" data-t="sec.house.hint"></p>
+    <div class="grid">
+      <div class="ctl">
+        <div class="top"><label data-t="house.heat"></label><span class="cur unknown" id="house-cur">–</span></div>
+        <div class="desc" data-t="house.heat.desc"></div>
+        <div class="row">
+          <span class="sfield"><label class="slab" data-t="house.power"></label><input type="number" id="house-power" step="100" min="0" inputmode="numeric" placeholder="3000"></span>
+          <span class="sfield"><label class="slab" data-t="house.gas"></label><input type="number" id="house-gas" step="100" min="0" inputmode="numeric" placeholder="18000"></span>
+          <span class="sfield"><label class="slab" data-t="house.eff"></label><input type="number" id="house-eff" step="1" min="50" max="100" inputmode="numeric" placeholder="85"></span>
+          <span class="sfield"><label class="slab" data-t="house.area"></label><input type="number" id="house-area" step="5" min="0" inputmode="numeric" placeholder="–"></span>
+          <span class="sfield"><label class="slab" data-t="house.dhw"></label><input type="number" id="house-dhw" step="1" min="0" max="60" inputmode="numeric" placeholder="15"></span>
+          <span class="sfield"><label class="slab" data-t="house.battery"></label><input type="number" id="house-battery" step="0.05" min="0" inputmode="decimal" placeholder="4.1"></span>
+          <button class="primary" id="house-save" data-t="set"></button>
+        </div>
+        <div class="muted" id="house-status"></div>
+      </div>
+      <div class="ctl">
+        <div class="top"><label data-t="house.forecast"></label></div>
+        <div class="desc" data-t="house.forecast.desc"></div>
+        <div id="house-forecast" class="sgrid"><span class="muted">–</span></div>
+        <div class="muted" id="house-abschlag" style="margin-top:8px"></div>
       </div>
     </div>
   </section>
@@ -192,7 +258,7 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.38.1 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.40.1 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
 <script>
@@ -278,6 +344,31 @@
       'sec.tariff': 'Electricity price and savings', 'sec.tariff.hint': 'Used by the Grafana row “Costs and savings” and the website: savings = energy delivered to the house × price, grid cost = grid import (Shelly) × price, payback = total savings relative to the system price. Stored on the local broker (retained), takes effect immediately.',
       'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide).',
       'tariff.price.short': 'Price ct/kWh', 'tariff.feedin': 'Feed-in ct/kWh', 'tariff.cost': 'System price €', 'tariff.saved': 'saved, dashboards recalculate', 'tariff.invalid': 'Enter a price first', 'log.tariff': 'Electricity price saved',
+      'tariff.base': 'Base fee €/month', 'tariff.abschlag': 'Monthly payment €',
+      'sec.tado': 'Rooms (tado° X over Matter)',
+      'sec.tado.hint': 'Read and written entirely locally over Thread \u2013 no tado cloud, no rate limit. Devices with the same name form one room: that is how two radiators in one room end up together, and how a wireless sensor joins its thermostat. The name lives in the device itself.',
+      'tado.rooms': 'Rooms', 'tado.rooms.desc': 'Room temperature comes from the wireless sensor where there is one, because a thermostat sits on the radiator and measures its heat build-up as well. If the sensor drops out, the thermostat takes over and the row says so.',
+      'tado.room': 'Room', 'tado.temp': 'Temperature', 'tado.set': 'Target', 'tado.hum': 'Humidity', 'tado.dev': 'Devices', 'tado.batt': 'Battery',
+      'tado.control': 'Set', 'tado.sensoronly': 'sensor only', 'log.tadoset': 'Room',
+      'mode.off': 'Off', 'mode.heat': 'Heat', 'mode.auto': 'Auto', 'mode.cool': 'Cool',
+      'tado.waiting': 'no rooms yet \u2013 pair a device below',
+      'tado.pair': 'Add a device', 'tado.pair.desc': 'In the tado app: Settings \u2192 Rooms and Devices \u2192 pick the device \u2192 Matter device linking \u2192 copy code. Enter it here with the room name. The pairing window closes after about 15 minutes, so use the code straight away. The device stays in tado and in any other platform \u2013 Matter allows up to five.',
+      'tado.code': 'Pairing code', 'tado.name': 'Room name', 'tado.pair.go': 'Pair',
+      'tado.pairing': 'pairing \u2013 this takes about 20 seconds\u2026', 'tado.paired': 'paired as node {n}, named {name}',
+      'tado.failed': 'pairing failed: {e}', 'tado.needcode': 'Enter a pairing code first', 'log.tado': 'tado pairing',
+      'tado.fallback': 'sensor unavailable, thermostat used',
+      'shift.title': 'Shift heat into the sunny hours',
+      'shift.desc': 'When the PV produces more than the house is drawing, the target temperature is raised by half a degree and the building stores the warmth; once the surplus is gone it goes straight back. Honest about the size of it: with roughly 1.3 kWp and the 800 W output limit this earns cents, not euros, and least of all in winter when the heating actually runs. It is capped at 1.5 K and at 23 °C absolute, never lowers anything, keeps out of the night, and always restores the original target \u2013 also after a restart or a fault. Turn at a thermostat by hand while it is raised and your value wins.',
+      'shift.on': 'Shifting', 'shift.boost': 'Raise by K', 'shift.min': 'From surplus W',
+      'shift.saved': 'saved', 'log.shift': 'Heat shifting',
+      'sec.house': 'House, heat demand and annual forecast',
+      'sec.house.hint': 'What the forecast service needs beyond the measurements: the building\u2019s heat demand and the battery size. From that it models a full year hour by hour with the real weather of your location and works out the annual consumption, the annual bill and the monthly payment your supplier should be charging.',
+      'house.heat': 'Heat demand of the building',
+      'house.heat.desc': 'Electricity: the annual consumption from your last bill, without the heat pump \u2013 more solid than any extrapolation from a few measured days. Gas consumption of the previous years is the best anchor for the heat: kWh of gas from the last bill, times the boiler efficiency, gives the heat the house needs. Floor area is the fallback if you have no gas figure. Hot water is the share of that demand that does not depend on the weather. Battery: usable capacity of all packs, empty = two packs of 2.05 kWh.',
+      'house.power': 'Electricity kWh/year', 'house.gas': 'Gas kWh/year', 'house.eff': 'Boiler %', 'house.area': 'Floor area m²', 'house.dhw': 'Hot water %', 'house.battery': 'Battery kWh',
+      'house.saved': 'saved, forecast is recalculating', 'log.house': 'House data saved',
+      'house.forecast': 'Annual forecast', 'house.forecast.desc': 'Recalculated by the forecast service every few hours, from your settings and everything measured so far.',
+      'house.waiting': 'no forecast yet – the service needs a location, a price and a heat demand',
       'tariff.live': 'Right now', 'tariff.live.desc': 'Money at the current power: NEXA output × price is what you save per hour, grid import (Shelly) × price is what the house costs per hour.',
       'tariff.saveRate': 'saving', 'tariff.gridRate': 'grid cost', 'tariff.perDay': 'per day at this rate', 'tariff.used': 'price in use', 'tariff.default': 'default, not set yet',
       'modes': { '0': 'Load first', '1': 'Battery first', '2': 'Smart' }, 'status': { 'Charging': 'charging', 'Discharging': 'discharging', 'Idle': 'idle' },
@@ -355,6 +446,31 @@
       'sec.tariff': 'Strompreis und Ersparnis', 'sec.tariff.hint': 'Grundlage für die Grafana-Zeile „Kosten und Ersparnis“ und die Website: Ersparnis = ins Haus abgegebene Energie × Preis, Netzkosten = Netzbezug (Shelly) × Preis, Amortisation = gesamte Ersparnis im Verhältnis zum Anlagenpreis. Liegt auf dem lokalen Broker (retained), gilt sofort.',
       'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden).',
       'tariff.price.short': 'Preis ct/kWh', 'tariff.feedin': 'Einspeisung ct/kWh', 'tariff.cost': 'Anlagenpreis €', 'tariff.saved': 'gespeichert, Dashboards rechnen neu', 'tariff.invalid': 'Bitte zuerst einen Preis eintragen', 'log.tariff': 'Strompreis gespeichert',
+      'tariff.base': 'Grundpreis €/Monat', 'tariff.abschlag': 'Abschlag €/Monat',
+      'sec.tado': 'Räume (tado° X über Matter)',
+      'sec.tado.hint': 'Vollständig lokal über Thread gelesen und geschrieben \u2013 ohne tado-Cloud und ohne Rate-Limit. Geräte mit demselben Namen bilden einen Raum: so kommen zwei Heizkörper eines Zimmers zusammen, und so stellt sich ein Funkfühler zu seinem Thermostat. Der Name steht im Gerät selbst.',
+      'tado.rooms': 'Räume', 'tado.rooms.desc': 'Die Raumtemperatur kommt vom Funkfühler, wo einer hängt \u2013 ein Thermostat sitzt am Heizkörper und misst dessen Wärmestau mit. Fällt der Fühler aus, übernimmt das Thermostat, und die Zeile sagt es dazu.',
+      'tado.room': 'Raum', 'tado.temp': 'Temperatur', 'tado.set': 'Soll', 'tado.hum': 'Feuchte', 'tado.dev': 'Geräte', 'tado.batt': 'Batterie',
+      'tado.control': 'Stellen', 'tado.sensoronly': 'nur Fühler', 'log.tadoset': 'Raum',
+      'mode.off': 'Aus', 'mode.heat': 'Heizen', 'mode.auto': 'Auto', 'mode.cool': 'Kühlen',
+      'tado.waiting': 'noch keine Räume \u2013 unten ein Gerät koppeln',
+      'tado.pair': 'Gerät hinzufügen', 'tado.pair.desc': 'In der tado-App: Einstellungen \u2192 Räume und Geräte \u2192 Gerät wählen \u2192 Matter-Geräteverknüpfung \u2192 Code kopieren. Hier zusammen mit dem Raumnamen eintragen. Das Kopplungsfenster schließt nach rund 15 Minuten, den Code also gleich verwenden. Das Gerät bleibt in tado und in jeder anderen Plattform \u2013 Matter erlaubt bis zu fünf.',
+      'tado.code': 'Kopplungscode', 'tado.name': 'Raumname', 'tado.pair.go': 'Koppeln',
+      'tado.pairing': 'koppelt \u2013 das dauert etwa 20 Sekunden\u2026', 'tado.paired': 'gekoppelt als Node {n}, benannt {name}',
+      'tado.failed': 'Koppeln fehlgeschlagen: {e}', 'tado.needcode': 'Bitte zuerst einen Kopplungscode eintragen', 'log.tado': 'tado-Kopplung',
+      'tado.fallback': 'Fühler nicht erreichbar, Thermostat genommen',
+      'shift.title': 'Wärme in die Sonnenstunden schieben',
+      'shift.desc': 'Liefert die PV mehr, als das Haus gerade zieht, wird die Solltemperatur um ein halbes Grad angehoben und das Gebäude speichert die Wärme; ist der Überschuss weg, geht sie sofort zurück. Ehrlich zur Größenordnung: bei rund 1,3 kWp und 800 W Abgabegrenze holt das Cent, nicht Euro \u2013 und am wenigsten im Winter, wenn wirklich geheizt wird. Gedeckelt auf 1,5 K und auf absolut 23 °C, senkt nie etwas ab, hält sich nachts heraus und stellt den Ausgangswert immer wieder her, auch nach Neustart oder Fehler. Wer von Hand am Thermostat dreht, während angehoben ist, gewinnt.',
+      'shift.on': 'Verschieben', 'shift.boost': 'Anhebung K', 'shift.min': 'ab Überschuss W',
+      'shift.saved': 'gespeichert', 'log.shift': 'Wärmeverschiebung',
+      'sec.house': 'Haus, Wärmebedarf und Jahresprognose',
+      'sec.house.hint': 'Was die Prognose über die Messwerte hinaus braucht: den Wärmebedarf des Gebäudes und die Größe der Batterie. Daraus rechnet sie ein volles Jahr Stunde für Stunde mit dem echten Wetter des Standorts durch und sagt, wie viel Strom im Jahr zusammenkommt, was die Jahresrechnung kostet und welcher Abschlag beim Versorger richtig wäre.',
+      'house.heat': 'Wärmebedarf des Gebäudes',
+      'house.heat.desc': 'Strom: der Jahresverbrauch der letzten Abrechnung, ohne W\u00e4rmepumpe \u2013 belastbarer als jede Hochrechnung aus wenigen Messtagen. Der Gasverbrauch der Vorjahre ist der beste Anker f\u00fcr die W\u00e4rme: kWh Gas von der letzten Abrechnung, mal dem Nutzungsgrad des alten Kessels, ergibt die Wärme, die das Haus braucht. Die Wohnfläche ist der Ersatzweg, wenn keine Gaszahl vorliegt. Warmwasser ist der Anteil des Bedarfs, der nicht vom Wetter abhängt. Batterie: nutzbare Kapazität aller Packs, leer = zwei Packs à 2,05 kWh.',
+      'house.power': 'Strom kWh/Jahr', 'house.gas': 'Gas kWh/Jahr', 'house.eff': 'Kessel %', 'house.area': 'Wohnfläche m²', 'house.dhw': 'Warmwasser %', 'house.battery': 'Batterie kWh',
+      'house.saved': 'gespeichert, Prognose rechnet neu', 'log.house': 'Hausdaten gespeichert',
+      'house.forecast': 'Jahresprognose', 'house.forecast.desc': 'Rechnet der Prognosedienst alle paar Stunden neu, aus deinen Angaben und allem, was bis dahin gemessen wurde.',
+      'house.waiting': 'noch keine Prognose – der Dienst braucht Standort, Preis und Wärmebedarf',
       'tariff.live': 'Jetzt gerade', 'tariff.live.desc': 'Geld bei der aktuellen Leistung: NEXA-Ausgang × Preis ist die Ersparnis pro Stunde, Netzbezug (Shelly) × Preis das, was das Haus pro Stunde kostet.',
       'tariff.saveRate': 'Ersparnis', 'tariff.gridRate': 'Netzkosten', 'tariff.perDay': 'pro Tag bei dieser Leistung', 'tariff.used': 'gerechnet mit', 'tariff.default': 'Standard, noch nicht gesetzt',
       'modes': { '0': 'Last zuerst', '1': 'Batterie zuerst', '2': 'Smart' }, 'status': { 'Charging': 'lädt', 'Discharging': 'entlädt', 'Idle': 'Ruhe' },
@@ -399,7 +515,9 @@
     setPill('conn', `${t('connected')} ${host}`, 'ok'); log(`${t('log.mqtt')} ${WS_URL}`, 'log-ok');
     client.subscribe(`${BASE}/grolo/dongle/param/result`);
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
-                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`, `${BASE}/grolo/config/tariff`]);
+                      `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`, `${BASE}/grolo/config/tariff`, `${BASE}/grolo/config/house`, `${BASE}/grolo/forecast`,
+                      `${BASE}/grolo/tado/rooms`, `${BASE}/grolo/tado/commission/result`, `${BASE}/grolo/tado/set/result`,
+                      `${BASE}/grolo/config/heatshift`, `${BASE}/grolo/heatshift/state`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -414,6 +532,13 @@
     if (topic === `${BASE}/grolo/config/shelly`) { try { onShelly(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/shelly/state`) { try { onShellyState(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/tariff`) { try { onTariff(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/config/house`) { try { onHouse(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/forecast`) { try { onForecast(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/tado/rooms`) { try { onTadoRooms(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/tado/commission/result`) { try { onTadoPaired(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/tado/set/result`) { try { onTadoSet(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/config/heatshift`) { try { onShiftCfg(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/heatshift/state`) { try { onShiftState(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
@@ -873,6 +998,7 @@
     state.tariff = cfg;
     const set = (id, v) => { const el = $(id); if (el && document.activeElement !== el) el.value = v ?? ''; };
     set('tariff-price', cfg.price_ct_kwh); set('tariff-feedin', cfg.feedin_ct_kwh ?? 0); set('tariff-cost', cfg.system_cost_eur || '');
+    set('tariff-base', cfg.base_eur_month ?? ''); set('tariff-abschlag', cfg.abschlag_eur_month ?? '');
     $('tariff-cur').textContent = `${fmtCt(cfg.price_ct_kwh)} ct/kWh` + (cfg.system_cost_eur ? ` · ${fmtEur(cfg.system_cost_eur)}` : ''); $('tariff-cur').className = 'cur';
     renderTariffLive();
   }
@@ -891,12 +1017,197 @@
   $('tariff-save').onclick = () => {
     const price = parseFloat($('tariff-price').value);
     if (isNaN(price) || price < 0) { $('tariff-status').textContent = t('tariff.invalid'); return; }
-    const cfg = { price_ct_kwh: Math.round(price * 100) / 100, feedin_ct_kwh: Math.max(0, parseFloat($('tariff-feedin').value) || 0), system_cost_eur: Math.max(0, parseFloat($('tariff-cost').value) || 0), currency: 'EUR', updated: Math.floor(Date.now() / 1000) };
+    const num = id => { const v = parseFloat($(id).value); return isNaN(v) || v < 0 ? null : Math.round(v * 100) / 100; };
+    const cfg = { price_ct_kwh: Math.round(price * 100) / 100, feedin_ct_kwh: Math.max(0, parseFloat($('tariff-feedin').value) || 0), system_cost_eur: Math.max(0, parseFloat($('tariff-cost').value) || 0),
+                  base_eur_month: num('tariff-base'), abschlag_eur_month: num('tariff-abschlag'), currency: 'EUR', updated: Math.floor(Date.now() / 1000) };
     client.publish(`${BASE}/grolo/config/tariff`, JSON.stringify(cfg), { qos: 0, retain: true });
     $('tariff-status').textContent = t('tariff.saved'); log(`→ ${t('log.tariff')}: ${fmtCt(cfg.price_ct_kwh)} ct/kWh, ${t('tariff.feedin')} ${fmtCt(cfg.feedin_ct_kwh)}, ${t('tariff.cost')} ${cfg.system_cost_eur}`, 'log-tx');
     onTariff(cfg, true);
   };
   renderTariffLive();
+
+  // ------------------------------------------------------------------ Räume (tado X über Matter)
+  // Die Seite rechnet nichts und hält nichts vor: sie zeigt, was die tado-Bridge veröffentlicht, und
+  // schickt Kopplungsaufträge dorthin zurück. Der Raumname wird nach erfolgreicher Kopplung ins Gerät
+  // geschrieben, damit er dort bleibt und nicht in einer Konfigurationsdatei hier.
+  let tadoPending = null;      // {name} solange eine Kopplung läuft
+  let tadoDeferred = false;    // Neuaufbau der Tabelle zurückgestellt, weil jemand darin tippt
+  function onTadoRooms(rooms) {
+    state.tado = rooms;
+    const tb = $('tado-rooms'); if (!tb) return;
+    // Die Bridge meldet alle 30 s; ein Neuaufbau mitten im Tippen würde die Eingabe wegwischen.
+    // Solange jemand in der Tabelle steht, wird der Stand gemerkt und beim Verlassen nachgezogen.
+    if (tb.contains(document.activeElement)) {
+      if (!tadoDeferred) {
+        tadoDeferred = true;
+        document.activeElement.addEventListener('blur', () => {
+          tadoDeferred = false;
+          setTimeout(() => onTadoRooms(state.tado), 50);
+        }, { once: true });
+      }
+      return;
+    }
+    const keys = Object.keys(rooms || {}).sort((a, b) => (rooms[a].name || a).localeCompare(rooms[b].name || b));
+    $('tado-cur').textContent = keys.length ? `${keys.length}` : '–';
+    $('tado-cur').className = keys.length ? 'cur' : 'cur unknown';
+    if (!keys.length) { tb.innerHTML = `<tr><td colspan="6" class="muted">${t('tado.waiting')}</td></tr>`; return; }
+    const n1 = v => v == null ? '–' : Number(v).toFixed(1);
+    tb.innerHTML = keys.map(k => {
+      const r = rooms[k];
+      const src = r.temp_source === 'sensor' ? '📡' : '';
+      const fall = r.temp_fallback ? ` <span style="color:var(--orange)" title="${t('tado.fallback')}">⚠</span>` : '';
+      const off = r.radiator_offset_k != null ? `<div class="muted sub">Stau ${r.radiator_offset_k > 0 ? '+' : ''}${n1(r.radiator_offset_k)} K</div>` : '';
+      const split = r.setpoint_split ? `<div class="muted sub" style="color:var(--orange)">${r.setpoint_split.join(' / ')}</div>` : '';
+      const batt = { ok: 'ok', 'niedrig': '⚠ niedrig', 'kritisch': '⛔ kritisch' }[r.battery_text] || '–';
+      const bcol = r.battery_level ? (r.battery_level > 1 ? 'var(--red)' : 'var(--orange)') : 'var(--muted)';
+      // Nur Räume mit Thermostat lassen sich stellen; ein reiner Fühler kann nichts heizen.
+      const can = (r.thermostats || []).length > 0 && r.setpoint_c != null;
+      const lo = r.limit_min_c != null ? r.limit_min_c : 5, hi = r.limit_max_c != null ? r.limit_max_c : 30;
+      const modes = (r.modes || ['off', 'heat']).map(m =>
+        `<option value="${m}"${r.mode_text === m ? ' selected' : ''}>${t('mode.' + m) || m}</option>`).join('');
+      const ctl = can
+        ? `<div class="stepper">
+             <button data-room="${k}" data-step="-0.5" title="−0,5 K">−</button>
+             <input type="number" id="tado-sp-${k}" step="0.5" min="${lo}" max="${hi}" value="${n1(r.setpoint_c)}">
+             <button data-room="${k}" data-step="0.5" title="+0,5 K">+</button>
+             <select id="tado-md-${k}" data-room="${k}">${modes}</select>
+           </div>`
+        : `<span class="muted">${t('tado.sensoronly')}</span>`;
+      return `<tr><td><b>${r.name || k}</b>${r.available ? '' : ' <span style="color:var(--red)">offline</span>'}</td>
+        <td>${n1(r.temp_c)} °C ${src}${fall}${off}</td>
+        <td>${r.setpoint_c == null ? '–' : n1(r.setpoint_c) + ' °C'}${split}</td>
+        <td>${n1(r.humidity_pct)} %</td>
+        <td>${ctl}</td>
+        <td class="muted">${(r.nodes || []).join(', ')}${(r.sensors || []).length ? ` (+${r.sensors.length} 📡)` : ''}</td>
+        <td style="color:${bcol}">${batt}</td></tr>`;
+    }).join('');
+    // Die Tabelle wird bei jeder Nachricht neu gebaut, deshalb hängen die Handler an den frischen Knoten.
+    for (const b of tb.querySelectorAll('button[data-step]')) b.onclick = () => stepRoom(b.dataset.room, Number(b.dataset.step));
+    for (const el of tb.querySelectorAll('input[id^="tado-sp-"]')) {
+      el.onchange = () => sendRoom(el.id.slice(8), Number(el.value));
+      el.onkeydown = e => { if (e.key === 'Enter') el.blur(); };
+    }
+    for (const el of tb.querySelectorAll('select[id^="tado-md-"]')) el.onchange = () => sendMode(el.dataset.room, el.value);
+  }
+  // Schreiben geht immer über die Bridge: die prüft gegen die Grenzwerte, die das Gerät selbst meldet,
+  // und schickt an alle Thermostate des Raums. Die Seite hält keinen eigenen Zustand vor.
+  function sendRoom(room, value) {
+    if (!isFinite(value)) return;
+    client.publish(`${BASE}/grolo/tado/set`, JSON.stringify({ room, setpoint: value }), { qos: 0, retain: false });
+    log(`→ ${t('log.tadoset')}: ${room} ${value.toFixed(1)} °C`, 'log-tx');
+    $('tado-status').textContent = `${room}: ${value.toFixed(1)} °C …`;
+  }
+  function stepRoom(room, delta) {
+    const el = $(`tado-sp-${room}`); if (!el) return;
+    const next = Math.round((Number(el.value) + delta) * 2) / 2;
+    const lo = Number(el.min), hi = Number(el.max);
+    el.value = Math.min(Math.max(next, lo), hi).toFixed(1);
+    sendRoom(room, Number(el.value));
+  }
+  function sendMode(room, mode) {
+    client.publish(`${BASE}/grolo/tado/set`, JSON.stringify({ room, mode }), { qos: 0, retain: false });
+    log(`→ ${t('log.tadoset')}: ${room} ${mode}`, 'log-tx');
+  }
+  $('tado-pair').onclick = () => {
+    const code = ($('tado-code').value || '').replace(/[^0-9]/g, '');
+    if (code.length < 8) { $('tado-status').textContent = t('tado.needcode'); return; }
+    tadoPending = { name: ($('tado-name').value || '').trim() };
+    $('tado-status').textContent = t('tado.pairing');
+    $('tado-pair').disabled = true;
+    client.publish(`${BASE}/grolo/tado/commission`, JSON.stringify({ code }), { qos: 0, retain: false });
+    log(`→ ${t('log.tado')}: …${code.slice(-4)}`, 'log-tx');
+  };
+  function onTadoPaired(res) {
+    $('tado-pair').disabled = false;
+    if (!res || !res.ok) {
+      $('tado-status').textContent = t('tado.failed').replace('{e}', (res && res.error) || '?');
+      log(`${t('tado.failed').replace('{e}', (res && res.error) || '?')}`, 'log-err');
+      tadoPending = null; return;
+    }
+    const name = tadoPending && tadoPending.name;
+    if (name) client.publish(`${BASE}/grolo/tado/set`, JSON.stringify({ node: res.node, name }), { qos: 0, retain: false });
+    $('tado-status').textContent = t('tado.paired').replace('{n}', res.node).replace('{name}', name || '–');
+    log(`✔ ${t('log.tado')}: Node ${res.node}${name ? ' = ' + name : ''}`, 'log-ok');
+    $('tado-code').value = ''; $('tado-name').value = '';
+    tadoPending = null;
+  }
+  function onTadoSet(res) {
+    if (!res) return;
+    if (res.ok === false && res.error) { log(`⚠ tado: ${res.error}`, 'log-err'); $('tado-status').textContent = res.error; return; }
+    if (res.ok && res.setpoint != null) $('tado-status').textContent = `${res.room}: ${Number(res.setpoint).toFixed(1)} °C ✔`;
+    if (res.ok && res.mode) $('tado-status').textContent = `${res.room}: ${res.mode} ✔`;
+  }
+
+  function onShiftCfg(cfg) {
+    if (!cfg || typeof cfg !== 'object') return;
+    const set = (id, v) => { const el = $(id); if (el && document.activeElement !== el) el.value = v ?? ''; };
+    set('shift-enabled', cfg.enabled ? '1' : '0');
+    set('shift-boost', cfg.boost_k ?? '');
+    set('shift-min', cfg.min_surplus_w ?? '');
+  }
+  function onShiftState(st) {
+    const el = $('shift-state'); if (!el || !st) return;
+    const boosted = Object.keys(st.boosted || {});
+    $('shift-cur').textContent = st.enabled ? (boosted.length ? `+${st.boost_k} K` : (lang === 'de' ? 'bereit' : 'ready')) : (lang === 'de' ? 'aus' : 'off');
+    $('shift-cur').className = st.enabled ? (boosted.length ? 'cur' : 'cur') : 'cur unknown';
+    const parts = [st.reason];
+    if (st.surplus_w != null) parts.push(`PV ${st.pv_w} W − Haus ${st.house_w} W = ${st.surplus_w} W`);
+    if (boosted.length) parts.push((lang === 'de' ? 'angehoben: ' : 'raised: ') + boosted.join(', '));
+    el.textContent = parts.join(' · ');
+  }
+  $('shift-save').onclick = () => {
+    const num = (id, d) => { const v = parseFloat($(id).value); return isNaN(v) || v < 0 ? d : v; };
+    const cfg = { enabled: $('shift-enabled').value === '1', boost_k: Math.min(num('shift-boost', 0.5), 1.5),
+                  min_surplus_w: num('shift-min', 150), updated: Math.floor(Date.now() / 1000) };
+    client.publish(`${BASE}/grolo/config/heatshift`, JSON.stringify(cfg), { qos: 0, retain: true });
+    $('shift-state').textContent = t('shift.saved');
+    log(`→ ${t('log.shift')}: ${cfg.enabled ? 'an' : 'aus'}, ${cfg.boost_k} K ab ${cfg.min_surplus_w} W`, 'log-tx');
+  };
+
+  // ------------------------------------------------------------------ Haus, Wärmebedarf und Jahresprognose
+  // Die Angaben hier kann niemand messen: was das Gebäude an Wärme braucht und wie groß die Batterie ist.
+  // Alles andere holt sich der Prognosedienst selbst – Standort, Preis, Module und die eigenen Messwerte.
+  function onHouse(cfg, local) {
+    if (!cfg || typeof cfg !== 'object') return;
+    state.house = cfg;
+    if (!local) {
+      const set = (id, v) => { const el = $(id); if (el && document.activeElement !== el) el.value = v ?? ''; };
+      set('house-power', cfg.power_kwh_year || '');
+      set('house-gas', cfg.gas_kwh_year || '');
+      set('house-eff', cfg.boiler_eff ? Math.round(cfg.boiler_eff * 100) : '');
+      set('house-area', cfg.area_m2 || '');
+      set('house-dhw', cfg.dhw_share != null ? Math.round(cfg.dhw_share * 100) : '');
+      set('house-battery', cfg.battery_kwh || '');
+    }
+    const heat = cfg.gas_kwh_year ? cfg.gas_kwh_year * (cfg.boiler_eff || 0.85) : null;
+    $('house-cur').textContent = heat ? `${Math.round(heat).toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB')} kWh` : '–';
+    $('house-cur').className = heat ? 'cur' : 'cur unknown';
+  }
+  $('house-save').onclick = () => {
+    const num = (id, div) => { const v = parseFloat($(id).value); return isNaN(v) || v < 0 ? null : (div ? Math.round(v) / div : Math.round(v)); };
+    const cfg = { power_kwh_year: num('house-power'), gas_kwh_year: num('house-gas'), boiler_eff: num('house-eff', 100), area_m2: num('house-area'),
+                  dhw_share: num('house-dhw', 100), battery_kwh: parseFloat($('house-battery').value) || null,
+                  updated: Math.floor(Date.now() / 1000) };
+    client.publish(`${BASE}/grolo/config/house`, JSON.stringify(cfg), { qos: 0, retain: true });
+    $('house-status').textContent = t('house.saved');
+    log(`→ ${t('log.house')}: ${cfg.gas_kwh_year || '–'} kWh Gas, ${cfg.area_m2 || '–'} m², ${cfg.battery_kwh || '–'} kWh`, 'log-tx');
+    onHouse(cfg, true);
+  };
+  function onForecast(f) {
+    state.forecast = f;
+    const el = $('house-forecast'); if (!el || !f || !f.year) return;
+    const y = f.year, ab = f.abschlag || {};
+    const nf = n => n == null ? '–' : Math.round(n).toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB');
+    const cell = (label, val, sub, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div>${sub ? `<div class="muted">${sub}</div>` : ''}</div>`;
+    const kwh = lang === 'de' ? 'kWh im Jahr' : 'kWh a year';
+    el.innerHTML = cell(lang === 'de' ? 'Verbrauch' : 'Consumption', `${nf(y.load_kwh)}`, kwh)
+      + cell(lang === 'de' ? 'davon Wärmepumpe' : 'of it heat pump', `${nf(y.heatpump_kwh)}`, kwh, 'var(--orange)')
+      + cell(lang === 'de' ? 'Netzbezug' : 'Grid import', `${nf(y.grid_kwh)}`, kwh, 'var(--red)')
+      + cell(lang === 'de' ? 'Jahresrechnung' : 'Annual bill', `${nf(y.cost_total_eur)} €`, `${nf(y.cost_energy_eur)} € + ${nf(y.cost_base_eur)} € ${lang === 'de' ? 'Grundpreis' : 'base fee'}`, 'var(--red)')
+      + cell(lang === 'de' ? 'Abschlag' : 'Monthly payment', `${nf(ab.recommended_eur)} €`, lang === 'de' ? 'empfohlen' : 'recommended', 'var(--green)');
+    $('house-abschlag').textContent = lang === 'de' ? (ab.de || '') : (ab.en || '');
+  }
+  if ($('house-forecast')) $('house-forecast').innerHTML = `<span class="muted">${t('house.waiting')}</span>`;
 
   // ------------------------------------------------------------------ Energiefluss / power flow (SVG wie auf der Website)
   const FC = { pv: '#f2cc0c', house: '#ff9830', bat: '#73bf69', grid: '#5794f2', red: '#f2495c', muted: '#8e8e8e', panel: '#1c1f24' };

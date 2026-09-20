@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.38.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+Version **2026.40.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
 packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
@@ -336,9 +336,30 @@ them writable, 184 on the installer level**.
 
 - **Dashboards** `/d/wolf-de` and `/d/wolf-en`: live tiles, temperatures, power and COP, compressor and pumps, flow rate and
   spread, an operating-mode timeline, efficiency (SPF from the Wolf's own counters plus daily performance factors computed
-  from heat and electricity per day), cycling (cycles per day, average runtime per cycle, defrosts, runtime split across
-  heating, hot water, defrost and blocking time), the refrigerant circuit, heating circuit and hot water, the Wolf's own
-  statistics registers, and a house row combining PV, household (Shelly) and heat pump with the real cost per kWh of heat.
+  from heat and electricity per day), **cycling** (see below), the refrigerant circuit, heating circuit and hot water, the
+  Wolf's own statistics registers, and a house row combining PV, household (Shelly) and heat pump with the real cost per kWh
+  of heat.
+### Cycling
+
+Short cycling is the most common thing to get wrong on a heat pump, and daily totals cannot see it: they say *how often* the
+compressor started, not *how* it ran. `wolf-bridge` therefore records **every compressor run on its own** — runtime, the pause
+before it, operating mode, average and peak frequency, outside temperature, flow temperature, heat produced and the cycle's
+COP. Each finished run goes out on `homeassistant/grolo/wolf/cycle` and lands in the InfluxDB measurement `wolf_cycle`; the
+rolling evaluation of the last fourteen days is published retained on `homeassistant/grolo/wolf/cycling`.
+
+The yardstick is the uninterrupted runtime, not a maximum number of starts — the German heat pump association deliberately
+names no fixed limit. Below ten minutes is short cycling, ten to twenty is common, thirty to sixty is the ideal; ten to
+fifteen starts a day is a good value, and under 2000 starts a year counts as optimal while 6000 measurably costs compressor
+life. In the Fraunhofer ISE field test real systems ranged from 540 to 15,820 starts a year.
+
+The decisive view is **cycles by outside temperature**. A bump at eight to fifteen degrees is shoulder-season cycling: the
+house needs less than the compressor can turn down to, which is a control problem (flatten the heating curve, widen
+`hysterese_heizbetrieb`, drop the night setback, open the room thermostats). A bump at freezing is hydraulic: too little flow
+or water volume (VDI 4645 says about 20 l per kW), or the unit is simply oversized. From that the sidecar forms a **verdict**
+in German and English that names the parameter to turn — `Cycles.judge()` in `grobro/sidecar/wolf_bridge.py`. Nothing is
+adjusted automatically; the verdict points at the control page and that is where you change it. Dashboards and the GroLo
+website show the same sentence, because both read it from the same place.
+
 - **Control page** `http://<host>:8080/wolf.html` (also linked from the settings page and both dashboards): live tiles, the
   user level (operating mode, target temperatures, time programs, party and holiday mode), the **installer level** behind
   `WOLF_EXPERT_PIN`, and a searchable table of every parameter with its InfluxDB field name. Bilingual, same look as the
@@ -377,6 +398,103 @@ on `homeassistant/grolo/wolf/set/result` with a reason when it is refused. Devic
 - The `gateway` device (the Link's own network settings) has no eBus values, so it stays empty — that is why the check reports
   5 of 6 devices.
 
+## Rooms (tado° X over Matter, fully local)
+
+tado offers **no local API** for the X line — their own words: "tado provides no local API — neither on their
+classic devices nor on the new Tado X line." Both the official Home Assistant integration and the community
+ones go through the cloud, which since 1 January 2026 is rate-limited to 100 requests a day without a
+subscription. The local road is **Matter**: tado° X is Matter over Thread, and tado supports multi-admin, so the
+same device can join a second fabric without leaving tado.
+
+```
+tado° X (Thread) ──▶ Thread Border Router ──IPv6──▶ matter (controller) ──ws──▶ tado-bridge ──▶ mosquitto ──▶ …
+```
+
+Three things have to be true, and they are worth checking in this order:
+
+1. **IPv6 on the host.** Matter over Thread is IPv6-only. On Proxmox, `ipv6.disable=1` on the kernel command
+   line switches it off for every container; it has to go, and the container needs `ip6=auto`.
+2. **A route into the Thread mesh.** The border router announces the mesh prefix as a Route Information Option
+   in its Router Advertisements, and Linux ignores those by default. `accept_ra_rt_info_max_plen=64` (and
+   `accept_ra=2`, so Docker's forwarding does not disable RA processing) fixes it — see
+   `/etc/sysctl.d/60-grolo-matter.conf`. Any Thread border router in the house will do; ours are Apple's.
+3. **A pairing code per device.** tado app → Settings → Rooms and Devices → device → Matter device linking →
+   copy code. The window closes after about 15 minutes. Paste it on the settings page with a room name; the
+   name is written into the device itself (`NodeLabel`), not into a config file here. No Thread credentials are
+   needed: the devices are already on a Thread network, so this is on-network commissioning.
+
+**Devices with the same name form one room.** That is how two radiators in one room end up together, and how a
+Wireless Temperature Sensor X joins its thermostat. Where a room has a sensor, **its** temperature counts — a
+thermostat sits on the radiator and measures its heat build-up as well. The difference between the two is
+published as `radiator_offset_k`: how much too warm the thermostat reads, and therefore how much too early it
+throttles. If the sensor drops out the thermostat takes over and the room is flagged `temp_fallback`.
+
+What a tado° X radiator thermostat actually exposes over Matter, read off the device (firmware 1.4.289):
+local temperature, target temperature, system mode, humidity and a battery **level** — no valve position
+(`PIHeatingDemand`) and no battery percentage; tado keeps those to their cloud. Writable: target temperature,
+mode and the node label.
+
+The room temperature feeds straight back into the annual forecast. A house kept at 21.9 °C rather than the
+assumed 20 °C moves the heating limit by the same 1.9 K and shifts the heating curve's base point with it.
+
+### Shifting heat into the sunny hours
+
+`heat-shift` raises the target temperature by half a degree while the PV produces more than the house draws,
+and puts it back when the surplus is gone — the building as a short-term heat store. It is **off by default**,
+capped at 1.5 K and at 23 °C absolute, never lowers anything, stays out of the night, and always restores the
+original target, including after a restart or a fault. Turn a thermostat by hand while it is raised and your
+value wins. Be realistic about the size: with 1.3 kWp and an 800 W output limit this earns cents, and least of
+all in winter when the heating actually runs.
+
+## Annual forecast
+
+Everything else in GroLo reports what happened. This one answers the question a bill asks: **what will the year cost, and
+is the monthly payment to the supplier the right size?** The `forecast` sidecar models a full year hour by hour, with the
+real weather of your location from the Open-Meteo archive (ERA5, one year of hourly irradiance *and* air temperature):
+
+- **Heat pump** — the building's heat demand spread over the year in proportion to heating degree hours, plus hot water
+  as a weather-independent base load, divided by the COP of each hour. The COP comes from Carnot with a quality factor
+  and the flow temperature of the **Wolf's own heating curve**, read live off the eBus; once enough individual cycles
+  have been recorded, the quality factor is fitted to your measured `wolf_cycle` data instead. Above the unit's rated
+  output the **immersion heater** takes over at a performance factor of 1, which is why the coldest weeks cost more than
+  their share of the degree hours. After about twenty heating days the model stops taking the heat demand from your gas
+  figure and **measures the building instead**: a straight line of daily heat against mean outdoor temperature gives the
+  heat load in kWh per kelvin and day and the real heating limit, with insulation, ventilation and how warm you like it
+  already baked in.
+- **PV** — irradiance on each string's surface from its tilt, azimuth and Wp, the same model the expectation curve uses.
+  When no modules are configured it falls back to the orientation the weather service estimates from the measurements.
+  Either way the result is **calibrated against what actually arrived**: measured yield over the last 30 days divided by
+  what the model would have expected for the same hours of real weather. That one factor carries shading, dirt and a
+  wrong guess at the orientation — but it moves the level only, not the shape over the year, so entering tilt and azimuth
+  still pays.
+- **Household** — your annual figure from the last bill if you entered one, otherwise the median of at least fourteen full
+  measured days (Shelly minus the heat pump's own draw), otherwise a named default.
+- **NEXA** — direct use and battery, hour by hour, inside the 800 W output limit and the usable capacity of the packs.
+
+From the hourly grid import it builds twelve monthly totals and the year:
+
+```
+annual bill      = grid import × unit price + base fee × 12 − feed-in × feed-in rate
+monthly payment  = annual bill / 12, rounded up to the next 5 €
+```
+
+and says whether the payment you actually make is too high (an interest-free loan to the supplier), too low (a bill to
+settle at the end of the year) or right. **A forecast is a calculation with assumptions, not a measurement**, so every
+result carries its assumption list: each figure is marked as measured, your entry, a named default or missing. The
+`quality` field summarises it as `measured`, `partial` or `assumed`, and it is shown as such on all three surfaces.
+
+Each assumption also carries a **spread**, weighted by how much of the grid import it actually drives and added in
+quadrature, because the inputs can be wrong independently of each other. The result is a band around the bill rather
+than a single number. The recommended payment is the expected value rounded up to the next 5 €; the upper edge of the
+band is given separately for anyone who would rather build a credit than risk a bill in January.
+
+What you enter on the settings page, under "House, heat demand and annual forecast" and in the tariff card: annual
+electricity from your last bill, annual gas of the previous years with the old boiler's efficiency (the best anchor for
+the heat demand), floor area as a fallback, hot water share, usable battery capacity, base fee per month and the monthly
+payment you currently make. Everything else the model takes from the measurements and from your existing location and
+module settings. It is published retained on `homeassistant/grolo/forecast`, lands in InfluxDB as `forecast` (year) and
+`forecast_month` (per month), and appears in the Grafana row "Annual forecast", on the settings page and on the website.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -400,10 +518,14 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `raw-registers` | grobro image + `grobro/sidecar/raw_registers.py` | publishes registers GroBro does not map, for research |
 | `cloud-gate` | grobro image + `grobro/sidecar/cloud_gate.py` | switchable, filtering TLS relay to the Growatt cloud |
 | `weather` | grobro image + `grobro/sidecar/weather.py` | Open-Meteo weather and 48 h irradiance forecast, sun position every minute, expected power per string (`solar.py`) |
+| `forecast` | grobro image + `grobro/sidecar/forecast.py` | annual model of consumption, electricity bill and the monthly payment to recommend, hour by hour over a full weather year |
+| `matter` | ghcr.io/matter-js/matterjs-server | local Matter controller (Open Home Foundation, matter.js), WebSocket on 5580, host network for mDNS and IPv6 (profile `tado`) |
+| `tado-bridge` | grobro image + `grobro/sidecar/tado_bridge.py` | reads the tado° X rooms over Matter and writes target temperature, mode and room name back (profile `tado`) |
+| `heat-shift` | grobro image + `grobro/sidecar/heat_shift.py` | raises the target temperature while the PV has a surplus and puts it back afterwards; off by default (profile `tado`) |
 | `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples, weather and heat pump data to the optional GroLo website (Vercel) |
 | `shelly-control` | grobro image + `grobro/sidecar/shelly_control.py` | local zero-feed-in: reads a Shelly meter and steers the NEXA output power |
 | `wolf` | zivillian/ism7mqtt | ISM7 protocol to the WOLF Link on TLS 9092, one JSON topic per bus device (profile `wolf`) |
-| `wolf-bridge` | grobro image + `grobro/sidecar/wolf_bridge.py` | keeps the full heat pump state, computes COP, spread, cycling and performance factors, validates and forwards control writes (profile `wolf`) |
+| `wolf-bridge` | grobro image + `grobro/sidecar/wolf_bridge.py` | keeps the full heat pump state, computes COP, spread and performance factors, records every compressor run and judges the cycling, validates and forwards control writes (profile `wolf`) |
 
 `grobro/registers/growatt_nexa_registers.json` is a copy of GroBro's NEXA register map extended with the firmware registers
 (119/120) and the serial/temperature registers of battery packs 2–4. It is mounted into the GroBro container and can be removed
@@ -485,6 +607,7 @@ scripts/build-chain.sh       assemble and verify the full chain
 scripts/verify.sh            16-step health check
 scripts/test-panels.py       run every Grafana panel query
 scripts/fit-orientation.py   estimate tilt/azimuth per string from the measurements
+grobro/sidecar/forecast.py   annual forecast: consumption, bill and recommended monthly payment
 scripts/wolf-config.sh       ask the WOLF Link which devices are on the eBus -> wolf/parameter.json
 scripts/wolf-catalog.py      build wolf/catalog.json from Wolf's own resources (names, units, limits, menus)
 scripts/wolf-dashboard.py    generates grafana/dashboards/wolf-de.json and wolf-en.json
@@ -498,7 +621,7 @@ grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, we
 grobro/registers/            extended NEXA register map
 wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.38.1
+VERSION                      2026.40.1
 ```
 
 License: MIT.

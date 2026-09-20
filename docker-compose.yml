@@ -216,6 +216,102 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
 
+  # Jahresprognose: rechnet ein volles Jahr Stunde für Stunde mit dem echten Wetter des Standorts durch und
+  # sagt, wie viel Strom zusammenkommt, was die Jahresrechnung kostet und welcher Abschlag richtig wäre.
+  forecast:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-forecast
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/forecast.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      FORECAST_INTERVAL: "${FORECAST_INTERVAL:-21600}"
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
+  # ---------------- tado X (Matter over Thread, lokal) ----------------
+  # tado bietet für die X-Reihe kein lokales HTTP-API; der lokale Weg ist Matter. Dieser Dienst ist ein
+  # vollwertiger Matter-Controller (Open Home Foundation, auf matter.js) mit WebSocket-Schnittstelle auf
+  # Port 5580 – dieselbe API, die Home Assistant benutzt. Er braucht das Netz des Hosts, weil Matter über
+  # mDNS findet und über IPv6 spricht: die Geräte hängen im Thread-Mesh und sind nur über die Route
+  # erreichbar, die der Border Router per Router Advertisement ankündigt.
+  matter:
+    image: ghcr.io/matter-js/matterjs-server:stable
+    container_name: grolo-matter
+    restart: unless-stopped
+    profiles: ["tado"]
+    network_mode: host
+    security_opt:
+      - apparmor=unconfined
+    environment:
+      LOG_LEVEL: "${MATTER_LOG_LEVEL:-info}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - matter-data:/data
+
+  # Übersetzt zwischen dem Matter-Controller und dem GroLo-Stack: liest je Raum Ist- und Solltemperatur,
+  # Betriebsart, Luftfeuchte, Ventilstellung und Batterie, und nimmt Schreibaufträge der Bedienseite entgegen.
+  tado-bridge:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-tado-bridge
+    restart: unless-stopped
+    profiles: ["tado"]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/tado_bridge.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      MATTER_URL: "${MATTER_URL:-ws://host.docker.internal:5580/ws}"
+      TADO_INTERVAL: "${TADO_INTERVAL:-30}"
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
+  # Verschiebt Heizwärme in die Sonnenstunden: hebt die Solltemperatur bei PV-Überschuss um ein halbes
+  # Grad an und nimmt sie danach zurück. Standardmäßig aus; eingeschaltet wird auf der Einstellungsseite.
+  heat-shift:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-heat-shift
+    restart: unless-stopped
+    profiles: ["tado"]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/heat_shift.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      HEATSHIFT_INTERVAL: "${HEATSHIFT_INTERVAL:-120}"
+      HEATSHIFT_STATE: /state/heatshift.json
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - heatshift-state:/state          # Ausgangs-Sollwerte überleben einen Neustart
+
   # ---------------- Wärmepumpe (WOLF Link, lokal) ----------------
   # ism7mqtt spricht das ISM7-Protokoll direkt mit dem WOLF Link (TLS auf Port 9092) und veröffentlicht
   # je Busteilnehmer ein JSON-Topic Wolf/<ip>/<Gerät>_<Bus>. Kein Wolf-Cloud-Portal beteiligt.
@@ -353,4 +449,6 @@ volumes:
   grafana-data:
   cloud-gate-state:
   web-push-state:
+  matter-data:
+  heatshift-state:
   wolf-state:

@@ -14,6 +14,9 @@ Wärmepumpe, Solar und Batterie Minute für Minute gegeneinander rechnen kann:
   heat.samples  Mittel des Intervalls: Aufnahme und Wärmeleistung, Vor-/Rücklauf, Warmwasser, Außentemperatur, Frequenz
   heat.days     Tageswerte aus den Zählern der Wolf (heute und Vortag, damit eine Lücke sich von selbst schließt)
   heat.state    der aktuelle Stand für die Kacheln, inklusive Klartext von Betriebsart und Verdichterstatus
+  heat.cycles   die seit dem letzten Push beendeten Verdichterläufe, einzeln
+  heat.state.cycling  die Auswertung der Taktung samt Befund, unverändert aus der wolf-bridge
+Die Jahresprognose (Sidecar forecast) geht als "forecast" mit, sobald sie sich ändert.
 
 Umgebung: WEB_URL (z. B. https://grolo.vercel.app), WEB_TOKEN, PUSH_INTERVAL (s, Standard 30), MQTT_HOST/MQTT_PORT, HA_BASE_TOPIC.
 """
@@ -38,7 +41,7 @@ def queue_save():
     try:
         os.makedirs(os.path.dirname(QUEUE_FILE), exist_ok=True)
         with open(QUEUE_FILE + ".tmp", "w") as f:
-            json.dump({"samples": list(queue), "heat": list(heat_queue)}, f)
+            json.dump({"samples": list(queue), "heat": list(heat_queue), "cycles": list(cycle_queue)}, f)
         os.replace(QUEUE_FILE + ".tmp", QUEUE_FILE)
     except Exception as e:
         LOG.debug("Puffer sichern: %s", e)
@@ -54,17 +57,21 @@ def queue_load():
         LOG.warning("Puffer laden: %s", e); return
     items = saved if isinstance(saved, list) else saved.get("samples", [])   # ältere Puffer waren eine reine Liste
     heat = [] if isinstance(saved, list) else saved.get("heat", [])
-    queue.extend(items); heat_queue.extend(heat)
-    LOG.info("Puffer geladen: %d Samples, %d Wärmepumpe aus %s", len(items), len(heat), QUEUE_FILE)
+    cycles = [] if isinstance(saved, list) else saved.get("cycles", [])
+    queue.extend(items); heat_queue.extend(heat); cycle_queue.extend(cycles)
+    LOG.info("Puffer geladen: %d Samples, %d Wärmepumpe, %d Takte aus %s", len(items), len(heat), len(cycles), QUEUE_FILE)
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
 shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "house": 0.0}   # n/grid/house: Mittelwert über das Intervall
 site_cfg = {"cfg": None}   # retained grolo/config/site (String-Namen)
 tariff = {"cfg": None, "dirty": False}
+forecast = {"data": None, "dirty": False}   # Jahresprognose vom Sidecar forecast, geht mit, sobald sie sich ändert
+tado = {"rooms": None}                      # Räume der tado-Bridge, gehen bei jedem Push mit
 # Wärmepumpe: letzter Zustand je Gerät der wolf-bridge plus Mittelwerte des laufenden Intervalls
-wolf = {"state": {}, "derived": {}, "n": 0, "sums": {}, "last": {}}
+wolf = {"state": {}, "derived": {}, "cycling": None, "n": 0, "sums": {}, "last": {}}
 WOLF_AVG = ("hp_w", "heat_w", "flow_c", "return_c", "dhw_c", "outside_c", "spread", "freq", "flow_lpm")
 heat_queue = deque(maxlen=2880)
+cycle_queue = deque(maxlen=2000)   # beendete Verdichterläufe, die noch nicht bei der Website sind
 
 
 def pick(d, *keys, default=None):
@@ -218,6 +225,10 @@ def wolf_payload(now):
         "starts": hp.get("verdichterstarts"), "serial": hp.get("seriennummer"), "power_class": hp.get("leistungsklasse"),
         "model": "Wolf CHA", "firmware": hp.get("hcm_4_firmware"),
     }
+    # Taktung: die Auswertung des Sidecars geht unverändert mit, damit Website und Grafana denselben Befund
+    # zeigen. Die einzelnen Takte gehen als Liste mit und werden auf der Website zur Verteilung verdichtet.
+    if wolf["cycling"]:
+        state["cycling"] = wolf["cycling"]
     return {"ts": now, "days": days, "state": state}
 
 
@@ -262,6 +273,18 @@ def on_message(client, userdata, msg):
             with lock:
                 wolf["derived"] = json.loads(msg.payload)
                 wolf_accumulate()
+        elif parts[-2:] == ["wolf", "cycling"]:
+            with lock:
+                wolf["cycling"] = json.loads(msg.payload)
+        elif parts[-2:] == ["wolf", "cycle"]:
+            with lock:
+                cycle_queue.append(json.loads(msg.payload))
+        elif parts[-2:] == ["tado", "rooms"]:
+            with lock:
+                tado["rooms"] = json.loads(msg.payload)
+        elif parts[-2:] == ["grolo", "forecast"]:
+            with lock:
+                forecast["data"] = json.loads(msg.payload); forecast["dirty"] = True
         elif parts[-2:] == ["config", "tariff"]:
             with lock:
                 tariff["cfg"] = json.loads(msg.payload); tariff["dirty"] = True
@@ -294,11 +317,15 @@ def flush():
         shelly["dirty"] = False
         tf = tariff["cfg"] if (tariff["dirty"] and tariff["cfg"]) else None
         tariff["dirty"] = False
+        fc = forecast["data"] if (forecast["dirty"] and forecast["data"]) else None
+        forecast["dirty"] = False
+        rooms = tado["rooms"]
         heat = wolf_payload(now)
-    if not queue and not heat_queue and not info and not wx and not sh and not tf:
+    if not queue and not heat_queue and not cycle_queue and not info and not wx and not sh and not tf and not fc:
         return
     batch = list(queue)[:200]
     heat_batch = list(heat_queue)[:200]
+    cycle_batch = list(cycle_queue)[:200]
     body = {"samples": batch}
     if info:
         body["info"] = next(iter(info.values()))
@@ -308,8 +335,12 @@ def flush():
         body["shelly"] = sh
     if tf:
         body["tariff"] = tf
-    if heat or heat_batch:
-        body["heat"] = {**(heat or {}), "samples": heat_batch}
+    if fc:
+        body["forecast"] = fc
+    if rooms:
+        body["rooms"] = rooms
+    if heat or heat_batch or cycle_batch:
+        body["heat"] = {**(heat or {}), "samples": heat_batch, "cycles": cycle_batch}
     req = urllib.request.Request(f"{URL}/api/ingest", data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"})
     try:
@@ -319,15 +350,19 @@ def flush():
             queue.popleft()
         for _ in heat_batch:
             heat_queue.popleft()
+        for _ in cycle_batch:
+            cycle_queue.popleft()
         if os.path.exists(QUEUE_FILE):
-            queue_save() if (queue or heat_queue) else os.remove(QUEUE_FILE)
-        LOG.info("gesendet: %d Samples%s (Antwort %s, Wetter %s%s), Puffer %d", len(batch),
-                 f" + {len(heat_batch)} Wärmepumpe" if heat_batch else "", res.get("inserted"), res.get("weather"),
-                 ", Tarif" if tf else "", len(queue) + len(heat_queue))
+            queue_save() if (queue or heat_queue or cycle_queue) else os.remove(QUEUE_FILE)
+        LOG.info("gesendet: %d Samples%s%s (Antwort %s, Wetter %s%s), Puffer %d", len(batch),
+                 f" + {len(heat_batch)} Wärmepumpe" if heat_batch else "",
+                 f" + {len(cycle_batch)} Takte" if cycle_batch else "", res.get("inserted"), res.get("weather"),
+                 ", Tarif" if tf else "", len(queue) + len(heat_queue) + len(cycle_queue))
     except urllib.error.HTTPError as e:
         LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200]); queue_save()
         with lock:
-            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh); tariff["dirty"] = tariff["dirty"] or bool(tf)
+            info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
+            tariff["dirty"] = tariff["dirty"] or bool(tf); forecast["dirty"] = forecast["dirty"] or bool(fc)
     except Exception as e:
         LOG.warning("Senden fehlgeschlagen (%s), Puffer %d", e, len(queue)); queue_save()
         with lock:
@@ -341,7 +376,9 @@ def main():
     client = mqtt.Client(client_id="grolo-web-push", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: (LOG.info("MQTT verbunden %s:%s, Ziel %s", HOST, PORT, URL),
                                                      c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0), (f"{BASE}/grolo/config/site", 0),
-                                                                  (f"{BASE}/grolo/wolf/+/state", 0), (f"{BASE}/grolo/wolf/derived", 0)]))
+                                                                  (f"{BASE}/grolo/wolf/+/state", 0), (f"{BASE}/grolo/wolf/derived", 0),
+                                                                  (f"{BASE}/grolo/wolf/cycling", 0), (f"{BASE}/grolo/wolf/cycle", 1),
+                                                                  (f"{BASE}/grolo/forecast", 0), (f"{BASE}/grolo/tado/rooms", 0)]))
     client.on_message = on_message
     while True:
         try:

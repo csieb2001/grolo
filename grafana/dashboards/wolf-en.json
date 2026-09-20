@@ -191,7 +191,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "What the heat pump is doing right now: heating, hot water, defrost, cooling or standby.",
    "id": 2,
@@ -326,7 +327,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Compressor state. “Blocking time” and “Power-OFF” are normal waiting states, not faults.",
    "id": 3,
@@ -376,7 +378,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Inverter speed. A low frequency over a long time is the most efficient way to run.",
    "id": 4,
@@ -426,7 +429,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 5,
    "gridPos": {
@@ -475,7 +479,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Electricity for compressor and immersion heater together, as the Wolf reports it (whole kW).",
    "id": 6,
@@ -544,7 +549,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Heat output divided by power input, only while the compressor runs. The Wolf reports the input in whole kW, so the value is coarse.",
    "id": 7,
@@ -594,7 +600,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 8,
    "gridPos": {
@@ -705,7 +712,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 10,
    "gridPos": {
@@ -754,7 +762,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 11,
    "gridPos": {
@@ -803,7 +812,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 12,
    "gridPos": {
@@ -852,7 +862,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 13,
    "gridPos": {
@@ -901,7 +912,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Flow minus return. The control holds it at the configured target spread; a permanently small spread means the pump runs harder than needed.",
    "id": 14,
@@ -951,7 +963,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 15,
    "gridPos": {
@@ -1020,7 +1033,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Below roughly 1 bar the system should be topped up.",
    "id": 16,
@@ -1083,7 +1097,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 17,
    "gridPos": {
@@ -1157,7 +1172,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Direct electric heat instead of the heat pump. Every hour here costs about three times as much as running the compressor.",
    "id": 18,
@@ -1232,7 +1248,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "State of the heat pump's SG/PV interface.",
    "id": 19,
@@ -1875,7 +1892,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Seasonal performance factor from the Wolf's own counters: heat produced divided by electricity used.",
    "id": 27,
@@ -1944,7 +1962,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 28,
    "gridPos": {
@@ -1988,7 +2007,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 29,
    "gridPos": {
@@ -2032,7 +2052,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Daily performance factor of the previous day, straight from the Wolf.",
    "id": 30,
@@ -2082,7 +2103,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 31,
    "gridPos": {
@@ -2131,7 +2153,8 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "id": 32,
    "gridPos": {
@@ -2298,6 +2321,150 @@
   },
   {
    "type": "stat",
+   "title": "Assessment",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"befund_ampel\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "healthy",
+         "index": 0
+        },
+        "1": {
+         "text": "fine",
+         "index": 1
+        },
+        "2": {
+         "text": "check",
+         "index": 2
+        },
+        "3": {
+         "text": "urgent",
+         "index": 3
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "blue",
+        "value": 1
+       },
+       {
+        "color": "orange",
+        "value": 2
+       },
+       {
+        "color": "red",
+        "value": 3
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "background_solid",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 36,
+   "gridPos": {
+    "x": 0,
+    "y": 51,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Verdict",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"befund_en\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "left",
+    "wideLayout": true,
+    "text": {
+     "valueSize": 15
+    }
+   },
+   "description": "From the last fourteen days: runtime per cycle, share of short cycles and the outside temperature they happen at. The sentence names the parameter to turn; nothing is changed automatically, that stays with the control page.",
+   "id": 37,
+   "gridPos": {
+    "x": 4,
+    "y": 51,
+    "w": 20,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
    "title": "Cycles today",
    "targets": [
     {
@@ -2350,13 +2517,14 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "How often the compressor started today. Few long cycles are gentle on it; many short ones are the most common sizing mistake.",
-   "id": 36,
+   "id": 38,
    "gridPos": {
     "x": 0,
-    "y": 51,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2420,13 +2588,14 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Average runtime of a cycle today. Below ten minutes the system is short-cycling.",
-   "id": 37,
+   "id": 39,
    "gridPos": {
     "x": 4,
-    "y": 51,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2470,12 +2639,13 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
-   "id": 38,
+   "id": 40,
    "gridPos": {
     "x": 8,
-    "y": 51,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2518,13 +2688,14 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Defrost cycles take heat back out of the buffer. Around 0 to 5 °C with humidity they are normal.",
-   "id": 39,
+   "id": 41,
    "gridPos": {
     "x": 12,
-    "y": 51,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2567,12 +2738,13 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
-   "id": 40,
+   "id": 42,
    "gridPos": {
     "x": 16,
-    "y": 51,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2616,12 +2788,13 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
-   "id": 41,
+   "id": 43,
    "gridPos": {
     "x": 20,
-    "y": 51,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2631,11 +2804,447 @@
    }
   },
   {
-   "type": "barchart",
+   "type": "stat",
+   "title": "Runtime per cycle, median",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"takt_median_min\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "m",
+     "decimals": 0,
+     "noValue": "–",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 10
+       },
+       {
+        "color": "yellow",
+        "value": 20
+       },
+       {
+        "color": "green",
+        "value": 30
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Median of the last fourteen days. Ten to twenty minutes is common, thirty to sixty ideal; below ten is short cycling.",
+   "id": 44,
+   "gridPos": {
+    "x": 0,
+    "y": 61,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Short cycles",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"kurztakt_anteil\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "decimals": 0,
+     "noValue": "–",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 15
+       },
+       {
+        "color": "orange",
+        "value": 25
+       },
+       {
+        "color": "red",
+        "value": 40
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Share of cycles below ten minutes. The German heat pump association deliberately names no maximum number of starts, but the uninterrupted runtime as the yardstick.",
+   "id": 45,
+   "gridPos": {
+    "x": 4,
+    "y": 61,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
    "title": "Cycles per day",
    "targets": [
     {
-     "query": "import \"timezone\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"verdichterstarts\")\n  |> aggregateWindow(every: 1d, fn: max, createEmpty: false, timeSrc: \"_start\")\n  |> difference(nonNegative: true)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Cycles\")",
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"takte_je_tag\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 1,
+     "noValue": "–",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 16
+       },
+       {
+        "color": "orange",
+        "value": 25
+       },
+       {
+        "color": "red",
+        "value": 40
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Ten to fifteen starts a day counts as a good value. A dash means not a full day has been recorded yet – then “Cycles today” next to it is the figure that counts.",
+   "id": 46,
+   "gridPos": {
+    "x": 8,
+    "y": 61,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Starts per year, projected",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"starts_jahr\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "noValue": "–",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 2000
+       },
+       {
+        "color": "orange",
+        "value": 4000
+       },
+       {
+        "color": "red",
+        "value": 6000
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Projected from the running average, only after three days of data. Below 2000 counts as optimal, 4000 as the limit, from 6000 on it eats into compressor life. In the Fraunhofer ISE field test the units ranged from 540 to 15,820 starts a year.",
+   "id": 47,
+   "gridPos": {
+    "x": 12,
+    "y": 61,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Runtime share",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"laufzeitanteil\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "purple"
+     },
+     "noValue": "–"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "What share of the time the compressor runs. A high share with few cycles is the best state: long runs at low output.",
+   "id": 48,
+   "gridPos": {
+    "x": 16,
+    "y": 61,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Pause between cycles",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"takt_pause_min\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "m",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     },
+     "noValue": "–"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Median of the pauses. Short runs together with short pauses mean the hysteresis is set too tightly and the compressor never reaches its working point.",
+   "id": 49,
+   "gridPos": {
+    "x": 20,
+    "y": 61,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "histogram",
+   "title": "Distribution of cycle lengths",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_cycle\" and r._field == \"min\")\n  |> map(fn: (r) => ({ r with _field: if r.mode == \"hz\" then \"Heating\" else if r.mode == \"ww\" then \"Hot water\" else \"Other\" }))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> group(columns: [\"_field\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 70
+     },
+     "unit": "m"
+    },
+    "overrides": []
+   },
+   "options": {
+    "bucketSize": 5,
+    "bucketOffset": 0,
+    "combine": false,
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    }
+   },
+   "description": "Each bar is a five-minute class, its height the number of cycles in it. An average hides whether there are many short and a few long cycles; here you see it. Hot water charges are separate, they are allowed to be short.",
+   "id": 50,
+   "gridPos": {
+    "x": 0,
+    "y": 66,
+    "w": 12,
+    "h": 9
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "barchart",
+   "title": "Cycles by outside temperature",
+   "targets": [
+    {
+     "query": "import \"math\"\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_cycle\" and (r._field == \"min\" or r._field == \"t_out\"))\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.t_out and exists r.min)\n  |> map(fn: (r) => ({ r with klasse: math.floor(x: r.t_out / 2.0) * 2.0 }))\n  |> group(columns: [\"klasse\"])\n  |> reduce(identity: {n: 0.0, sum: 0.0}, fn: (r, accumulator) => ({n: accumulator.n + 1.0, sum: accumulator.sum + r.min}))\n  |> group()\n  |> sort(columns: [\"klasse\"])\n  |> map(fn: (r) => ({\n        \"Outside temperature\": string(v: int(v: r.klasse)) + \" °C\",\n        \"Cycles\": r.n,\n        \"Runtime per cycle\": r.sum / r.n }))",
      "refId": "A",
      "datasource": {
       "type": "influxdb",
@@ -2653,7 +3262,31 @@
       }
      }
     },
-    "overrides": []
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Runtime per cycle"
+      },
+      "properties": [
+       {
+        "id": "custom.axisPlacement",
+        "value": "right"
+       },
+       {
+        "id": "unit",
+        "value": "m"
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "purple"
+        }
+       }
+      ]
+     }
+    ]
    },
    "options": {
     "xTickLabelRotation": 0,
@@ -2666,13 +3299,108 @@
     },
     "tooltip": {
      "mode": "multi"
+    },
+    "xField": "Outside temperature"
+   },
+   "description": "This is where the decision is made. A bump at eight to fifteen degrees is shoulder-season cycling: the house needs less than the compressor can turn down to – flatten the curve, widen the hysteresis. A bump at freezing is hydraulic: too little flow or volume (VDI 4645 says 20 l per kW), or the unit is oversized.",
+   "id": 51,
+   "gridPos": {
+    "x": 12,
+    "y": 66,
+    "w": 12,
+    "h": 9
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Cycles per day and runtime per cycle",
+   "targets": [
+    {
+     "query": "import \"timezone\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_cycle\" and r._field == \"min\")\n  |> group()\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: false, timeSrc: \"_start\")\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Cycles\")",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    },
+    {
+     "query": "import \"timezone\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_cycle\" and r._field == \"min\")\n  |> group()\n  |> aggregateWindow(every: 1d, fn: median, createEmpty: false, timeSrc: \"_start\")\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Runtime per cycle\")",
+     "refId": "B",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1.6,
+      "fillOpacity": 70,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none"
+      },
+      "lineInterpolation": "linear"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Runtime per cycle"
+      },
+      "properties": [
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.axisPlacement",
+        "value": "right"
+       },
+       {
+        "id": "unit",
+        "value": "m"
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "purple"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "none"
     }
    },
-   "description": "From the Wolf's total counter: how many starts fall on each day.",
-   "id": 42,
+   "description": "The trend after a settings change: the bars should fall, the line should rise. Both together are the proof that it worked.",
+   "id": 52,
    "gridPos": {
     "x": 0,
-    "y": 56,
+    "y": 75,
     "w": 12,
     "h": 8
    },
@@ -2721,10 +3449,10 @@
     }
    },
    "description": "Minutes per operating mode since midnight, counted by the sidecar.",
-   "id": 43,
+   "id": 53,
    "gridPos": {
     "x": 12,
-    "y": 56,
+    "y": 75,
     "w": 12,
     "h": 8
    },
@@ -2734,13 +3462,682 @@
    }
   },
   {
-   "id": 44,
+   "type": "state-timeline",
+   "title": "Compressor cycle band",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"verdichter\")\n  |> aggregateWindow(every: $__interval, fn: max, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Compressor\")",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "OFF",
+         "index": 0
+        },
+        "1": {
+         "text": "ON",
+         "index": 1
+        }
+       }
+      }
+     ],
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "fillOpacity": 80,
+      "lineWidth": 0
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "auto",
+    "mergeValues": true,
+    "alignValue": "center",
+    "rowHeight": 0.9,
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    }
+   },
+   "description": "On and off over time. A regular striped pattern is cycling, long blocks are the desired state.",
+   "id": 54,
+   "gridPos": {
+    "x": 0,
+    "y": 83,
+    "w": 24,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "table",
+   "title": "Recent cycles",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_cycle\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"_time\", \"mode\", \"min\", \"pause_min\", \"t_out\", \"freq\", \"freq_max\", \"flow_c\", \"kwh\", \"cop\", \"defrost\"])\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 300)",
+     "refId": "A",
+     "format": "table",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "align": "auto"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false,
+     "reducer": [
+      "sum"
+     ],
+     "countRows": false,
+     "fields": ""
+    }
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "_start": true,
+       "_stop": true,
+       "result": true,
+       "table": true
+      },
+      "renameByName": {
+       "_time": "End",
+       "mode": "Mode",
+       "min": "Runtime min",
+       "pause_min": "Pause min",
+       "t_out": "Outside °C",
+       "freq": "Frequency Hz",
+       "freq_max": "Peak Hz",
+       "flow_c": "Flow °C",
+       "kwh": "Heat kWh",
+       "cop": "COP",
+       "defrost": "Defrost"
+      }
+     }
+    }
+   ],
+   "description": "Every compressor run on its own, most recent first. Useful when a figure stands out and you want to know which cycles are behind it.",
+   "id": 55,
+   "gridPos": {
+    "x": 0,
+    "y": 88,
+    "w": 24,
+    "h": 10
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "id": 56,
+   "type": "row",
+   "title": "Rooms (tado over Matter)",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 98,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "Rooms",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"online\")\n  |> last()\n  |> group()\n  |> count()",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     },
+     "noValue": "–"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "How many rooms are currently reporting.",
+   "id": 57,
+   "gridPos": {
+    "x": 0,
+    "y": 99,
+    "w": 3,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Mean room temperature",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> mean()",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "celsius",
+     "decimals": 1,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "orange"
+     },
+     "noValue": "–"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "The reference the annual forecast works from: heating limit and heating curve both depend on it. Two degrees warmer in the house is not a detail; it moves the heat demand noticeably.",
+   "id": 58,
+   "gridPos": {
+    "x": 3,
+    "y": 99,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Coldest room",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> min()",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "celsius",
+     "decimals": 1,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     },
+     "noValue": "–"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 59,
+   "gridPos": {
+    "x": 7,
+    "y": 99,
+    "w": 3,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Warmest room",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> last()\n  |> group()\n  |> max()",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "celsius",
+     "decimals": 1,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "red"
+     },
+     "noValue": "–"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 60,
+   "gridPos": {
+    "x": 10,
+    "y": 99,
+    "w": 3,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Weakest battery",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"battery_level\")\n  |> last()\n  |> group()\n  |> max()",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "ok",
+         "index": 0
+        },
+        "1": {
+         "text": "low",
+         "index": 1
+        },
+        "2": {
+         "text": "critical",
+         "index": 2
+        }
+       }
+      }
+     ],
+     "noValue": "–",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       },
+       {
+        "color": "red",
+        "value": 2
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "The worst battery state across all thermostats. Over Matter tado reports only a level, not a percentage.",
+   "id": 61,
+   "gridPos": {
+    "x": 13,
+    "y": 99,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "table",
+   "title": "Rooms now",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tado\" and (r._field == \"temp_c\" or r._field == \"setpoint_c\" or r._field == \"humidity_pct\" or r._field == \"radiator_offset_k\" or r._field == \"battery_level\" or r._field == \"online\"))\n  |> last()\n  |> group()\n  |> pivot(rowKey: [\"room\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"room\"])\n  |> map(fn: (r) => ({ \"Room\": r.room, \"Actual °C\": r.temp_c, \"Target °C\": r.setpoint_c, \"Humidity %\": r.humidity_pct, \"Build-up K\": r.radiator_offset_k, \"Battery\": r.battery_level, \"Online\": r.online }))",
+     "refId": "A",
+     "format": "table",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "align": "auto"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false,
+     "reducer": [
+      "sum"
+     ],
+     "countRows": false,
+     "fields": ""
+    }
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "_start": true,
+       "_stop": true,
+       "result": true,
+       "table": true
+      }
+     }
+    }
+   ],
+   "description": "“Build-up” is the difference between the thermostat on the radiator and a free-hanging wireless sensor in the same room: that is how much too warm the thermostat reads, and how much too early it throttles. Only filled where a sensor is present.",
+   "id": 62,
+   "gridPos": {
+    "x": 0,
+    "y": 108,
+    "w": 24,
+    "h": 9
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Room temperatures",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"temp_c\")\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"room\"])\n  |> rename(columns: {room: \"_field\"})",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1.6,
+      "fillOpacity": 0,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none"
+      },
+      "lineInterpolation": "smooth"
+     },
+     "unit": "celsius",
+     "decimals": 1
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "none"
+    }
+   },
+   "description": "One line per room. If they drift apart in winter the heat is distributed unevenly – that is a hydraulic balancing matter, not a thermostat problem.",
+   "id": 63,
+   "gridPos": {
+    "x": 0,
+    "y": 117,
+    "w": 12,
+    "h": 9
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Deviation from target",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"tado\" and (r._field == \"temp_c\" or r._field == \"setpoint_c\"))\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\", \"room\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.temp_c and exists r.setpoint_c)\n  |> map(fn: (r) => ({ _time: r._time, _value: r.temp_c - r.setpoint_c, _field: r.room }))\n  |> group(columns: [\"_field\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1.6,
+      "fillOpacity": 0,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none"
+      },
+      "lineInterpolation": "smooth"
+     },
+     "unit": "celsius",
+     "decimals": 1
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "none"
+    }
+   },
+   "description": "Actual minus target per room. Persistently negative means the room does not reach its target – too little radiator surface, too little flow, or too flat a heating curve.",
+   "id": 64,
+   "gridPos": {
+    "x": 12,
+    "y": 117,
+    "w": 12,
+    "h": 9
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Humidity",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"tado\" and r._field == \"humidity_pct\")\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"room\"])\n  |> rename(columns: {room: \"_field\"})",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1.6,
+      "fillOpacity": 0,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none"
+      },
+      "lineInterpolation": "smooth"
+     },
+     "unit": "humidity",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "none"
+    }
+   },
+   "description": "Above 60 % for long stretches is the threshold where mould on cold external walls becomes possible. Normal in summer; in winter it is a hint about ventilation.",
+   "id": 65,
+   "gridPos": {
+    "x": 0,
+    "y": 126,
+    "w": 24,
+    "h": 8
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "id": 66,
    "type": "row",
    "title": "Refrigerant circuit (expert)",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 64,
+    "y": 134,
     "w": 24,
     "h": 1
    },
@@ -2813,10 +4210,10 @@
     }
    },
    "description": "Hot gas well above 100 °C, or a very small gap between suction gas and supply air, points to low refrigerant. Exhaust air at −273 °C means the sensor is not fitted.",
-   "id": 45,
+   "id": 67,
    "gridPos": {
     "x": 0,
-    "y": 65,
+    "y": 135,
     "w": 12,
     "h": 8
    },
@@ -2903,10 +4300,10 @@
      "sort": "none"
     }
    },
-   "id": 46,
+   "id": 68,
    "gridPos": {
     "x": 12,
-    "y": 65,
+    "y": 135,
     "w": 12,
     "h": 8
    },
@@ -2916,13 +4313,13 @@
    }
   },
   {
-   "id": 47,
+   "id": 69,
    "type": "row",
    "title": "Heating circuit and hot water",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 73,
+    "y": 143,
     "w": 24,
     "h": 1
    },
@@ -2995,10 +4392,10 @@
     }
    },
    "description": "The mixer circuit follows the heating curve; the averaged outside temperature is its input.",
-   "id": 48,
+   "id": 70,
    "gridPos": {
     "x": 0,
-    "y": 74,
+    "y": 144,
     "w": 12,
     "h": 8
    },
@@ -3084,10 +4481,10 @@
     }
    },
    "description": "The sawtooth shape is normal: heat up to the setpoint, then cool down to the hysteresis.",
-   "id": 49,
+   "id": 71,
    "gridPos": {
     "x": 12,
-    "y": 74,
+    "y": 144,
     "w": 12,
     "h": 8
    },
@@ -3097,13 +4494,13 @@
    }
   },
   {
-   "id": 50,
+   "id": 72,
    "type": "row",
    "title": "The Wolf's own counters",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 82,
+    "y": 152,
     "w": 24,
     "h": 1
    },
@@ -3157,10 +4554,10 @@
     }
    ],
    "description": "Straight from the heat pump's statistics registers, not computed by us.",
-   "id": 51,
+   "id": 73,
    "gridPos": {
     "x": 0,
-    "y": 83,
+    "y": 153,
     "w": 12,
     "h": 9
    },
@@ -3216,10 +4613,10 @@
      }
     }
    ],
-   "id": 52,
+   "id": 74,
    "gridPos": {
     "x": 12,
-    "y": 83,
+    "y": 153,
     "w": 12,
     "h": 9
    },
@@ -3229,13 +4626,13 @@
    }
   },
   {
-   "id": 53,
+   "id": 75,
    "type": "row",
    "title": "House and PV",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 92,
+    "y": 162,
     "w": 24,
     "h": 1
    },
@@ -3350,10 +4747,10 @@
     }
    },
    "description": "The heat pump reports its input only in whole kW, so the steps are coarse. The Shelly measures the whole house including the heat pump.",
-   "id": 54,
+   "id": 76,
    "gridPos": {
     "x": 0,
-    "y": 93,
+    "y": 163,
     "w": 24,
     "h": 9
    },
@@ -3397,13 +4794,14 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "The heat pump's electricity use today times the configured price (settings page, cost section).",
-   "id": 55,
+   "id": 77,
    "gridPos": {
     "x": 0,
-    "y": 102,
+    "y": 172,
     "w": 6,
     "h": 5
    },
@@ -3446,13 +4844,14 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
    "description": "Price per kWh divided by this year's performance factor: what a kilowatt hour of heat really costs, in cents.",
-   "id": 56,
+   "id": 78,
    "gridPos": {
     "x": 6,
-    "y": 102,
+    "y": 172,
     "w": 6,
     "h": 5
    },
@@ -3496,12 +4895,13 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
-   "id": 57,
+   "id": 79,
    "gridPos": {
     "x": 12,
-    "y": 102,
+    "y": 172,
     "w": 6,
     "h": 5
    },
@@ -3545,12 +4945,13 @@
     "colorMode": "value",
     "graphMode": "none",
     "textMode": "value",
-    "justifyMode": "center"
+    "justifyMode": "center",
+    "wideLayout": true
    },
-   "id": 58,
+   "id": 80,
    "gridPos": {
     "x": 18,
-    "y": 102,
+    "y": 172,
     "w": 6,
     "h": 5
    },

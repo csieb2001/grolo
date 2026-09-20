@@ -36,16 +36,6 @@
       "asDropdown": false
     },
     {
-      "title": "Wärmepumpe",
-      "type": "link",
-      "url": "/d/wolf-de",
-      "icon": "external link",
-      "tooltip": "",
-      "targetBlank": false,
-      "asDropdown": false,
-      "keepTime": true
-    },
-    {
       "title": "English",
       "type": "link",
       "url": "/d/nexa2000",
@@ -2780,7 +2770,7 @@
     {
       "id": 44,
       "type": "row",
-      "title": "Jahr und Rekorde",
+      "title": "Jahresprognose",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -2792,11 +2782,1063 @@
     },
     {
       "id": 45,
+      "type": "stat",
+      "title": "Verbrauch im Jahr",
+      "gridPos": {
+        "x": 0,
+        "y": 68,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"load_kwh\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Haushalt plus Wärmepumpe, modelliert über ein volles Jahr mit dem echten Wetter des Standorts. Grundlage sind deine Angaben auf der Einstellungsseite und alles, was bis jetzt gemessen wurde."
+    },
+    {
+      "id": 46,
+      "type": "stat",
+      "title": "davon Wärmepumpe",
+      "gridPos": {
+        "x": 4,
+        "y": 68,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"heatpump_kwh\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Wärmebedarf des Hauses, verteilt nach Heizgradstunden, geteilt durch den COP der jeweiligen Stunde."
+    },
+    {
+      "id": 47,
+      "type": "stat",
+      "title": "PV-Ertrag",
+      "gridPos": {
+        "x": 8,
+        "y": 68,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"pv_kwh\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Aus Neigung, Azimut und Wp jedes Strings und der Einstrahlung des Wetterjahres. Leer, solange keine Modulleistung eingetragen ist."
+    },
+    {
+      "id": 48,
+      "type": "stat",
+      "title": "Netzbezug im Jahr",
+      "gridPos": {
+        "x": 12,
+        "y": 68,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"grid_kwh\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Was nach Direktverbrauch und Batterie übrig bleibt. Die Abgabegrenze von 800 W begrenzt, wie viel der NEXA überhaupt beisteuern kann."
+    },
+    {
+      "id": 49,
+      "type": "stat",
+      "title": "Autarkie",
+      "gridPos": {
+        "x": 16,
+        "y": 68,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"autarky_pct\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Anteil des Jahresverbrauchs, den die eigene Anlage deckt."
+    },
+    {
+      "id": 50,
+      "type": "stat",
+      "title": "Güte der Prognose",
+      "gridPos": {
+        "x": 20,
+        "y": 68,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"quality\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "measured": {
+                  "text": "aus Messwerten",
+                  "color": "green"
+                },
+                "partial": {
+                  "text": "teils geschätzt",
+                  "color": "blue"
+                },
+                "assumed": {
+                  "text": "angenommen",
+                  "color": "orange"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "„aus Messwerten“ heißt: Wärmebedarf, Haushalt, Module und COP-Kennlinie stehen alle auf eigenen Zahlen. „angenommen“ heißt, es fehlen noch Angaben auf der Einstellungsseite."
+    },
+    {
+      "id": 51,
+      "type": "stat",
+      "title": "Jahresrechnung",
+      "gridPos": {
+        "x": 0,
+        "y": 73,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"cost_total_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Netzbezug x Arbeitspreis plus Grundpreis x 12, abzüglich Einspeisevergütung."
+    },
+    {
+      "id": 52,
+      "type": "stat",
+      "title": "davon Grundpreis",
+      "gridPos": {
+        "x": 6,
+        "y": 73,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"cost_base_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": null
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 53,
+      "type": "stat",
+      "title": "Ersparnis durch die Anlage",
+      "gridPos": {
+        "x": 10,
+        "y": 73,
+        "w": 5,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"saving_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Differenz zu einer Jahresrechnung ohne PV und Batterie, bei gleichem Verbrauch."
+    },
+    {
+      "id": 54,
+      "type": "stat",
+      "title": "Empfohlener Abschlag",
+      "gridPos": {
+        "x": 15,
+        "y": 73,
+        "w": 5,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"abschlag_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Jahresrechnung geteilt durch zwölf, auf die nächsten fünf Euro aufgerundet. Zu niedrig heißt Nachzahlung, zu hoch heißt, dem Versorger zinslos Geld zu leihen."
+    },
+    {
+      "id": 55,
+      "type": "stat",
+      "title": "Aktueller Abschlag",
+      "gridPos": {
+        "x": 20,
+        "y": 73,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"abschlag_ist_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": null
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Was du laut Einstellungsseite heute zahlst. 0 = noch nicht eingetragen."
+    },
+    {
+      "id": 56,
+      "type": "stat",
+      "title": "Unsicherheit der Prognose",
+      "gridPos": {
+        "x": 0,
+        "y": 78,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"uncertainty_pct\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "orange",
+                "value": 18
+              },
+              {
+                "color": "red",
+                "value": 28
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Wie weit die Rechnung danebenliegen kann. Jede Annahme bringt eine eigene Streuung mit – Wärmebedarf, COP, Haushalt, PV, Wetterjahr –, und sie werden quadratisch addiert, weil sie unabhängig voneinander danebenliegen. Je mehr Angaben eingetragen und je mehr Wochen gemessen sind, desto schmaler wird das Band."
+    },
+    {
+      "id": 57,
+      "type": "stat",
+      "title": "Rechnung, untere Kante",
+      "gridPos": {
+        "x": 5,
+        "y": 78,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"cost_low_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 58,
+      "type": "stat",
+      "title": "Rechnung, obere Kante",
+      "gridPos": {
+        "x": 10,
+        "y": 78,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"cost_high_eur\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Wer keine Nachzahlung riskieren will, legt den Abschlag auf diese Kante geteilt durch zwölf."
+    },
+    {
+      "id": 59,
+      "type": "stat",
+      "title": "Heizstab im Jahr",
+      "gridPos": {
+        "x": 15,
+        "y": 78,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"eheat_kwh\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Wärme, die der Verdichter an den kältesten Stunden nicht mehr schafft und die der Heizstab elektrisch nachlegt – mit Arbeitszahl 1, also zum vollen Strompreis."
+    },
+    {
+      "id": 60,
+      "type": "stat",
+      "title": "PV-Eichfaktor",
+      "gridPos": {
+        "x": 19,
+        "y": 78,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r._field == \"pv_factor\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.7
+              },
+              {
+                "color": "yellow",
+                "value": 0.85
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Gemessener Ertrag geteilt durch den, den das Modell für dieselben Sonnenstunden erwartet hätte. Unter 1 heißt: Verschattung, Schmutz oder eine zu optimistische Annahme zur Ausrichtung. Ein Wert weit unter 1 ist ein Grund, Neigung und Azimut nachzutragen."
+    },
+    {
+      "id": 61,
+      "type": "barchart",
+      "title": "Verbrauch je Monat",
+      "gridPos": {
+        "x": 0,
+        "y": 82,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast_month\" and (r._field == \"household_kwh\" or r._field == \"heatpump_kwh\" or r._field == \"pv_kwh\"))\n  |> last()\n  |> group()\n  |> pivot(rowKey: [\"month\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"month\"])\n  |> map(fn: (r) => ({ \"Monat\": if r.month == \"01\" then \"Jan\" else if r.month == \"02\" then \"Feb\" else if r.month == \"03\" then \"Mär\" else if r.month == \"04\" then \"Apr\" else if r.month == \"05\" then \"Mai\" else if r.month == \"06\" then \"Jun\" else if r.month == \"07\" then \"Jul\" else if r.month == \"08\" then \"Aug\" else if r.month == \"09\" then \"Sep\" else if r.month == \"10\" then \"Okt\" else if r.month == \"11\" then \"Nov\" else \"Dez\", \"Haushalt\": r.household_kwh, \"Wärmepumpe\": r.heatpump_kwh, \"PV-Ertrag\": r.pv_kwh }))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Haushalt"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Wärmepumpe"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PV-Ertrag"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xTickLabelRotation": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "xField": "Monat"
+      },
+      "description": "Das modellierte Jahr, aufgeteilt auf die Monate. Der Winter trägt fast den ganzen Wärmepumpenanteil, die PV steht ihm genau gegenläufig."
+    },
+    {
+      "id": 62,
+      "type": "barchart",
+      "title": "Netzbezug und Kosten je Monat",
+      "gridPos": {
+        "x": 12,
+        "y": 82,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"forecast_month\" and (r._field == \"grid_kwh\" or r._field == \"cost_eur\"))\n  |> last()\n  |> group()\n  |> pivot(rowKey: [\"month\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"month\"])\n  |> map(fn: (r) => ({ \"Monat\": if r.month == \"01\" then \"Jan\" else if r.month == \"02\" then \"Feb\" else if r.month == \"03\" then \"Mär\" else if r.month == \"04\" then \"Apr\" else if r.month == \"05\" then \"Mai\" else if r.month == \"06\" then \"Jun\" else if r.month == \"07\" then \"Jul\" else if r.month == \"08\" then \"Aug\" else if r.month == \"09\" then \"Sep\" else if r.month == \"10\" then \"Okt\" else if r.month == \"11\" then \"Nov\" else \"Dez\", \"Netzbezug\": r.grid_kwh, \"Kosten\": r.cost_eur }))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Netzbezug"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Kosten"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xTickLabelRotation": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "xField": "Monat"
+      },
+      "description": "Woher der Abschlag kommt: die Monate sind sehr ungleich, der Abschlag glättet sie auf zwölf gleiche Raten."
+    },
+    {
+      "id": 63,
+      "type": "row",
+      "title": "Jahr und Rekorde",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 92,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 64,
       "type": "table",
       "title": "Rekorde des Jahres",
       "gridPos": {
         "x": 0,
-        "y": 68,
+        "y": 93,
         "w": 10,
         "h": 9
       },
@@ -2938,12 +3980,12 @@
       "description": "Seit Jahresbeginn (lokale Zeit) aus den Tagessummen der Minutenmittel. Schwächster Tag nur unter Tagen mit mindestens 12 Stunden Daten."
     },
     {
-      "id": 46,
+      "id": 65,
       "type": "heatmap",
       "title": "PV-Ertrag: Tag × Monat (Jahr)",
       "gridPos": {
         "x": 10,
-        "y": 68,
+        "y": 93,
         "w": 14,
         "h": 9
       },
@@ -3063,25 +4105,25 @@
       ]
     },
     {
-      "id": 47,
+      "id": 66,
       "type": "row",
       "title": "PV-Strings",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 77,
+        "y": 102,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 48,
+      "id": 67,
       "type": "timeseries",
       "title": "Leistung je String",
       "gridPos": {
         "x": 0,
-        "y": 78,
+        "y": 103,
         "w": 12,
         "h": 9
       },
@@ -3213,12 +4255,12 @@
       "description": "Leistung = Spannung × Strom je Eingang"
     },
     {
-      "id": 49,
+      "id": 68,
       "type": "timeseries",
       "title": "Spannung je String",
       "gridPos": {
         "x": 12,
-        "y": 78,
+        "y": 103,
         "w": 6,
         "h": 9
       },
@@ -3349,12 +4391,12 @@
       }
     },
     {
-      "id": 50,
+      "id": 69,
       "type": "timeseries",
       "title": "Strom je String",
       "gridPos": {
         "x": 18,
-        "y": 78,
+        "y": 103,
         "w": 6,
         "h": 9
       },
@@ -3485,12 +4527,12 @@
       }
     },
     {
-      "id": 51,
+      "id": 70,
       "type": "stat",
       "title": "PV-Eingänge belegt",
       "gridPos": {
         "x": 0,
-        "y": 87,
+        "y": 112,
         "w": 4,
         "h": 4
       },
@@ -3534,12 +4576,12 @@
       "description": "Eingänge mit mehr als 15 V in den letzten 24 h, von 4 MPPT-Eingängen. Freie Eingänge zeigen etwa 7 V."
     },
     {
-      "id": 52,
+      "id": 71,
       "type": "stat",
       "title": "PV-Eingang 1 bis 4",
       "gridPos": {
         "x": 4,
-        "y": 87,
+        "y": 112,
         "w": 20,
         "h": 4
       },
@@ -3669,12 +4711,12 @@
       "description": "Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei."
     },
     {
-      "id": 53,
+      "id": 72,
       "type": "table",
       "title": "Top-Strings 24 h",
       "gridPos": {
         "x": 0,
-        "y": 91,
+        "y": 116,
         "w": 8,
         "h": 7
       },
@@ -3776,12 +4818,12 @@
       "description": "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge."
     },
     {
-      "id": 54,
+      "id": 73,
       "type": "table",
       "title": "Top-Strings 7 Tage",
       "gridPos": {
         "x": 8,
-        "y": 91,
+        "y": 116,
         "w": 8,
         "h": 7
       },
@@ -3883,12 +4925,12 @@
       "description": "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge."
     },
     {
-      "id": 55,
+      "id": 74,
       "type": "table",
       "title": "Top-Strings 30 Tage",
       "gridPos": {
         "x": 16,
-        "y": 91,
+        "y": 116,
         "w": 8,
         "h": 7
       },
@@ -3990,25 +5032,25 @@
       "description": "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge."
     },
     {
-      "id": 56,
+      "id": 75,
       "type": "row",
       "title": "Tagesspitzen, Sonnenstand und Modell",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 98,
+        "y": 123,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 57,
+      "id": 76,
       "type": "table",
       "title": "Tagesspitze je String (30 Tage)",
       "gridPos": {
         "x": 0,
-        "y": 99,
+        "y": 124,
         "w": 10,
         "h": 10
       },
@@ -4149,12 +5191,12 @@
       "description": "Höchste Minutenleistung je String und Tag mit Uhrzeit und Sonnenstand in diesem Moment. Nur Strings mit mehr als 5 W."
     },
     {
-      "id": 58,
+      "id": 77,
       "type": "timeseries",
       "title": "Tagesspitzen je String (30 Tage)",
       "gridPos": {
         "x": 10,
-        "y": 99,
+        "y": 124,
         "w": 14,
         "h": 10
       },
@@ -4288,12 +5330,12 @@
       "description": "Höchste Minutenleistung je Tag, Balken auf Tagesmitte."
     },
     {
-      "id": 59,
+      "id": 78,
       "type": "heatmap",
       "title": "PV gesamt: Stunde × Tag (30 Tage)",
       "gridPos": {
         "x": 0,
-        "y": 109,
+        "y": 134,
         "w": 12,
         "h": 9
       },
@@ -4405,12 +5447,12 @@
       ]
     },
     {
-      "id": 60,
+      "id": 79,
       "type": "heatmap",
       "title": "String $string: Stunde × Tag (30 Tage)",
       "gridPos": {
         "x": 12,
-        "y": 109,
+        "y": 134,
         "w": 12,
         "h": 9
       },
@@ -4522,12 +5564,12 @@
       ]
     },
     {
-      "id": 61,
+      "id": 80,
       "type": "state-timeline",
       "title": "Stärkster String je Stunde",
       "gridPos": {
         "x": 0,
-        "y": 118,
+        "y": 143,
         "w": 24,
         "h": 5
       },
@@ -4607,12 +5649,12 @@
       "description": "Welcher String im Stundenmittel am meisten liefert. Ost-Strings führen morgens, West-Strings nachmittags. Grau = unter 5 W."
     },
     {
-      "id": 62,
+      "id": 81,
       "type": "timeseries",
       "title": "Gemessen vs. erwartet je String",
       "gridPos": {
         "x": 0,
-        "y": 123,
+        "y": 148,
         "w": 16,
         "h": 10
       },
@@ -4912,12 +5954,12 @@
       "description": "Gemessen: Spannung × Strom je String. Erwartet: Open-Meteo-Strahlung (DNI/DHI/GHI) auf die konfigurierte Modulfläche umgerechnet, mal Wp mal Performance-Ratio (Sidecar weather). Ohne Neigung/Ausrichtung auf der Einstellungsseite bleibt „Erwartet“ leer. Wiederkehrende Einbrüche zur gleichen Uhrzeit = Verschattung."
     },
     {
-      "id": 63,
+      "id": 82,
       "type": "timeseries",
       "title": "Sonnenstand",
       "gridPos": {
         "x": 16,
-        "y": 123,
+        "y": 148,
         "w": 8,
         "h": 10
       },
@@ -5051,12 +6093,12 @@
       "description": "Azimut 0 = Nord, 90 = Ost, 180 = Süd, 270 = West. Höhe über dem Horizont, jede Minute vom Sidecar weather berechnet (NOAA)."
     },
     {
-      "id": 64,
+      "id": 83,
       "type": "xychart",
       "title": "Leistung über Sonnenazimut",
       "gridPos": {
         "x": 0,
-        "y": 133,
+        "y": 158,
         "w": 16,
         "h": 10
       },
@@ -5262,12 +6304,12 @@
       "description": "Jeder Punkt ein 5-Minuten-Mittel im gewählten Zeitraum. Der Schwerpunkt der Punktwolke zeigt, wohin ein String schaut; ein Einbruch bei einem festen Azimut ist ein Hindernis. Für ein Sonnenbahn-Polardiagramm siehe die GroLo-Website."
     },
     {
-      "id": 65,
+      "id": 84,
       "type": "stat",
       "title": "Sonne jetzt",
       "gridPos": {
         "x": 16,
-        "y": 133,
+        "y": 158,
         "w": 8,
         "h": 4
       },
@@ -5335,12 +6377,12 @@
       }
     },
     {
-      "id": 66,
+      "id": 85,
       "type": "table",
       "title": "Geschätzte Ausrichtung je String",
       "gridPos": {
         "x": 16,
-        "y": 137,
+        "y": 162,
         "w": 8,
         "h": 6
       },
@@ -5466,12 +6508,12 @@
       "description": "Täglich (und per Knopf auf der Einstellungsseite) schätzt der Sidecar weather Neigung, Azimut und Wp jedes Strings aus den Stundenkurven der letzten 30 Tage gegen das Einstrahlungsmodell. Braucht mehrere sonnige Tage. Übernehmen auf der Einstellungsseite unter „Standort und Module“, dann füllt sich „Erwartet“."
     },
     {
-      "id": 67,
+      "id": 86,
       "type": "table",
       "title": "Empfehlungen je String (Jahresmodell und Verschattung)",
       "gridPos": {
         "x": 0,
-        "y": 143,
+        "y": 168,
         "w": 24,
         "h": 6
       },
@@ -5657,25 +6699,25 @@
       "description": "Täglich mit der Schätzung berechnet. Jahresmodell aus dem Open-Meteo-Archiv für den Standort: Ertrag der aktuellen Ausrichtung (konfiguriert, sonst geschätzt) in kWh je kWp, Anteil am Optimum und Gewinn durch Alternativen (gleiche Richtung mit bester Neigung, senkrecht mit bestem Azimut, flach, Optimum). Verschattung: Anteil der Sonnenstunden-Energie, der in Sonnenrichtungen fehlt, in denen die Messung weit unter dem Modell bleibt; Zonen mit Uhrzeiten auf der Einstellungsseite und der Website."
     },
     {
-      "id": 68,
+      "id": 87,
       "type": "row",
       "title": "Wetter",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 149,
+        "y": 174,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 69,
+      "id": 88,
       "type": "stat",
       "title": "Außentemperatur",
       "gridPos": {
         "x": 0,
-        "y": 150,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -5744,12 +6786,12 @@
       "description": "Open-Meteo für den Anlagenstandort, alle 10 Minuten"
     },
     {
-      "id": 70,
+      "id": 89,
       "type": "stat",
       "title": "Wetterzustand",
       "gridPos": {
         "x": 4,
-        "y": 150,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -5862,12 +6904,12 @@
       "description": "WMO-Wettercode von Open-Meteo"
     },
     {
-      "id": 71,
+      "id": 90,
       "type": "stat",
       "title": "Bewölkung",
       "gridPos": {
         "x": 8,
-        "y": 150,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -5931,12 +6973,12 @@
       }
     },
     {
-      "id": 72,
+      "id": 91,
       "type": "stat",
       "title": "Globalstrahlung",
       "gridPos": {
         "x": 12,
-        "y": 150,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -5981,12 +7023,12 @@
       "description": "Kurzwellige Einstrahlung auf die Horizontale in W/m², Referenz für die PV-Leistung"
     },
     {
-      "id": 73,
+      "id": 92,
       "type": "stat",
       "title": "Sonnenaufgang / -untergang",
       "gridPos": {
         "x": 16,
-        "y": 150,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -6037,12 +7079,12 @@
       "description": "Heute, lokale Zeit"
     },
     {
-      "id": 74,
+      "id": 93,
       "type": "stat",
       "title": "Sonnenschein heute",
       "gridPos": {
         "x": 20,
-        "y": 150,
+        "y": 175,
         "w": 4,
         "h": 4
       },
@@ -6087,12 +7129,12 @@
       "description": "Prognostizierte Sonnenscheindauer des Tages"
     },
     {
-      "id": 75,
+      "id": 94,
       "type": "stat",
       "title": "Strahlungssumme heute / morgen",
       "gridPos": {
         "x": 0,
-        "y": 154,
+        "y": 179,
         "w": 4,
         "h": 9
       },
@@ -6146,12 +7188,12 @@
       "description": "Tagessumme der Globalstrahlung in MJ/m² laut Vorhersage (1 MJ/m² ≈ 0,28 kWh/m²)"
     },
     {
-      "id": 76,
+      "id": 95,
       "type": "timeseries",
       "title": "Globalstrahlung und PV-Leistung",
       "gridPos": {
         "x": 4,
-        "y": 154,
+        "y": 179,
         "w": 10,
         "h": 9
       },
@@ -6247,12 +7289,12 @@
       "description": "Verhältnis von PV-Leistung zu Einstrahlung zeigt Verschattung, Ausrichtung und Verschmutzung. Strahlung links (W/m²), PV rechts (W)."
     },
     {
-      "id": 77,
+      "id": 96,
       "type": "timeseries",
       "title": "Bewölkung und Temperatur",
       "gridPos": {
         "x": 14,
-        "y": 154,
+        "y": 179,
         "w": 10,
         "h": 9
       },
@@ -6352,12 +7394,12 @@
       }
     },
     {
-      "id": 78,
+      "id": 97,
       "type": "barchart",
       "title": "Vorhersage 48 h: Einstrahlung und Bewölkung",
       "gridPos": {
         "x": 0,
-        "y": 163,
+        "y": 188,
         "w": 24,
         "h": 8
       },
@@ -6440,25 +7482,25 @@
       "description": "Stündliche Open-Meteo-Vorhersage ab jetzt. Zeitraum des Dashboards ist hier ohne Wirkung, das Panel zeigt immer die nächsten 48 Stunden."
     },
     {
-      "id": 79,
+      "id": 98,
       "type": "row",
       "title": "Batterie und Technik",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 171,
+        "y": 196,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 80,
+      "id": 99,
       "type": "timeseries",
       "title": "Temperaturen",
       "gridPos": {
         "x": 0,
-        "y": 172,
+        "y": 197,
         "w": 12,
         "h": 9
       },
@@ -6576,12 +7618,12 @@
       }
     },
     {
-      "id": 81,
+      "id": 100,
       "type": "timeseries",
       "title": "Zellspannung (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 172,
+        "y": 197,
         "w": 8,
         "h": 9
       },
@@ -6644,12 +7686,12 @@
       "description": "Ein großer Abstand deutet auf unausgeglichene Zellen hin"
     },
     {
-      "id": 82,
+      "id": 101,
       "type": "stat",
       "title": "Zyklen",
       "gridPos": {
         "x": 20,
-        "y": 172,
+        "y": 197,
         "w": 4,
         "h": 3
       },
@@ -6692,12 +7734,12 @@
       }
     },
     {
-      "id": 83,
+      "id": 102,
       "type": "stat",
       "title": "Gesundheit (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 175,
+        "y": 200,
         "w": 4,
         "h": 3
       },
@@ -6757,12 +7799,12 @@
       }
     },
     {
-      "id": 84,
+      "id": 103,
       "type": "stat",
       "title": "Batteriepacks",
       "gridPos": {
         "x": 20,
-        "y": 178,
+        "y": 203,
         "w": 4,
         "h": 3
       },
@@ -6805,12 +7847,12 @@
       }
     },
     {
-      "id": 85,
+      "id": 104,
       "type": "stat",
       "title": "Entlade-Grenze",
       "gridPos": {
         "x": 0,
-        "y": 181,
+        "y": 206,
         "w": 4,
         "h": 4
       },
@@ -6855,12 +7897,12 @@
       "description": "Unter diesen SoC entlädt die Batterie nicht"
     },
     {
-      "id": 86,
+      "id": 105,
       "type": "stat",
       "title": "Lade-Grenze",
       "gridPos": {
         "x": 4,
-        "y": 181,
+        "y": 206,
         "w": 4,
         "h": 4
       },
@@ -6904,12 +7946,12 @@
       }
     },
     {
-      "id": 87,
+      "id": 106,
       "type": "stat",
       "title": "Netzspannung",
       "gridPos": {
         "x": 8,
-        "y": 181,
+        "y": 206,
         "w": 4,
         "h": 4
       },
@@ -6954,12 +7996,12 @@
       "description": "Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist."
     },
     {
-      "id": 88,
+      "id": 107,
       "type": "stat",
       "title": "Geräteregister zum Vergleich",
       "gridPos": {
         "x": 12,
-        "y": 181,
+        "y": 206,
         "w": 4,
         "h": 4
       },
@@ -7019,12 +8061,12 @@
       "description": "Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings."
     },
     {
-      "id": 89,
+      "id": 108,
       "type": "stat",
       "title": "Zellspannung Differenz",
       "gridPos": {
         "x": 16,
-        "y": 181,
+        "y": 206,
         "w": 4,
         "h": 4
       },
@@ -7084,12 +8126,12 @@
       }
     },
     {
-      "id": 90,
+      "id": 109,
       "type": "stat",
       "title": "Letzte Nachricht",
       "gridPos": {
         "x": 20,
-        "y": 181,
+        "y": 206,
         "w": 4,
         "h": 4
       },
@@ -7133,12 +8175,12 @@
       "description": "Zeitpunkt des letzten Datensatzes vom Dongle"
     },
     {
-      "id": 91,
+      "id": 110,
       "type": "stat",
       "title": "Firmware NEXA (Reg. 119/120)",
       "gridPos": {
         "x": 0,
-        "y": 185,
+        "y": 210,
         "w": 6,
         "h": 4
       },
@@ -7181,12 +8223,12 @@
       "description": "Rohteile aus den Registern, Zusammensetzung laut Growatt unbekannt"
     },
     {
-      "id": 92,
+      "id": 111,
       "type": "stat",
       "title": "Dongle Firmware / Modell",
       "gridPos": {
         "x": 6,
-        "y": 185,
+        "y": 210,
         "w": 6,
         "h": 4
       },
@@ -7228,12 +8270,12 @@
       }
     },
     {
-      "id": 93,
+      "id": 112,
       "type": "stat",
       "title": "WLAN-Signal Dongle",
       "gridPos": {
         "x": 12,
-        "y": 185,
+        "y": 210,
         "w": 4,
         "h": 4
       },
@@ -7294,12 +8336,12 @@
       "description": "Wird nur beim Verbindungsaufbau des Dongles gemeldet"
     },
     {
-      "id": 94,
+      "id": 113,
       "type": "stat",
       "title": "Batteriepacks erkannt",
       "gridPos": {
         "x": 16,
-        "y": 185,
+        "y": 210,
         "w": 4,
         "h": 4
       },
@@ -7342,12 +8384,12 @@
       }
     },
     {
-      "id": 95,
+      "id": 114,
       "type": "stat",
       "title": "Zellspannung min",
       "gridPos": {
         "x": 20,
-        "y": 185,
+        "y": 210,
         "w": 4,
         "h": 4
       },
@@ -7391,12 +8433,12 @@
       }
     },
     {
-      "id": 96,
+      "id": 115,
       "type": "timeseries",
       "title": "SoC je Batteriepack",
       "gridPos": {
         "x": 0,
-        "y": 189,
+        "y": 214,
         "w": 12,
         "h": 8
       },
@@ -7476,12 +8518,12 @@
       }
     },
     {
-      "id": 97,
+      "id": 116,
       "type": "stat",
       "title": "Temperatur je Pack",
       "gridPos": {
         "x": 12,
-        "y": 189,
+        "y": 214,
         "w": 12,
         "h": 4
       },
@@ -7569,12 +8611,12 @@
       }
     },
     {
-      "id": 98,
+      "id": 117,
       "type": "stat",
       "title": "Seriennummern Erweiterungspacks",
       "gridPos": {
         "x": 12,
-        "y": 193,
+        "y": 218,
         "w": 12,
         "h": 4
       },
@@ -7633,25 +8675,25 @@
       "description": "Pack 1 ist das Hauptgerät mit der Geräteseriennummer. Leer = kein Erweiterungspack."
     },
     {
-      "id": 99,
+      "id": 118,
       "type": "row",
       "title": "Unbekannte Register (Forschung)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 197,
+        "y": 222,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 100,
+      "id": 119,
       "type": "timeseries",
       "title": "Unbekannte Eingangsregister, Verlauf (nur ≠ 0)",
       "gridPos": {
         "x": 0,
-        "y": 198,
+        "y": 223,
         "w": 16,
         "h": 10
       },
@@ -7706,12 +8748,12 @@
       "description": "Rohwerte der Register, die die Bridge nicht kennt. 30000 = Offset für 0 bei vorzeichenbehafteten Werten."
     },
     {
-      "id": 101,
+      "id": 120,
       "type": "table",
       "title": "Halteregister-Dump (unbekannt, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 198,
+        "y": 223,
         "w": 8,
         "h": 10
       },
@@ -7743,369 +8785,6 @@
         ]
       },
       "description": "Kommt stündlich vom Gerät (Nachricht 0x0103)."
-    },
-    {
-      "type": "row",
-      "title": "Wärmepumpe",
-      "collapsed": false,
-      "panels": [],
-      "gridPos": {
-        "x": 0,
-        "y": 208,
-        "w": 24,
-        "h": 1
-      },
-      "id": 102
-    },
-    {
-      "type": "timeseries",
-      "title": "Haus, Solar und Wärmepumpe",
-      "description": "Was das Haus zieht (Shelly), was die Module liefern und wie viel davon die Wärmepumpe nimmt. Die Wolf meldet ihre Aufnahme nur in ganzen kW.",
-      "gridPos": {
-        "x": 0,
-        "y": 209,
-        "w": 16,
-        "h": 9
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage)\n  |> map(fn: (r) => ({ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }))\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Solar\")"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"household_w\")\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Haus\")"
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"strom_w\")\n  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"Wärmepumpe\")"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "watt",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1.6,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Solar"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "yellow"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Haus"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "orange"
-                }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Wärmepumpe"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true,
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "id": 103
-    },
-    {
-      "type": "stat",
-      "title": "Betriebsart",
-      "gridPos": {
-        "x": 16,
-        "y": 209,
-        "w": 8,
-        "h": 3
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"betriebsart_heizgeraet\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "ODU Test",
-                  "index": 0
-                },
-                "1": {
-                  "text": "Test",
-                  "index": 1
-                },
-                "2": {
-                  "text": "Frostschutz HK",
-                  "index": 2
-                },
-                "3": {
-                  "text": "Frostschutz Warmwasser",
-                  "index": 3
-                },
-                "4": {
-                  "text": "Durchfluss gering",
-                  "index": 4
-                },
-                "5": {
-                  "text": "Vorwärmung",
-                  "index": 5
-                },
-                "6": {
-                  "text": "Abtaubetrieb",
-                  "index": 6
-                },
-                "7": {
-                  "text": "Antilegionellenfunktion",
-                  "index": 7
-                },
-                "8": {
-                  "text": "Warmwasser",
-                  "index": 8
-                },
-                "9": {
-                  "text": "WW-Nachlauf",
-                  "index": 9
-                },
-                "10": {
-                  "text": "Heizbetrieb",
-                  "index": 10
-                },
-                "11": {
-                  "text": "HZ-Nachlauf",
-                  "index": 11
-                },
-                "12": {
-                  "text": "Aktive Kühlung",
-                  "index": 12
-                },
-                "13": {
-                  "text": "Kaskade",
-                  "index": 13
-                },
-                "14": {
-                  "text": "GLT",
-                  "index": 14
-                },
-                "15": {
-                  "text": "Standby",
-                  "index": 15
-                },
-                "16": {
-                  "text": "Pump Down",
-                  "index": 16
-                },
-                "17": {
-                  "text": "Nachlauf K",
-                  "index": 17
-                },
-                "18": {
-                  "text": "Undefiniert",
-                  "index": 18
-                },
-                "19": {
-                  "text": "Pool",
-                  "index": 19
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "id": 104
-    },
-    {
-      "type": "stat",
-      "title": "Wärme heute",
-      "gridPos": {
-        "x": 16,
-        "y": 212,
-        "w": 4,
-        "h": 6
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"erzeugte_waermemenge_aktueller_tag\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "orange"
-          },
-          "unit": "kwatth",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "id": 105
-    },
-    {
-      "type": "stat",
-      "title": "Strom heute",
-      "gridPos": {
-        "x": 20,
-        "y": 212,
-        "w": 4,
-        "h": 6
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"verbrauch_aktueller_tag\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "red"
-          },
-          "unit": "kwatth",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "id": 106
     }
   ],
   "annotations": {
