@@ -56,7 +56,7 @@ D = {
     "dhw_flow_c": 50.0,        # Vorlauf bei Warmwasserbereitung
     "eta_carnot": 0.42,        # Gütegrad gegenüber Carnot; typisch für eine moderne Luft-Wasser-Wärmepumpe
     "defrost_penalty": 0.9,    # Abschlag auf den COP unter 5 °C für Abtauverluste
-    "pack_kwh": 2.05,          # nutzbare Kapazität eines NEXA-Akkupacks
+    "pack_kwh": 2.048,         # Typenschild eines NEXA-Akkumoduls: 2048 Wh
     "soc_min": 0.10,           # Entladeschluss, wie ihn die Shelly-Regelung fährt
     "eta_charge": 0.96, "eta_discharge": 0.96,   # Wirkungsgrad je Richtung, zusammen rund 92 % Umlauf
     "max_out_w": 800.0,        # Abgabegrenze des NEXA ins Haus
@@ -291,6 +291,50 @@ union(tables: [warm, temp])
             "r2": round(max(0.0, 1.0 - ssr / sst), 3)}
 
 
+def battery_wh_per_pct(days=90):
+    """Wie viel Energie ein Prozentpunkt Ladezustand kostet, gemessen über alle Ladephasen.
+
+    Hineingeflossene Wattstunden geteilt durch den Hub in Prozentpunkten. Die Ladeverluste stecken darin,
+    und genau das braucht eine Restzeit: nicht was in der Zelle ankommt, sondern was oben hineingesteckt
+    werden muss. Gezählt wird über den ganzen Ladezeitraum, nicht nur in den Messpunkten, in denen der
+    Ladezustand gerade um ein Prozent springt - er wird nur in ganzen Prozent gemeldet, und zwischen zwei
+    Sprüngen fließt der Großteil der Energie. Ab 99 % zählt nichts mehr, dort fließt Energie, ohne
+    dass der Ladezustand noch steigt.
+    """
+    rows = influx_query(f'''from(bucket: "{INFLUX_BUCKET}")
+  |> range(start: -{int(days)}d)
+  |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "totalBatteryPackSoc" or r._field =~ /^pv[1-4](Voltage|Current)$/ or r._field == "onGridPower"))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.totalBatteryPackSoc and exists r.onGridPower)
+  |> map(fn: (r) => ({{ _time: r._time, soc: r.totalBatteryPackSoc,
+        bat: (if exists r.pv1Voltage then r.pv1Voltage * r.pv1Current else 0.0)
+           + (if exists r.pv2Voltage then r.pv2Voltage * r.pv2Current else 0.0)
+           + (if exists r.pv3Voltage then r.pv3Voltage * r.pv3Current else 0.0)
+           + (if exists r.pv4Voltage then r.pv4Voltage * r.pv4Current else 0.0)
+           - (r.onGridPower - 30000.0) / 10.0 }}))
+  |> keep(columns: ["_time", "soc", "bat"])''')
+    points = []
+    for r in rows:
+        try:
+            points.append((r["_time"], float(r["soc"]), float(r["bat"])))
+        except (TypeError, ValueError, KeyError):
+            continue
+    points.sort(key=lambda p: p[0])
+    wh = pct = 0.0
+    prev = None
+    for t, soc, bat in points:
+        if prev is not None and bat > 5 and soc < 99:
+            wh += bat / 60.0                      # ein Minutenmittel
+            if soc > prev:
+                pct += soc - prev
+        prev = soc
+    if pct < 40 or wh <= 0:
+        return {"pct_observed": round(pct, 1), "enough": False}
+    return {"wh_per_pct": round(wh / pct, 1), "kwh": round(wh / pct / 10.0, 2),
+            "pct_observed": round(pct), "enough": True}
+
+
 # ---------------------------------------------------------------------------- Das Modell
 def build_forecast(lat, lon, strings, cfg, measured):
     """Ein Jahr Stunde für Stunde. Rückgabe siehe Modulkopf."""
@@ -421,8 +465,20 @@ def build_forecast(lat, lon, strings, cfg, measured):
 
     # ---------------------------------------------------------------- Batterie
     packs = cfg.get("packs") or 0
-    cap = cfg.get("battery_kwh") or (packs * D["pack_kwh"] if packs else 0.0)
-    if cfg.get("battery_kwh"):
+    meas = measured.get("battery") or {}
+    nameplate = packs * D["pack_kwh"] if packs else 0.0
+    cap = cfg.get("battery_kwh") or (meas.get("kwh") if meas.get("enough") else 0.0) or nameplate
+    if meas.get("enough") and not cfg.get("battery_kwh"):
+        eff = (nameplate / meas["kwh"] * 100) if nameplate and meas["kwh"] else None
+        note("battery", f"Batterie {meas['wh_per_pct']:.1f} Wh je Prozentpunkt, gemessen über "
+                        f"{meas['pct_observed']:.0f} Prozentpunkte Ladehub – das sind {cap:.2f} kWh, die "
+                        f"hineingehen müssen." + (f" Gegenüber dem Typenschild von {nameplate:.2f} kWh "
+                        f"entspricht das {eff:.0f} % Ladewirkungsgrad." if eff else ""),
+             f"Battery {meas['wh_per_pct']:.1f} Wh per percentage point, measured over "
+             f"{meas['pct_observed']:.0f} points of charging – that is {cap:.2f} kWh that has to go in."
+             + (f" Against a nameplate of {nameplate:.2f} kWh that is {eff:.0f} % charging efficiency." if eff else ""),
+             "measured", cap)
+    elif cfg.get("battery_kwh"):
         note("battery", f"Batterie {cap:.1f} kWh nutzbar, eingetragen",
              f"Battery {cap:.1f} kWh usable, as configured", "config", cap)
     elif packs:
@@ -711,6 +767,10 @@ from(bucket: "{INFLUX_BUCKET}")
     except Exception as exc:
         LOG.warning("COP-Messwerte nicht lesbar: %s", exc)
     try:
+        out["battery"] = battery_wh_per_pct()
+    except Exception as exc:
+        LOG.warning("Batteriemessung nicht lesbar: %s", exc)
+    try:
         out["heat_line"] = heat_line()
     except Exception as exc:
         LOG.warning("Gebäudekennlinie nicht lesbar: %s", exc)
@@ -848,6 +908,14 @@ def run_once(client):
                  "abschlag_ist_eur": result["abschlag"].get("current_eur") or 0.0,
                  "quality": result["quality"]})
     client.publish(f"{BASE}/grolo/forecast/state", json.dumps(flat, ensure_ascii=False), retain=True)
+    # Die Batteriekennzahl steht eigenständig, damit die Bedienseite Restzeiten rechnen kann, ohne die
+    # ganze Prognose zu laden – und damit Website, Einstellungsseite und Grafana dieselbe Zahl nennen.
+    bat = measured.get("battery") or {}
+    if bat.get("enough"):
+        client.publish(f"{BASE}/grolo/battery", json.dumps({
+            "wh_per_pct": bat["wh_per_pct"], "kwh": bat["kwh"], "pct_observed": bat["pct_observed"],
+            "packs": cfg.get("packs"), "nameplate_kwh": round((cfg.get("packs") or 0) * D["pack_kwh"], 3),
+            "updated": int(time.time())}, ensure_ascii=False), retain=True)
     lines = []
     for m in result["months"]:
         vals = ",".join(f"{k}={float(v)}" for k, v in m.items() if k != "m")

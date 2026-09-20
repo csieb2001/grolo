@@ -78,6 +78,8 @@
   .flow .base { fill:none; stroke:var(--line); stroke-width:3; stroke-linecap:round }
   .flow .fe.idle { fill:none; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 6; opacity:.35 }
   .flow .nl { fill:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em } .flow .nv { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; paint-order:stroke; stroke:#1c1f24; stroke-width:4px; stroke-linejoin:round } .flow .ns { fill:var(--muted); font-size:10.5px }
+  /* Restzeiten etwas größer als die übrigen Unterzeilen: sie sind der Grund, warum man hinsieht. */
+  .flow .ne { font-size:12px; font-weight:600; font-variant-numeric:tabular-nums }
 </style>
 </head>
 <body>
@@ -286,7 +288,7 @@
       'x.export': 'Exporting {grid}: the controller lowers the NEXA output (target {target}).', 'x.balanced': 'Zero feed-in reached: the NEXA covers {out} of the {house} household load, grid draw {grid} (setpoint {setpoint}).',
       'x.noMeter': 'Smart control is on but no fresh meter reading yet; the NEXA delivers {out}.', 'x.charging': ' Surplus of {bat} from solar charges the battery ({soc} %).', 'x.discharging': ' {bat} of that comes from the battery ({soc} %).', 'x.solarOnly': ' Solar covers it directly ({pv}).',
       'flow.why': 'Why',
-      'flow.acIn': 'Charging from grid', 'x.offAc': 'Smart control is off. The NEXA runs in “{mode}” and charges the battery ({soc} %) with {acin} from the grid plus {pv} solar; the house gets nothing from it right now.', 'x.acTail': ' In addition it draws {acin} from the grid into the battery.',
+      'flow.acIn': 'Charging from grid', 'flow.etaTo': 'to', 'x.offAc': 'Smart control is off. The NEXA runs in “{mode}” and charges the battery ({soc} %) with {acin} from the grid plus {pv} solar; the house gets nothing from it right now.', 'x.acTail': ' In addition it draws {acin} from the grid into the battery.',
       'flow.pv': 'Solar', 'flow.out': 'NEXA → house', 'flow.bat': 'Battery', 'flow.soc': 'State of charge', 'flow.gridIn': 'Grid draw', 'flow.gridOut': 'Feed-in', 'flow.house': 'Household (Shelly)',
       'sec.device': 'Device and hardware', 'sec.device.hint': 'Reported by the NEXA and its Wi-Fi dongle, read-only. Battery packs appear as soon as the NEXA counts them.',
       'packs.title': 'Battery packs', 'packs.pack': 'Pack / serial', 'packs.temp': 'Temperature', 'packs.cells': 'Cell voltage min / max', 'packs.cycles': 'Cycles', 'packs.soh': 'Health',
@@ -388,7 +390,7 @@
       'x.export': 'Einspeisung {grid}: der Regler senkt die NEXA-Abgabe (Ziel {target}).', 'x.balanced': 'Nulleinspeisung erreicht: der NEXA deckt {out} von {house} Hausverbrauch, Netzbezug {grid} (Sollwert {setpoint}).',
       'x.noMeter': 'Smart-Regelung ist an, aber noch kein frischer Zählerwert; der NEXA gibt {out} ab.', 'x.charging': ' Der Überschuss von {bat} aus Solar lädt die Batterie ({soc} %).', 'x.discharging': ' {bat} davon kommen aus der Batterie ({soc} %).', 'x.solarOnly': ' Solar deckt das direkt ({pv}).',
       'flow.why': 'Warum',
-      'flow.acIn': 'Laden aus dem Netz', 'x.offAc': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ und lädt die Batterie ({soc} %) mit {acin} aus dem Netz plus {pv} Solar; das Haus bekommt gerade nichts von ihm.', 'x.acTail': ' Zusätzlich zieht er {acin} aus dem Netz in die Batterie.',
+      'flow.acIn': 'Laden aus dem Netz', 'flow.etaTo': 'bis', 'x.offAc': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ und lädt die Batterie ({soc} %) mit {acin} aus dem Netz plus {pv} Solar; das Haus bekommt gerade nichts von ihm.', 'x.acTail': ' Zusätzlich zieht er {acin} aus dem Netz in die Batterie.',
       'flow.pv': 'Solar', 'flow.out': 'NEXA → Haus', 'flow.bat': 'Batterie', 'flow.soc': 'Ladezustand', 'flow.gridIn': 'Netzbezug', 'flow.gridOut': 'Einspeisung', 'flow.house': 'Haushalt (Shelly)',
       'sec.device': 'Gerät und Hardware', 'sec.device.hint': 'Vom NEXA und vom WLAN-Dongle gemeldet, nur Anzeige. Batteriepacks erscheinen, sobald der NEXA sie zählt.',
       'packs.title': 'Batteriepacks', 'packs.pack': 'Pack / Seriennummer', 'packs.temp': 'Temperatur', 'packs.cells': 'Zellspannung min / max', 'packs.cycles': 'Zyklen', 'packs.soh': 'Gesundheit',
@@ -517,7 +519,7 @@
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
                       `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`, `${BASE}/grolo/config/tariff`, `${BASE}/grolo/config/house`, `${BASE}/grolo/forecast`,
                       `${BASE}/grolo/tado/rooms`, `${BASE}/grolo/tado/commission/result`, `${BASE}/grolo/tado/set/result`,
-                      `${BASE}/grolo/config/heatshift`, `${BASE}/grolo/heatshift/state`]);
+                      `${BASE}/grolo/config/heatshift`, `${BASE}/grolo/heatshift/state`, `${BASE}/grolo/battery`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -539,6 +541,7 @@
     if (topic === `${BASE}/grolo/tado/set/result`) { try { onTadoSet(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/heatshift`) { try { onShiftCfg(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/heatshift/state`) { try { onShiftState(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/battery`) { try { state.battery = JSON.parse(p); renderFlow(); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
@@ -1233,19 +1236,38 @@
     const batTxt = bat == null ? '' : `${bat > 2 ? '▲ ' : bat < -2 ? '▼ ' : ''}${fmtW(Math.abs(bat))} ${bat > 2 ? t('flow.charging') : bat < -2 ? t('flow.discharging') : t('flow.idle')}`;
     const limited = sh && sh.enabled && sh.limited;
     const siteName = state.site && state.site.name ? state.site.name : t('flow.home');
-    el.innerHTML = `<svg class="flow" viewBox="0 0 440 320" role="img">
+    // Restzeiten: der Energiebedarf je Prozentpunkt kommt gemessen aus dem Stack (retained grolo/battery).
+    // Ohne diese Zahl wird nichts angezeigt – eine Restzeit aus einer angenommenen Kapazität wäre geraten.
+    const whPct = state.battery && state.battery.wh_per_pct ? Number(state.battery.wh_per_pct) : null;
+    const fmtEta = m => m < 1 ? '< 1 min' : m < 90 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')} min`;
+    const eta = target => {
+      if (whPct == null || isNaN(soc) || bat == null || Math.abs(bat) < 5) return null;
+      const delta = target - socPct;
+      if (delta === 0 || (delta > 0 && bat <= 0) || (delta < 0 && bat >= 0)) return null;
+      const m = Math.abs(delta) * whPct / Math.abs(bat) * 60;
+      return m > 60 * 48 ? null : fmtEta(m);
+    };
+    const etaLimit = lim != null && socPct < lim ? eta(lim) : null;
+    const etaFull = eta(100);
+    const etaEmpty = lim != null && socPct > lim ? eta(lim) : null;
+    const etaLines = (etaLimit ? 1 : 0) + (etaFull ? 1 : 0) + (etaEmpty ? 1 : 0);
+    const etaTxt = (y, txt, color) => `<text class="ne" y="${y}" text-anchor="middle" fill="${color}">${txt}</text>`;
+    el.innerHTML = `<svg class="flow" viewBox="0 0 440 ${320 + etaLines * 17}" role="img">
       ${edge('M85 92 L85 200', pv, FC.pv)}${edge('M160 222 C 176 222, 182 200, 193 192', out, acIn ? FC.grid : FC.house, acIn)}
       ${hasGrid ? edge('M333 170 L263 170', grid, gridDraw ? FC.grid : FC.bat, !gridDraw) : '<path class="base" d="M263 170 L333 170" opacity=".3"/>'}
       ${hasGrid ? `<text class="ns" x="298" y="188" text-anchor="middle" fill="${gridDraw ? FC.grid : FC.bat}">${gridDraw ? '←' : '→'} ${fmtW(Math.abs(grid))}</text>` : ''}
       ${node(85, 62, FC.pv, t('flow.solar'), fmtW(pv), '', '<circle r="7"/><path d="M0 -13 V-17 M0 13 V17 M-13 0 H-17 M13 0 H17 M-9 -9 L-12 -12 M9 9 L12 12 M9 -9 L12 -12 M-9 9 L-12 12"/>', 30, true)}
-      <g transform="translate(85 250)"><rect x="-75" y="-50" width="150" height="100" rx="12" fill="${FC.panel}" stroke="${limited ? FC.house : FC.bat}" stroke-width="2.5"/>
+      <g transform="translate(85 250)"><rect x="-75" y="-50" width="150" height="${100 + etaLines * 17}" rx="12" fill="${FC.panel}" stroke="${limited ? FC.house : FC.bat}" stroke-width="2.5"/>
         <text class="nl" y="-34" text-anchor="middle">${t('flow.nexa')}${packs ? ` · ${packs} × ${t('flow.battery')}` : ''}</text>
         <rect x="-62" y="-22" width="60" height="28" rx="4" fill="none" stroke="${FC.muted}" stroke-width="2"/><rect x="-1" y="-13" width="5" height="10" rx="1" fill="${FC.muted}"/>
         <rect x="-59" y="-19" width="${Math.max(0, 54 * socPct / 100)}" height="22" rx="2" fill="${socColor}" opacity=".85"/>
         ${lim != null ? `<line x1="${-59 + 54 * Math.min(100, lim) / 100}" x2="${-59 + 54 * Math.min(100, lim) / 100}" y1="-22" y2="6" stroke="${FC.red}" stroke-width="1.5" stroke-dasharray="2 2"/>` : ''}
         <text class="nv" x="38" y="-3" text-anchor="middle" fill="${socColor}">${isNaN(soc) ? '–' : Math.round(soc) + ' %'}</text>
         <text class="ns" y="22" text-anchor="middle" fill="${bat != null && Math.abs(bat) > 2 ? (bat > 0 ? FC.bat : FC.house) : FC.muted}">${batTxt}</text>
-        <text class="ns" y="38" text-anchor="middle" fill="${acIn ? FC.grid : FC.house}">${acIn ? `← ${t('flow.acIn')}: ${fmtW(-out)}` : `→ ${t('flow.home')}: ${fmtW(out)}`}</text></g>
+        <text class="ns" y="38" text-anchor="middle" fill="${acIn ? FC.grid : FC.house}">${acIn ? `← ${t('flow.acIn')}: ${fmtW(-out)}` : `→ ${t('flow.home')}: ${fmtW(out)}`}</text>
+        ${etaLimit ? etaTxt(56, `${t('flow.etaTo')} ${Math.round(lim)} %: ${etaLimit}`, FC.red) : ''}
+        ${etaFull ? etaTxt(etaLimit ? 73 : 56, `${t('flow.etaTo')} 100 %: ${etaFull}`, FC.bat) : ''}
+        ${etaEmpty ? etaTxt(56, `${t('flow.etaTo')} ${Math.round(lim)} %: ${etaEmpty}`, FC.house) : ''}</g>
       ${node(225, 170, FC.house, siteName, fmtW(house), self != null ? `${Math.round(self)} % ${t('flow.self')}` : '', '<path d="M-16 2 L0 -14 L16 2 M-12 -1 V14 H12 V-1 M-4 14 V5 H4 V14"/>', 36)}
       ${node(365, 170, hasGrid ? (gridDraw ? FC.grid : FC.bat) : FC.muted, t('flow.grid'), hasGrid ? fmtW(Math.abs(grid)) : '–', hasGrid ? '' : t('flow.noGrid'), '<path d="M-9 14 L-4 -12 H4 L9 14 M-8 -4 H8 M-10 4 H10 M-4 -12 L-14 -6 M4 -12 L14 -6 M-6 14 L0 4 L6 14"/>')}
     </svg>`;
