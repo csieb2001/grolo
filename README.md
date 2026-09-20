@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.40.1** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+Version **2026.40.2** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
 packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
@@ -495,6 +495,45 @@ payment you currently make. Everything else the model takes from the measurement
 module settings. It is published retained on `homeassistant/grolo/forecast`, lands in InfluxDB as `forecast` (year) and
 `forecast_month` (per month), and appears in the Grafana row "Annual forecast", on the settings page and on the website.
 
+## Backup
+
+Everything here is reproducible except two things: the measurement history in InfluxDB, and a handful of small
+files that are worth more than their size suggests. `growatt_matter-data` holds the keys of our Matter fabric —
+lose it and every tado° X device has to be paired again by hand. `growatt_wolf-state` holds the compressor
+cycle history. `.env` and the Mosquitto certificates are the only things in `/opt/growatt` that are not on
+GitHub, and without them the stack does not start.
+
+Three [restic](https://restic.net/) jobs, all encrypted, deduplicating and incremental:
+
+| Script | Where | When | Contents | Retention |
+|---|---|---|---|---|
+| `scripts/grolo-backup.sh` | in the container | daily 03:20 | InfluxDB dump, volumes, `.env`, certificates | 7 daily, 4 weekly, 6 monthly |
+| `scripts/pve-backup.sh` | on the host | Sundays 03:00 | `/etc/pve`, network, GRUB line, storage config | 7 / 4 / 6 |
+| `scripts/pve-image-backup.sh` | on the host | 1st of month 02:00 | full `vzdump` of the container | 2 snapshots |
+
+`scripts/backup-install.sh` installs both sides and their systemd timers; the credentials live in
+`/etc/grolo-backup.env` (mode 600) and never in the repository.
+
+Three details that are easy to get wrong:
+
+- **Do not copy InfluxDB's live data directory.** It keeps writing while you copy, and a half-written TSM file
+  is worthless on restore. `influx backup` produces a consistent snapshot instead — and it arrives already
+  compressed, which turned 602 MB of raw data into a 249 MB dump here.
+- **The image backup is a separate job with its own tag.** A `vzdump` is one zstd archive: restic can barely
+  deduplicate it, so every snapshot costs the full 2.1 GB. Run under the same retention rule as the daily data,
+  one policy would delete the other's snapshots.
+- **On Backblaze B2, set the bucket lifecycle to keep only the last version.** With "keep all versions",
+  restic's `prune` deletes objects but B2 keeps them as hidden versions that still count against your quota:
+  the repository looks small while the free tier quietly fills up. `daysFromHidingToDeleting: 1` is the fix.
+
+The daily run reports how much the repository occupies and warns above 8 GB, because the free tier on B2 ends
+at 10. As set up here that is 2.4 GB after the first full round.
+
+**An unverified backup is not a backup.** After setting it up, restore something and compare it with the
+original — `restic restore latest --target /tmp/x --include "*/opt/.env"` — and let `restic check
+--read-data-subset=5%` read part of the data back. Both are in the commit history of this repository because
+both were actually run.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -621,7 +660,7 @@ grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, we
 grobro/registers/            extended NEXA register map
 wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.40.1
+VERSION                      2026.40.2
 ```
 
 License: MIT.
