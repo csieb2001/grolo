@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.40.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+Version **2026.41.0** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
 packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
@@ -261,10 +261,12 @@ the daylight mean and the all-time high and all-time daylight mean.
 
 ## Zero feed-in with a Shelly (local "Smart" mode)
 
-The NEXA refuses the manufacturer's Smart mode without a meter paired in the Growatt cloud. The `shelly-control` sidecar
-reproduces it locally: it reads a Shelly meter (Pro 3EM, EM, 1PM or a Gen1 Shelly) every couple of seconds over local HTTP
-and adjusts the NEXA output power (slot power, a RAM register safe for frequent writes) so the grid draw stays at a small
-setpoint and nothing is exported. No Growatt cloud, no meter pairing.
+The NEXA refuses the manufacturer's Smart mode until a meter is paired. There are now two ways to get zero feed-in, and
+they do the same job from opposite ends.
+
+The `shelly-control` sidecar does it **without any pairing**: it reads a Shelly meter (Pro 3EM, EM, 1PM or a Gen1 Shelly)
+every couple of seconds over local HTTP and adjusts the NEXA output power (slot power, a RAM register safe for frequent
+writes) so the grid draw stays at a small setpoint and nothing is exported. No Growatt cloud, no meter pairing.
 
 Configure it on the settings page under **Zero feed-in (Shelly)**: enter the Shelly address, setpoint (grid draw to hold,
 default 20 W), and the output range (min/max W). Choosing **Smart** in the operating-mode control turns the controller on and
@@ -272,7 +274,12 @@ keeps the slot in Load First underneath; choosing Load first / Battery first tur
 config is a retained message `<base>/grolo/config/shelly`; the controller publishes `<base>/grolo/shelly/state` (grid,
 household, output, target, ok, limited, reason, soc, soc_limit) which the settings page, InfluxDB (measurement `shelly`) and
 the website mirror. On the website the **Grid** and **Household** tiles and the grid node of the power-flow schema appear once
-the controller runs. If the Shelly is unreachable for 30 s the output falls back to a safe value (default 0 W) and the state is
+the controller runs (they also appear when the controller is switched off, since it keeps measuring).
+
+The other way is the device's **own Smart mode**: pair the meter once (see *Growatt cloud: adding a NEXA and pairing a
+meter*) and the NEXA reads the Shelly by itself and regulates against it, with `slotN_power` as the upper bound. Then
+`shelly-control` is no longer needed for control — leave it switched off and it still supplies the grid and household
+figures for Grafana and the website. Do not run both at once: two controllers on the same quantity fight each other. If the Shelly is unreachable for 30 s the output falls back to a safe value (default 0 W) and the state is
 flagged. Works for any Shelly, so other users can use it by pointing it at their own meter.
 
 `reason` tells you why the output does not match the target: `ok`, `shelly_unreachable`, `device_offline` (no data from the
@@ -284,6 +291,73 @@ Tolerance and delay are set on the settings page under **Response and not-follow
 100 W after 60 s). The NEXA follows a new slot power only after 30–60 s, so the controller adjusts at most every `write_s`
 (default 15 s) and only once the NEXA has reached the last value, using the Shelly mean since the last write; export above
 `export_w` (default 30 W) is corrected immediately. Each transition is logged (`docker compose logs shelly-control`).
+
+## Growatt cloud: adding a NEXA and pairing a meter
+
+Some things still need the manufacturer cloud once — registering the device to a plant, and pairing a smart meter for the
+NEXA's own Smart mode. Both are undocumented, so this is what they actually do. The findings come from the **old native
+ShinePhone** app (`com.growatt.shinephone`, Java, readable with jadx); the current ShinePhone 2.0 is Flutter and only
+yields endpoint paths.
+
+**Logging in.** `POST https://server-api.growatt.com/newTwoLoginAPIV2.do` with `userName`, `password` and a handful of
+device fields returns a session cookie. The password goes over the wire as MD5 hex where every single-digit byte is
+prefixed with `c` instead of `0` — Growatt's own `MD5andKL.encryptPassword`. The modern API used by ShinePhone 2.0 is
+reachable as well: `POST https://shineserver.growatt.com/server-pro/login` with JSON `{"username", "password"}` returns a
+JWT for the `/gro/...` endpoints. Note that wrong passwords are counted (five attempts).
+
+**Adding the NEXA to a plant — no check code.** The generic datalogger path needs the verification code from the sticker
+(`/gro/plant/datalog/addDatalog`, `datalogSn` + `verifyCode`). The NEXA has its own path that does not:
+
+```
+POST /noahDeviceApi/nexa/addNexaDatalog     datalogSn=<serial>  plantId=<id>     -> result 1
+POST /noahDeviceApi/nexa/nexaDeviceList     accountName=<user>
+POST /noahDeviceApi/nexa/getPlantInfoList   accountName=<user>  deviceSn=<serial>
+POST /noahDeviceApi/nexa/deleteNexa         (unbind)
+```
+
+`scripts/growatt-register-nexa.py` does this; without `--bind` it only logs in and reports what the server knows.
+Battery packs need no registration of their own — the NEXA reports them, and they appear under the datalogger serial.
+
+> **Worth knowing:** the datalogger serial is the only thing needed to claim a NEXA for an account. Treat it like a
+> password and do not publish it.
+
+**The account token (parameter 54).** After binding, the app writes the account's `cpowerToken` from the login response
+into dongle parameter 54 (`Protocol0X18.newInstance(54, token)`), and uses the same value as the local Bluetooth key
+(`setUserSecretKey`). A second-hand device still carries the previous owner's token until it is overwritten. The value is
+stable across logins — do not confuse it with `cpowerAuth`, which is a short-lived JWT.
+
+**Pairing a meter.** Scan and bind are the same cloud call; without `param2` it is a scan, with it the binding:
+
+```
+POST /noahDeviceApi/nexa/set   serialNum=<serial>  type=bindGenericMeterAssociation
+                               param1=<model>  [param2=<meter id>]
+POST /noahDeviceApi/nexa/set   serialNum=<serial>  type=delGenericMeterAssociation  param1=<meter id>
+POST /noahDeviceApi/meter/meterListByNoah       deviceSn=<serial>   supported models
+POST /noahDeviceApi/meter/getPairGenericList    noahSn=<serial>     what the device found
+POST /noahDeviceApi/meter/getPairGenericStatus  noahSn=<serial>     paired yes/no
+```
+
+Underneath, the cloud only writes **dongle parameter 122**, and that is the whole mechanism:
+
+```
+scan    122 = ADD:<model>-<vendor>-_http._tcp.,2
+pair    122 = CRL:<model>-<vendor>-add:sn,<meter id>|access,0
+read    122 -> DEV:<model>-<vendor>-<state>,<meter id>,<meter ip>
+```
+
+The dongle then queries `_http._tcp.local` over mDNS itself, the Shelly answers, and the dongle reports the find upstream
+in a 0xFE19 message. **The meter id is the meter's MAC as a decimal integer** (a MAC of `AA:BB:CC:DD:EE:FF` becomes `187723572702975`).
+For a Shelly Pro 3EM the codes are model `111`, vendor `7` (its cloud model name is `SPEM-003CEBEU`). Since 122 is
+writable from the stack (`scripts/dongle-param-set.sh`), the pairing can be reproduced without the cloud.
+
+Pairing alone changes nothing; the mode switch is `ac_couple_enable`:
+
+```
+POST /noahDeviceApi/nexa/set   serialNum=<serial>  type=ac_couple_enable  param1=1
+```
+
+With it on, `isHaveCt` turns true and the NEXA reports `gridPower` read from the meter itself. The upper bound for the
+output stays `slotN_power`, so set that to the power you are allowed to feed before switching over.
 
 ## Heat pump (WOLF CHA over the local WOLF Link)
 
@@ -639,11 +713,15 @@ set back to 800 and the mapping removed. In Germany the simplified balcony regis
 
 The Wi-Fi dongle (an ESP32, `GTSW0000`) keeps about 145 configuration parameters that can be read with message type
 0x0119 and written with 0x0118 on `s/33/<serial>`; answers arrive on `c/33/<serial>`. `scripts/dongle-param.sh <id>`
-reads one parameter in clear text. Known ids: 4 interval, 17-19 broker, 30 time zone, 31 clock, 32 restart, **35 IOT
-module off** (the dongle leaves the Wi-Fi; a short press on the NEXA's IOT button then starts the pairing mode and
-ShinePhone can set the Wi-Fi again over Bluetooth), 56/57 Wi-Fi SSID and password (readable in clear text by anyone on
-the broker, keep port 1883 inside the LAN), 76 Wi-Fi signal, 102/122 read-only device status, 118 forces a reconnect.
-Setting every other zero-valued parameter to 1 had no effect, so the smart-meter pairing is not a simple dongle flag.
+reads one parameter in clear text, `scripts/dongle-param-set.sh <id> <value>` writes one and reads it back to confirm
+(with its own block list for the Wi-Fi, broker and IOT-module fields). Known ids: 4 interval, 17-19 broker, 30 time zone,
+31 clock, 32 restart, **35 IOT module off** (the dongle leaves the Wi-Fi; a short press on the NEXA's IOT button then
+starts the pairing mode and ShinePhone can set the Wi-Fi again over Bluetooth), **54 the account token** (see below),
+56/57 Wi-Fi SSID and password (readable in clear text by anyone on the broker, keep port 1883 inside the LAN),
+76 Wi-Fi signal, 102 device status, **122 the smart-meter pairing** (see below), 118 forces a reconnect.
+
+Parameter 122 took a while to find because it does not answer to a plain value: writing `1` to it does nothing, it wants a
+command string. That is why an earlier sweep of every zero-valued parameter came up empty.
 
 The `dongle-info` sidecar exposes `<base>/grolo/dongle/param/read` (`{"reg": 20}`) and `.../set` (`{"reg": 35, "value": "1"}`,
 only ids in `WRITABLE_PARAMS`, default 35); results come back on `.../param/result`. The settings page uses it for the
@@ -685,6 +763,8 @@ scripts/build-chain.sh       assemble and verify the full chain
 scripts/verify.sh            16-step health check
 scripts/migrate-website-db.sh move the website database into the stack's Postgres, without a gap in the data
 scripts/test-panels.py       run every Grafana panel query
+scripts/dongle-param-set.sh  write one dongle parameter and read it back (with a block list)
+scripts/growatt-register-nexa.py  add a NEXA to a Growatt plant (no check code needed)
 scripts/fit-orientation.py   estimate tilt/azimuth per string from the measurements
 grobro/sidecar/forecast.py   annual forecast: consumption, bill and recommended monthly payment
 scripts/wolf-config.sh       ask the WOLF Link which devices are on the eBus -> wolf/parameter.json
@@ -702,7 +782,7 @@ grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, we
 grobro/registers/            extended NEXA register map
 wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.40.3
+VERSION                      2026.41.0
 ```
 
 License: MIT.

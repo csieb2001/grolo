@@ -113,9 +113,13 @@ def decode_down(payload: bytes):
             val = u[46:46 + vlen].decode("ascii", "replace")
             shown = "[ausgeblendet]" if reg in (7, 57) else repr(val)
             return t, f"Dongle-Parameter {reg} = {shown} (Typ 0x{t:04x}, {dev})", reg in PROTECTED_PARAMS
-        if t == 0x0110 and len(u) >= 42:           # Register schreiben (Gerät)
-            start, count = struct.unpack_from(">HH", u, 38)
-            return t, f"Register {start} (+{count}) = {u[42:-2].hex()} ({dev})", False
+        if t == 0x0110 and len(u) >= 42:           # Register schreiben (Gerät): Start- und ENDregister, dann je 2 Byte
+            start, end = struct.unpack_from(">HH", u, 38)
+            data = u[42:-2]; n = end - start + 1
+            if 0 < n <= 64 and len(data) == 2 * n:
+                werte = ", ".join(f"{start + i} = {struct.unpack_from('>H', data, 2 * i)[0]}" for i in range(n))
+                return t, f"Register schreiben ({werte}) ({dev})", False
+            return t, f"Register {start}..{end} = {data.hex()} ({dev})", False
         if t == 0x0106 and len(u) >= 42:
             reg, val = struct.unpack_from(">HH", u, 38)
             return t, f"Einzelregister {reg} = {val} ({dev})", False
