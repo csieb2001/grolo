@@ -5,6 +5,8 @@
 #   influx/       konsistenter Auszug der Messreihen. NICHT das laufende Datenverzeichnis kopieren –
 #                 InfluxDB schreibt währenddessen weiter, und eine halb geschriebene TSM-Datei ist beim
 #                 Zurückspielen wertlos. `influx backup` erzeugt einen in sich stimmigen Stand.
+#   postgres/     Auszug der Website-Datenbank, aus demselben Grund wie bei InfluxDB: das laufende
+#                 Datenverzeichnis zu kopieren ergibt keinen verlässlichen Stand, pg_dump schon.
 #   volumes/      die übrigen Docker-Volumes. Klein, aber teils unersetzlich: growatt_matter-data trägt
 #                 die Schlüssel unserer Matter-Fabric – ohne sie müssen alle tado-Geräte neu gekoppelt
 #                 werden. growatt_wolf-state trägt die Takt-Historie der Wärmepumpe.
@@ -29,7 +31,7 @@ set -a; . "$ENV_FILE"; set +a
 
 log() { printf '%s  %s\n' "$(date +%H:%M:%S)" "$*"; }
 trap 'rm -rf "$WORK"' EXIT
-rm -rf "$WORK"; mkdir -p "$WORK"/{influx,volumes,opt}
+rm -rf "$WORK"; mkdir -p "$WORK"/{influx,postgres,volumes,opt}
 
 # ---------------------------------------------------------------- InfluxDB, in sich stimmig
 if docker ps --format '{{.Names}}' | grep -qx grolo-influxdb; then
@@ -46,8 +48,21 @@ else
   log "InfluxDB läuft nicht – überspringe den Auszug"
 fi
 
+# ---------------------------------------------------------------- Postgres der Website, in sich stimmig
+if docker ps --format '{{.Names}}' | grep -qx grolo-db; then
+  set -a; . /opt/growatt/.env; set +a
+  log "Postgres-Auszug…"
+  docker exec grolo-db pg_dump -U "${PGUSER:-grolo}" -d "${PGDATABASE:-grolo}" -Fc --no-owner --no-acl \
+    > "$WORK/postgres/grolo.dump"
+  log "Postgres: $(du -sh "$WORK/postgres" | cut -f1)"
+else
+  log "Postgres läuft nicht – überspringe den Auszug"
+fi
+
 # ---------------------------------------------------------------- übrige Volumes
-for v in $(docker volume ls -q --filter name=growatt_ | grep -v '^growatt_influxdb-data$'); do
+# growatt_pgdata bleibt außen vor: dafür steht oben der pg_dump, eine Kopie des laufenden
+# Datenverzeichnisses wäre beim Zurückspielen nicht verlässlich.
+for v in $(docker volume ls -q --filter name=growatt_ | grep -v -e '^growatt_influxdb-data$' -e '^growatt_pgdata$'); do
   src="/var/lib/docker/volumes/$v/_data"
   [[ -d $src ]] || continue
   mkdir -p "$WORK/volumes/$v"

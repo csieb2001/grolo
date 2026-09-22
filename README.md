@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.40.2** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+Version **2026.40.3** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
 packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
@@ -495,19 +495,55 @@ payment you currently make. Everything else the model takes from the measurement
 module settings. It is published retained on `homeassistant/grolo/forecast`, lands in InfluxDB as `forecast` (year) and
 `forecast_month` (per month), and appears in the Grafana row "Annual forecast", on the settings page and on the website.
 
+## Website and access from outside (optional)
+
+The [GroLo website](https://github.com/csieb2001/grolo-web) can run inside this stack instead of on a hosting
+platform. Clone it next to this repository, so that `../grolo-web` exists, put `web` into `COMPOSE_PROFILES` and set
+`PGPASSWORD` and `WEB_URL=http://grolo-web:3000` in `.env`. Then:
+
+```bash
+docker compose build grolo-web
+docker compose up -d grolo-db grolo-web web-push
+```
+
+`web-push` now talks to the container over the Docker network, so the measurements never leave the house and
+`/api/ingest` needs no route from the internet. Neither container publishes a port, which means nothing on your LAN
+can reach the site either — for a look from the machine itself, bind it to localhost with `WEB_LOCAL_PORT` and use an
+SSH forward.
+
+To reach it from outside, a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+is the least invasive way: the connector dials out, so no port forwarding, no dynamic DNS, and it works behind CGNAT.
+Create the tunnel in Cloudflare Zero Trust, put its token into `.env` as `CF_TUNNEL_TOKEN`, add `tunnel` to
+`COMPOSE_PROFILES` and start `cloudflared`. Point the published routes at the container names:
+
+| Hostname | Service |
+|---|---|
+| `pv.<your-domain>` | `grolo-web:3000` |
+| `grafana.<your-domain>` | `grafana:3000` |
+| `settings.<your-domain>` | `settings:80` |
+
+Put a Cloudflare Access policy in front of each hostname (one-time PIN to your address is enough) — **create the
+Access application first, then the tunnel route**. The other way round the service stands open on the internet for
+as long as it takes you to click through the second form, and Grafana in particular runs as an anonymous viewer here.
+With Access in front, `SITE_PASSWORD` can stay empty; if you publish the site without it, set a password.
+
+The settings page works through the tunnel as well: its nginx passes `/mqtt` to the broker's WebSocket listener, so the
+page talks to MQTT over the same host name and TLS instead of a separate port.
+
 ## Backup
 
-Everything here is reproducible except two things: the measurement history in InfluxDB, and a handful of small
-files that are worth more than their size suggests. `growatt_matter-data` holds the keys of our Matter fabric —
+Everything here is reproducible except three things: the measurement history in InfluxDB, the website's database
+(if you run it here), and a handful of small files that are worth more than their size suggests. `growatt_matter-data` holds the keys of our Matter fabric —
 lose it and every tado° X device has to be paired again by hand. `growatt_wolf-state` holds the compressor
 cycle history. `.env` and the Mosquitto certificates are the only things in `/opt/growatt` that are not on
-GitHub, and without them the stack does not start.
+GitHub, and without them the stack does not start. The two databases are dumped rather than copied file by file:
+a running database's data directory is not a usable backup, `influx backup` and `pg_dump` are.
 
 Three [restic](https://restic.net/) jobs, all encrypted, deduplicating and incremental:
 
 | Script | Where | When | Contents | Retention |
 |---|---|---|---|---|
-| `scripts/grolo-backup.sh` | in the container | daily 03:20 | InfluxDB dump, volumes, `.env`, certificates | 7 daily, 4 weekly, 6 monthly |
+| `scripts/grolo-backup.sh` | in the container | daily 03:20 | InfluxDB dump, Postgres dump, volumes, `.env`, certificates | 7 daily, 4 weekly, 6 monthly |
 | `scripts/pve-backup.sh` | on the host | Sundays 03:00 | `/etc/pve`, network, GRUB line, storage config | 7 / 4 / 6 |
 | `scripts/pve-image-backup.sh` | on the host | 1st of month 02:00 | full `vzdump` of the container | 2 snapshots |
 
@@ -561,7 +597,10 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `matter` | ghcr.io/matter-js/matterjs-server | local Matter controller (Open Home Foundation, matter.js), WebSocket on 5580, host network for mDNS and IPv6 (profile `tado`) |
 | `tado-bridge` | grobro image + `grobro/sidecar/tado_bridge.py` | reads the tado° X rooms over Matter and writes target temperature, mode and room name back (profile `tado`) |
 | `heat-shift` | grobro image + `grobro/sidecar/heat_shift.py` | raises the target temperature while the PV has a surplus and puts it back afterwards; off by default (profile `tado`) |
-| `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples, weather and heat pump data to the optional GroLo website (Vercel) |
+| `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples, weather and heat pump data to the GroLo website |
+| `grolo-db` | postgres:18-alpine | database of the website, no published port (profile `web`) |
+| `grolo-web` | built from `../grolo-web` | the website itself (Next.js), no published port (profile `web`) |
+| `cloudflared` | cloudflare/cloudflared | outbound tunnel that makes the chosen services reachable from the internet (profile `tunnel`) |
 | `shelly-control` | grobro image + `grobro/sidecar/shelly_control.py` | local zero-feed-in: reads a Shelly meter and steers the NEXA output power |
 | `wolf` | zivillian/ism7mqtt | ISM7 protocol to the WOLF Link on TLS 9092, one JSON topic per bus device (profile `wolf`) |
 | `wolf-bridge` | grobro image + `grobro/sidecar/wolf_bridge.py` | keeps the full heat pump state, computes COP, spread and performance factors, records every compressor run and judges the cycling, validates and forwards control writes (profile `wolf`) |
@@ -644,6 +683,7 @@ mosquitto/certs/             certificates (gitignored)
 scripts/setup-certs.sh       Let's Encrypt via acme.sh + DuckDNS
 scripts/build-chain.sh       assemble and verify the full chain
 scripts/verify.sh            16-step health check
+scripts/migrate-website-db.sh move the website database into the stack's Postgres, without a gap in the data
 scripts/test-panels.py       run every Grafana panel query
 scripts/fit-orientation.py   estimate tilt/azimuth per string from the measurements
 grobro/sidecar/forecast.py   annual forecast: consumption, bill and recommended monthly payment
@@ -654,13 +694,15 @@ scripts/wolf-nexa-link.py    adds the heat pump row and link to the NEXA dashboa
 telegraf/telegraf.conf       MQTT → InfluxDB
 grafana/build-dashboard.py   generates grafana/dashboards/nexa-en.json and nexa-de.json
 grafana/provisioning/        data source and dashboard provider
-settings-ui/                 GroLo settings page and wolf.html heat pump controls (static, MQTT over WebSocket)
+settings-ui/                 GroLo settings page and wolf.html heat pump controls (static, MQTT over WebSocket),
+                             nginx.conf passes /mqtt to the broker so the page works behind a single host name,
+                             links.js holds the links between website, settings, heat pump and Grafana
 grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py,
                              shelly_control.py, wolf_bridge.py
 grobro/registers/            extended NEXA register map
 wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.40.2
+VERSION                      2026.40.3
 ```
 
 License: MIT.

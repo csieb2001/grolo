@@ -440,8 +440,81 @@ services:
     restart: unless-stopped
     ports:
       - "${SETTINGS_PORT:-8080}:80"
+    depends_on:
+      mosquitto:
+        condition: service_healthy
     volumes:
       - ./settings-ui:/usr/share/nginx/html:ro
+      # Websocket unter /mqtt am selben Hostnamen – die Seite braucht das, sobald sie über den Tunnel läuft
+      - ./settings-ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  # ---- Website und ihre Datenbank, seit dem Umzug von Vercel/Neon im eigenen Stack ----------------------
+  # Beide laufen nur mit dem Profil "web" (COMPOSE_PROFILES in .env), damit der Stack ohne die
+  # Website-Quellen im Nachbarordner startbar bleibt.
+
+  # Postgres für die Website. Kein Host-Port: erreichbar nur im Compose-Netz, Zugriff von Hand per
+  # docker exec -it grolo-db psql -U grolo. Die Zeitzone bleibt absichtlich UTC (Standard des Abbilds),
+  # die Abfragen der Website setzen ihre Zeitzone selbst per AT TIME ZONE.
+  grolo-db:
+    image: postgres:18-alpine
+    container_name: grolo-db
+    restart: unless-stopped
+    profiles: ["web"]
+    environment:
+      POSTGRES_DB: "${PGDATABASE:-grolo}"
+      POSTGRES_USER: "${PGUSER:-grolo}"
+      # Ohne PGPASSWORD startet der Container nicht – das Abbild lehnt ein leeres Superuser-Passwort ab.
+      POSTGRES_PASSWORD: "${PGPASSWORD}"
+    volumes:
+      # Postgres 18 erwartet den Mount eine Ebene über dem Datenverzeichnis (PGDATA liegt darin unter
+      # 18/docker); auf /var/lib/postgresql/data gemountet startet das Abbild nicht.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-grolo} -d ${PGDATABASE:-grolo}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Die Website selbst (Next.js, Quellen im Nachbarordner ../grolo-web). Ebenfalls ohne Host-Port:
+  # von außen kommt man nur durch den Cloudflare-Tunnel, und der steht hinter Cloudflare Access.
+  # Ohne SITE_PASSWORD zeigt die Seite keinen Login mehr – den Zugang regelt Access davor.
+  grolo-web:
+    build:
+      context: ../grolo-web
+    image: grolo-web:local
+    container_name: grolo-web
+    restart: unless-stopped
+    profiles: ["web"]
+    depends_on:
+      grolo-db:
+        condition: service_healthy
+    ports:
+      # Nur an den Rechner selbst gebunden, nicht ans Netz: zum Nachsehen per SSH-Weiterleitung
+      # (ssh -L 3001:127.0.0.1:3001 root@<host>), ohne die Seite im LAN offen stehen zu lassen.
+      - "127.0.0.1:${WEB_LOCAL_PORT:-3001}:3000"
+    environment:
+      DATABASE_URL: "postgres://${PGUSER:-grolo}:${PGPASSWORD}@grolo-db:5432/${PGDATABASE:-grolo}"
+      INGEST_TOKEN: "${WEB_TOKEN}"
+      SITE_PASSWORD: "${SITE_PASSWORD:-}"
+      # Verweise auf die Nachbarseiten derselben Anlage. Leer lassen, wenn die Hostnamen dem Muster
+      # <dienst>.<domain> folgen – dann leitet die Seite sie aus ihrer eigenen Adresse ab.
+      LINK_SETTINGS: "${LINK_SETTINGS:-}"
+      LINK_GRAFANA: "${LINK_GRAFANA:-}"
+      LINK_HEATPUMP: "${LINK_HEATPUMP:-}"
+      TZ: "${TZ:-Europe/Berlin}"
+
+  # Cloudflare-Tunnel: baut die Verbindung von innen nach außen auf, deshalb keine Portfreigabe im
+  # Router und kein DynDNS. Welche Hostnamen auf welchen Dienst zeigen, steht im Cloudflare-Dashboard
+  # (Zero Trust -> Networks -> Tunnels), davor jeweils eine Access-Richtlinie.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: grolo-cloudflared
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${CF_TUNNEL_TOKEN}"
 
 volumes:
   mosquitto-data:
@@ -449,6 +522,7 @@ volumes:
   grafana-data:
   cloud-gate-state:
   web-push-state:
+  pgdata:
   matter-data:
   heatshift-state:
   wolf-state:

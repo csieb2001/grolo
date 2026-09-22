@@ -58,6 +58,9 @@
   footer { text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px }
   .filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px }
   .filters input[type=text] { flex:1; min-width:180px }
+  nav.nav { display:flex; gap:14px; flex-wrap:wrap }
+  nav.nav a { color:var(--muted); text-decoration:none; font-size:13px; border-bottom:1px solid transparent }
+  nav.nav a:hover { color:var(--text); border-bottom-color:var(--line) }
   @media (max-width:700px) { header { padding:10px 12px } main { padding:12px } }
 </style>
 </head>
@@ -69,8 +72,7 @@
   <span id="devs" class="pill">–</span>
   <span class="spacer"></span>
   <div class="toggle lang" id="lang"><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
-  <a id="dash" href="#" target="_blank"></a>
-  <a id="back" href="index.html"></a>
+  <nav id="nav" class="nav"></nav>
 </header>
 
 <main>
@@ -110,13 +112,18 @@
 <footer><span data-t="foot"></span> · <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
+<script src="links.js"></script>
 <script>
 (() => {
   // ------------------------------------------------------------------ Konfiguration / config
   const BASE = 'homeassistant';
   const host = location.hostname || 'localhost';
-  const WS_URL = `ws://${host}:9001`;
-  const dashUrl = () => `http://${host}:3000/d/wolf-${lang}`;
+  // Über den Cloudflare-Tunnel kommt die Seite per HTTPS; der Broker-Port ist von außen nicht erreichbar
+  // und ws:// wäre auf einer HTTPS-Seite Mixed Content. nginx reicht /mqtt an den Websocket-Listener des
+  // Brokers weiter. Lokal aufgerufen bleibt es beim direkten Port. Die Verweise auf die anderen Seiten
+  // stehen in links.js.
+  const secure = location.protocol === 'https:';
+  const WS_URL = secure ? `wss://${location.host}/mqtt` : `ws://${host}:9001`;
 
   // ------------------------------------------------------------------ Sprache / language
   const I18N = {
@@ -206,8 +213,7 @@
   function applyStatic() {
     document.documentElement.lang = lang;
     for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
-    document.getElementById('dash').textContent = t('dashboard'); document.getElementById('dash').href = dashUrl();
-    document.getElementById('back').textContent = t('back');
+    groloRenderNav(document.getElementById('nav'), 'heatpump', lang);
     document.getElementById('search').placeholder = t('search');
     for (const b of document.querySelectorAll('#lang button')) b.className = b.dataset.lang === lang ? 'on' : '';
   }

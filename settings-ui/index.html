@@ -62,6 +62,9 @@
   .log-ok { color:var(--green) } .log-err { color:var(--red) } .log-tx { color:var(--blue) } .log-cloud { color:#c084fc } .log-info { color:#9aa0a6 }
   a { color:var(--blue) }
   footer { text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px }
+  nav.nav { display:flex; gap:14px; flex-wrap:wrap }
+  nav.nav a { color:var(--muted); text-decoration:none; font-size:13px; border-bottom:1px solid transparent }
+  nav.nav a:hover { color:var(--text); border-bottom-color:var(--line) }
   @media (max-width:700px) { header { padding:10px 12px } main { padding:12px } }
   .slab { color:#8e8e8e; font-size:11px; align-self:center; margin-left:4px }
   .srow { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end }
@@ -84,15 +87,14 @@
 </head>
 <body>
 <header>
-  <h1>GroLo <small>Growatt Local · 2026.40.2</small></h1>
+  <h1>GroLo <small>Growatt Local · 2026.40.3</small></h1>
   <span id="conn" class="pill">…</span>
   <span id="dev" class="pill">–</span>
   <span id="avail" class="pill">–</span>
   <span class="spacer"></span>
   <div class="toggle lang" id="lang"><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
   <button id="readall" class="primary"></button>
-  <a id="grafana" href="#" target="_blank"></a>
-  <a id="wolf" href="wolf.html"></a>
+  <nav id="nav" class="nav"></nav>
 </header>
 
 <main>
@@ -260,16 +262,21 @@
   <section id="sec-other" hidden><h2 data-t="sec.other"></h2><p class="hint" data-t="sec.other.hint"></p><div class="grid"></div></section>
   <section><h2 data-t="sec.log"></h2><p class="hint" data-t="sec.log.hint"></p><div id="log"></div></section>
 </main>
-<footer>GroLo · Growatt Local · v2026.40.2 · MQTT <span id="ws-url"></span></footer>
+<footer>GroLo · Growatt Local · v2026.40.3 · MQTT <span id="ws-url"></span></footer>
 
 <script src="mqtt.min.js"></script>
+<script src="links.js"></script>
 <script>
 (() => {
   // ------------------------------------------------------------------ Konfiguration / config
   const BASE = 'homeassistant';
   const host = location.hostname || 'localhost';
-  const WS_URL = `ws://${host}:9001`;
-  const grafanaUrl = () => `http://${host}:3000/d/${lang === 'de' ? 'nexa2000-de' : 'nexa2000'}`;
+  // Über den Cloudflare-Tunnel kommt die Seite per HTTPS; der Broker-Port ist von außen nicht erreichbar
+  // und ws:// wäre auf einer HTTPS-Seite Mixed Content. nginx reicht /mqtt an den Websocket-Listener des
+  // Brokers weiter. Lokal aufgerufen bleibt es beim direkten Port. Die Verweise auf die anderen Seiten
+  // stehen in links.js.
+  const secure = location.protocol === 'https:';
+  const WS_URL = secure ? `wss://${location.host}/mqtt` : `ws://${host}:9001`;
 
   // ------------------------------------------------------------------ Sprache / language
   const I18N = {
@@ -503,8 +510,8 @@
   function applyStatic() {
     document.documentElement.lang = lang;
     for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
-    document.getElementById('readall').textContent = t('readall'); document.getElementById('grafana').textContent = t('dashboard'); document.getElementById('grafana').href = grafanaUrl();
-    document.getElementById('wolf').textContent = t('heatpump');
+    document.getElementById('readall').textContent = t('readall');
+    groloRenderNav(document.getElementById('nav'), 'settings', lang);
     for (const b of document.querySelectorAll('#lang button')) b.className = b.dataset.lang === lang ? 'on' : '';
   }
   for (const b of document.querySelectorAll('#lang button')) b.onclick = () => { lang = b.dataset.lang; try { localStorage.setItem('grolo.lang', lang); } catch {} applyStatic(); render(); renderAll(); log(`${t('log.lang')}: ${lang.toUpperCase()}`, 'log-info'); };
