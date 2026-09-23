@@ -5,7 +5,7 @@ A Docker Compose stack: TLS MQTT broker for the Growatt Wi-Fi dongle, [GroBro](h
 InfluxDB + Grafana for history, a bilingual settings page (EN/DE), and three small helper services for hardware info, raw registers and
 an optional, switchable relay to the Growatt cloud.
 
-Version **2026.41.0** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
+Version **2026.42.0** · Runs on any host with Docker (developed on macOS, tested with NEXA 2000 firmware 4.0.2.6 and two battery
 packs, and a Wolf CHA-10 on a WOLF Link home with firmware 4.50.0).
 
 ## Screenshots
@@ -644,6 +644,38 @@ original — `restic restore latest --target /tmp/x --include "*/opt/.env"` — 
 --read-data-subset=5%` read part of the data back. Both are in the commit history of this repository because
 both were actually run.
 
+## Two paths to the data
+
+The dongle is a pure MQTT **client**: nothing listens on it (a port scan finds every port closed), and it has exactly
+one server field in its configuration. It cannot be queried, and it cannot report to two places. So the only way to see
+its data is to *be* the broker it dials, which is what this stack does.
+
+That gives two independent paths, and it is worth having both.
+
+**Local (the primary).** The dongle connects to our broker, GroBro decodes, everything else follows. Fast (every few
+seconds), complete (every register) and independent of any vendor service. It only requires that the dongle reaches us:
+either a local DNS record that points `mqtt.growatt.com` at the broker, or — cleaner — the broker address written into
+the dongle itself. The latter is only settable over Bluetooth, in the old native ShinePhone under the datalogger's
+advanced settings: a switch selects domain or IP, parameter 19 takes the domain, 17 the IP and 18 the port. Over MQTT
+the dongle acknowledges a write to these fields and silently ignores it. Note that the Growatt cloud tries to rewrite
+the broker shortly after a device connects, which is why `cloud-gate` blocks writes to 17/18/19.
+
+**Cloud (the fallback).** The `cloud-poll` sidecar asks Growatt's own servers for the same values, so data keeps
+arriving even if the dongle no longer reaches the broker. It logs in the way the app does — account name and password,
+no API key — and reads `getSystemStatus` and `getBatteryData`. The numbers are identical to the local ones (checked
+field by field: PV, SoC, charge power, household load, energy counters and per-pack SoC and temperature all match), only
+slower and with numeric codes instead of labels.
+
+Enable it with the `cloud-poll` profile and `GROWATT_USER`, `GROWATT_PASSWORD` and `GROWATT_DEVICE` in `.env`. It
+publishes `<base>/grolo/cloud/state` (retained) and `<base>/grolo/cloud/status`, and Telegraf stores it as measurement
+`cloud`. The values are deliberately **not** mirrored into the GroBro topic: both sources stay separate and comparable,
+and `local_age_s` in every message says how long ago the local path last delivered — so it is obvious which one is
+carrying at the moment.
+
+Growatt also runs an official OpenAPI (`openapi.growatt.com`) that uses a real API key. It needs a token issued for your
+account by Growatt, and in our tests a token for a different account could not see the device at all
+(`error_permission_denied`), so the account login above is the route that works without waiting on support.
+
 ## Cloud relay (optional)
 
 With the switch on, GroBro forwards the raw frames through the `cloud-gate` service to Growatt (TLS, SNI `mqtt.growatt.com`,
@@ -777,12 +809,12 @@ grafana/provisioning/        data source and dashboard provider
 settings-ui/                 GroLo settings page and wolf.html heat pump controls (static, MQTT over WebSocket),
                              nginx.conf passes /mqtt to the broker so the page works behind a single host name,
                              links.js holds the links between website, settings, heat pump and Grafana
-grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, weather.py, solar.py, web_push.py,
-                             shelly_control.py, wolf_bridge.py
+grobro/sidecar/              dongle_info.py, raw_registers.py, cloud_gate.py, cloud_poll.py, weather.py, solar.py,
+                             web_push.py, shelly_control.py, wolf_bridge.py
 grobro/registers/            extended NEXA register map
 wolf/                        parameter.json and catalog.json of the heat pump installation (generated)
 docs/                        screenshots (serial numbers masked)
-VERSION                      2026.41.0
+VERSION                      2026.42.0
 ```
 
 License: MIT.

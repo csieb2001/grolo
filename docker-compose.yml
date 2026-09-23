@@ -216,6 +216,32 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
 
+  # Zweiter Datenweg: fragt dieselben Werte über die Growatt-Cloud ab, falls der Dongle uns im LAN nicht
+  # mehr erreicht. Braucht Kontodaten in .env; ohne GROWATT_USER beendet sich der Dienst sofort wieder.
+  cloud-poll:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-cloud-poll
+    restart: unless-stopped
+    profiles: ["cloud-poll"]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/cloud_poll.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      GROWATT_USER: "${GROWATT_USER:-}"
+      GROWATT_PASSWORD: "${GROWATT_PASSWORD:-}"
+      GROWATT_DEVICE: "${GROWATT_DEVICE:-}"
+      GROWATT_SERVER: "${GROWATT_SERVER:-https://server-api.growatt.com}"
+      CLOUD_POLL_S: "${CLOUD_POLL_S:-300}"
+      PYTHONPATH: /app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
   # Jahresprognose: rechnet ein volles Jahr Stunde für Stunde mit dem echten Wetter des Standorts durch und
   # sagt, wie viel Strom zusammenkommt, was die Jahresrechnung kostet und welcher Abschlag richtig wäre.
   forecast:

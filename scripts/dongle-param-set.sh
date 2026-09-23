@@ -12,10 +12,15 @@ if [ -z "$ID" ] || [ -z "$VAL" ] || [ -z "$DEV" ]; then
 fi
 python3 - "$ID" "$VAL" "$HOST" "$DEV" <<'PY'
 import struct, sys, subprocess, time
+import os
 SPERRE = {4, 7, 12, 14, 17, 18, 19, 25, 26, 32, 35, 56, 57}
+# Bewusste Ausnahme, z. B. GROLO_UNLOCK=17 zum Umstellen des Brokers. Nur absichtlich setzen.
+FREI = {int(x) for x in os.getenv("GROLO_UNLOCK", "").replace(" ", "").split(",") if x}
 reg, val, host, dev = int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
-if reg in SPERRE:
-    sys.exit(f"Parameter {reg} ist gesperrt (WLAN/Broker/IOT-Modul) – nicht über dieses Skript schreiben.")
+if reg in SPERRE and reg not in FREI:
+    sys.exit(f"Parameter {reg} ist gesperrt (WLAN/Broker/IOT-Modul). Bewusst freigeben mit GROLO_UNLOCK={reg}.")
+if reg in FREI:
+    print(f"ACHTUNG: Parameter {reg} ist gesperrt und wurde per GROLO_UNLOCK freigegeben.")
 mask = b"Growatt"
 def crc16(d):
     c = 0xFFFF
