@@ -21,6 +21,8 @@ Steuerung über MQTT (lokaler Broker):
 import asyncio, json, logging, os, socket, ssl, struct, threading, time
 import paho.mqtt.client as mqtt
 
+import mqtt_watchdog
+
 BASE = os.getenv("HA_BASE_TOPIC", "homeassistant")
 MQTT_HOST = os.getenv("MQTT_HOST", "mosquitto"); MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 LISTEN_PORT = int(os.getenv("LISTEN_PORT", "7006"))
@@ -422,6 +424,10 @@ def mqtt_thread():
             mq.connect(MQTT_HOST, MQTT_PORT, 60); break
         except Exception as e:
             LOG.warning("MQTT nicht erreichbar (%s), neuer Versuch", e); time.sleep(5)
+    # paho dreht nach einem halb offenen Socket gelegentlich in loop_forever() leer weiter
+    # (siehe mqtt_watchdog.py). Der Wachhund beendet den Prozess, der Container startet neu.
+    mqtt_watchdog.install(mq, "cloud-gate")
+    mq.reconnect_delay_set(min_delay=1, max_delay=120)
     mq.loop_forever()
 
 

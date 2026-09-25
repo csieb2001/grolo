@@ -9,6 +9,8 @@ Nur lesend. Läuft im GroBro-Image mit dessen Parser (PYTHONPATH=/app).
 """
 import json, logging, os, struct, time
 import paho.mqtt.client as mqtt
+
+import mqtt_watchdog
 from grobro.grobro import parser
 import grobro.model.modbus_message as mm
 
@@ -100,4 +102,8 @@ while True:
         client.connect(HOST, PORT, 60); break
     except Exception as e:
         LOG.warning("MQTT nicht erreichbar (%s), neuer Versuch", e); time.sleep(5)
+# paho dreht nach einem halb offenen Socket gelegentlich in loop_forever() leer weiter
+# (siehe mqtt_watchdog.py). Der Wachhund beendet den Prozess, der Container startet neu.
+mqtt_watchdog.install(client, "raw-registers")
+client.reconnect_delay_set(min_delay=1, max_delay=120)
 client.loop_forever()

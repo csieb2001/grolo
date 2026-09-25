@@ -11,6 +11,8 @@ Zusätzlich: Dongle-Parameter lesen und (Freigabeliste) schreiben, für die Eins
 """
 import json, logging, os, struct, sys, time
 import paho.mqtt.client as mqtt
+
+import mqtt_watchdog
 from grobro.grobro import parser
 from grobro.grobro.builder import append_crc, scramble
 
@@ -157,4 +159,8 @@ while True:
         client.connect(HOST, PORT, 60); break
     except Exception as e:
         LOG.warning("MQTT nicht erreichbar (%s), neuer Versuch", e); time.sleep(5)
+# paho dreht nach einem halb offenen Socket gelegentlich in loop_forever() leer weiter
+# (siehe mqtt_watchdog.py). Der Wachhund beendet den Prozess, der Container startet neu.
+mqtt_watchdog.install(client, "dongle-info")
+client.reconnect_delay_set(min_delay=1, max_delay=120)
 client.loop_forever()
