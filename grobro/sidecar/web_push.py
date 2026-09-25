@@ -62,7 +62,7 @@ def queue_load():
     LOG.info("Puffer geladen: %d Samples, %d Wärmepumpe, %d Takte aus %s", len(items), len(heat), len(cycles), QUEUE_FILE)
 info_pending = {}   # device -> info dict
 weather = {"current": None, "forecast": None, "model": None, "fit": None, "advice": None, "dirty": False}
-shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "house": 0.0}   # n/grid/house: Mittelwert über das Intervall
+shelly = {"state": None, "dirty": False, "n": 0, "grid": 0.0, "hn": 0, "house": 0.0}   # n/grid, hn/house: Mittelwerte über das Intervall
 site_cfg = {"cfg": None}   # retained grolo/config/site (String-Namen)
 tariff = {"cfg": None, "dirty": False}
 forecast = {"data": None, "dirty": False}   # Jahresprognose vom Sidecar forecast, geht mit, sobald sie sich ändert
@@ -260,7 +260,11 @@ def on_message(client, userdata, msg):
             with lock:
                 shelly["state"] = sh; shelly["dirty"] = True
                 if sh.get("ok") and sh.get("grid_w") is not None:   # auch bei ausgeschalteter Regelung (Messbetrieb)
-                    shelly["n"] += 1; shelly["grid"] += float(sh["grid_w"]); shelly["house"] += float(sh.get("household_w") or 0)
+                    shelly["n"] += 1; shelly["grid"] += float(sh["grid_w"])
+                    # Der Hausverbrauch zählt eigen: kennt der Regler den NEXA-Ausgang nicht, fehlt household_w.
+                    # Als 0 mitzumitteln würde den Tageswert und damit die Eigenversorgung kleinrechnen.
+                    if sh.get("household_w") is not None:
+                        shelly["hn"] += 1; shelly["house"] += float(sh["household_w"])
         elif parts[-2:] == ["config", "site"]:
             with lock:
                 site_cfg["cfg"] = json.loads(msg.payload); weather["dirty"] = True
@@ -301,8 +305,8 @@ def flush():
     with lock:
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         grid = round(shelly["grid"] / shelly["n"], 1) if shelly["n"] else None
-        house = round(shelly["house"] / shelly["n"], 1) if shelly["n"] else None
-        shelly.update({"n": 0, "grid": 0.0, "house": 0.0})
+        house = round(shelly["house"] / shelly["hn"], 1) if shelly["hn"] else None
+        shelly.update({"n": 0, "grid": 0.0, "hn": 0, "house": 0.0})
         for device, a in acc.items():
             if a["n"] == 0 or not a["last"]:
                 continue

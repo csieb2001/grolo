@@ -498,7 +498,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, tariff: null, device: null, avail: null, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, tariff: null, device: null, avail: null, stTs: 0, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -821,7 +821,7 @@
   const kv = (k, v, small) => `<div class="kv"><div class="k">${k}</div><div class="v${small ? ' small' : ''}">${v ?? '–'}</div></div>`;
   const num = (v, d = 1) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
   function onState(device, st, rerender = false) {
-    state.st = st;
+    state.st = st; if (!rerender) state.stTs = Date.now();
     if (!rerender) {
       if (state.lastStatus !== null && st.totalBatteryPackChargingStatus !== state.lastStatus) log(`${t('log.status')}: ${statusText(st.totalBatteryPackChargingStatus)} (${st.totalBatteryPackChargingPower} W)`, 'log-info');
       if (state.lastMode !== null && st.workMode !== state.lastMode) log(`${t('log.mode')}: ${modeText(st.workMode)}`, 'log-info');
@@ -1230,17 +1230,25 @@
   function renderFlow() {
     const el = $('flow'); if (!el || !state.st) return;
     const st = state.st, sh = state.shellyState;
-    const pv = [1, 2, 3, 4].reduce((a, i) => a + Number(st[`pv${i}Voltage`] || 0) * Number(st[`pv${i}Current`] || 0), 0);
-    const out = st.onGridPower != null ? (Number(st.onGridPower) - 30000) / 10 : null;
-    const bat = out != null ? pv - out : null;
-    const soc = Number(st.totalBatteryPackSoc), lim = st.dischargeSocLimit != null ? Number(st.dischargeSocLimit) : null, packs = Number(st.batteryPackageQuantity) || null;
     const live = sh && sh.ok && sh.grid_w != null && sh.ts && (Date.now() / 1000 - sh.ts) < 600;   // Messwerte auch bei ausgeschalteter Regelung
+    // Gerätewerte und Zählerwerte sind zwei Quellen mit eigenen Zeitpunkten. Meldet der Dongle nichts mehr (GroBro
+    // setzt die Verfügbarkeit dann auf offline), ist die letzte Meldung schnell Minuten alt und darf nicht neben
+    // einem frischen Zählerwert als „jetzt" stehen – sonst hängt ein Ausgang von vorhin am Netzbezug von gerade.
+    // Der Reglerstatus trägt out_w und soc aus demselben Augenblick wie grid_w/household_w: die gelten dann,
+    // PV und Batterie bleiben unbekannt statt veraltet.
+    const stale = !!live && (state.avail === 'offline' || !state.stTs || (Date.now() - state.stTs) / 1000 >= 120);
+    const pv = stale ? null : [1, 2, 3, 4].reduce((a, i) => a + Number(st[`pv${i}Voltage`] || 0) * Number(st[`pv${i}Current`] || 0), 0);
+    const out = stale ? (sh.out_w != null ? Number(sh.out_w) : null) : (st.onGridPower != null ? (Number(st.onGridPower) - 30000) / 10 : null);
+    const bat = stale || out == null ? null : pv - out;
+    const soc = stale && sh.soc != null ? Number(sh.soc) : Number(st.totalBatteryPackSoc), lim = st.dischargeSocLimit != null ? Number(st.dischargeSocLimit) : null, packs = Number(st.batteryPackageQuantity) || null;
     const acIn = (out ?? 0) < -2;   // Register 116 negativ: NEXA zieht aus dem Netz (AC-Laden)
     const grid = live ? sh.grid_w : null, house = live ? sh.household_w : (out != null && !acIn ? out : null);
     const gridDraw = (grid ?? 0) > 0; const hasGrid = grid != null;
     const self = house && house > 0 && out != null && !acIn ? Math.max(0, Math.min(100, out / house * 100)) : null;
     const socPct = isNaN(soc) ? 0 : Math.max(0, Math.min(100, soc)); const socColor = socPct <= (lim ?? 8) + 2 ? FC.red : socPct < 30 ? FC.house : FC.bat;
     const batTxt = bat == null ? '' : `${bat > 2 ? '▲ ' : bat < -2 ? '▼ ' : ''}${fmtW(Math.abs(bat))} ${bat > 2 ? t('flow.charging') : bat < -2 ? t('flow.discharging') : t('flow.idle')}`;
+    // Im Kasten dieselbe Sprache wie beim Haus-Satz: beide Abgaben zusammen ergeben die Solarleistung oben.
+    const batFlow = bat == null ? '' : Math.abs(bat) > 2 ? `${bat > 0 ? '↓' : '↑'} ${t('flow.battery')}: ${fmtW(Math.abs(bat))}` : `${t('flow.battery')}: ${t('flow.idle')}`;
     const limited = sh && sh.enabled && sh.limited;
     const siteName = state.site && state.site.name ? state.site.name : t('flow.home');
     // Restzeiten: der Energiebedarf je Prozentpunkt kommt gemessen aus dem Stack (retained grolo/battery).
@@ -1263,6 +1271,7 @@
       ${edge('M85 92 L85 200', pv, FC.pv)}${edge('M160 222 C 176 222, 182 200, 193 192', out, acIn ? FC.grid : FC.house, acIn)}
       ${hasGrid ? edge('M333 170 L263 170', grid, gridDraw ? FC.grid : FC.bat, !gridDraw) : '<path class="base" d="M263 170 L333 170" opacity=".3"/>'}
       ${hasGrid ? `<text class="ns" x="298" y="188" text-anchor="middle" fill="${gridDraw ? FC.grid : FC.bat}">${gridDraw ? '←' : '→'} ${fmtW(Math.abs(grid))}</text>` : ''}
+      ${out != null && Math.abs(out) > 2 ? `<text class="ns" x="170" y="212" text-anchor="start" fill="${acIn ? FC.grid : FC.house}">${fmtW(Math.abs(out))}</text>` : ''}
       ${node(85, 62, FC.pv, t('flow.solar'), fmtW(pv), '', '<circle r="7"/><path d="M0 -13 V-17 M0 13 V17 M-13 0 H-17 M13 0 H17 M-9 -9 L-12 -12 M9 9 L12 12 M9 -9 L12 -12 M-9 9 L-12 12"/>', 30, true)}
       <g transform="translate(85 250)"><rect x="-75" y="-50" width="150" height="${100 + etaLines * 17}" rx="12" fill="${FC.panel}" stroke="${limited ? FC.house : FC.bat}" stroke-width="2.5"/>
         <text class="nl" y="-34" text-anchor="middle">${t('flow.nexa')}${packs ? ` · ${packs} × ${t('flow.battery')}` : ''}</text>
@@ -1270,8 +1279,8 @@
         <rect x="-59" y="-19" width="${Math.max(0, 54 * socPct / 100)}" height="22" rx="2" fill="${socColor}" opacity=".85"/>
         ${lim != null ? `<line x1="${-59 + 54 * Math.min(100, lim) / 100}" x2="${-59 + 54 * Math.min(100, lim) / 100}" y1="-22" y2="6" stroke="${FC.red}" stroke-width="1.5" stroke-dasharray="2 2"/>` : ''}
         <text class="nv" x="38" y="-3" text-anchor="middle" fill="${socColor}">${isNaN(soc) ? '–' : Math.round(soc) + ' %'}</text>
-        <text class="ns" y="22" text-anchor="middle" fill="${bat != null && Math.abs(bat) > 2 ? (bat > 0 ? FC.bat : FC.house) : FC.muted}">${batTxt}</text>
-        <text class="ns" y="38" text-anchor="middle" fill="${acIn ? FC.grid : FC.house}">${acIn ? `← ${t('flow.acIn')}: ${fmtW(-out)}` : `→ ${t('flow.home')}: ${fmtW(out)}`}</text>
+        <text class="ns" y="22" text-anchor="middle" fill="${acIn ? FC.grid : FC.house}">${acIn ? `← ${t('flow.acIn')}: ${fmtW(-out)}` : `→ ${t('flow.home')}: ${fmtW(out)}`}</text>
+        <text class="ns" y="38" text-anchor="middle" fill="${bat != null && Math.abs(bat) > 2 ? (bat > 0 ? FC.bat : FC.house) : FC.muted}">${batFlow}</text>
         ${etaLimit ? etaTxt(56, `${t('flow.etaTo')} ${Math.round(lim)} %: ${etaLimit}`, FC.red) : ''}
         ${etaFull ? etaTxt(etaLimit ? 73 : 56, `${t('flow.etaTo')} 100 %: ${etaFull}`, FC.bat) : ''}
         ${etaEmpty ? etaTxt(56, `${t('flow.etaTo')} ${Math.round(lim)} %: ${etaEmpty}`, FC.house) : ''}</g>
@@ -1289,12 +1298,13 @@
     const sh = state.shellyState, cfg = state.shelly;
     const fill = (k, m) => t(k).replace(/\{(\w+)\}/g, (_, x) => m[x] ?? '–');
     const pct = v => v == null || isNaN(v) ? '–' : String(Math.round(v));
-    out = out ?? 0; bat = bat ?? 0;
+    const batRaw = bat; out = out ?? 0; bat = bat ?? 0;
     const soc = sh && sh.soc != null ? sh.soc : socDev, lim = sh ? sh.soc_limit : null;
     const grid = live ? sh.grid_w : null, house = live ? sh.household_w : null, target = sh ? sh.target_w : null, setpoint = (sh && sh.setpoint_w) ?? 20, max = sh && sh.max_w != null ? sh.max_w : (cfg ? cfg.max_w : null);
     const acIn = out < -2;
     const m = { mode: state.st ? modeText(state.st.workMode) : '–', out: fmtW(Math.max(0, out)), acin: fmtW(-out), target: fmtW(target), house: fmtW(house), grid: fmtW(grid == null ? null : Math.abs(grid)), soc: pct(soc), lim: pct(lim), bat: fmtW(Math.abs(bat)), pv: fmtW(pv), setpoint: fmtW(setpoint), max: fmtW(max) };
-    const tail = acIn ? fill('x.acTail', m) : bat > 2 ? fill('x.charging', m) : bat < -2 ? fill('x.discharging', m) : (out > 2 ? fill('x.solarOnly', m) : '');
+    // Ohne Gerätewerte (alte Meldung, Dongle weg) bleibt der Nachsatz weg, statt „Solar deckt das direkt (–)" zu schreiben.
+    const tail = acIn ? fill('x.acTail', m) : batRaw == null ? '' : bat > 2 ? fill('x.charging', m) : bat < -2 ? fill('x.discharging', m) : (out > 2 && pv != null ? fill('x.solarOnly', m) : '');
     const enabled = (sh && sh.enabled) || (cfg && cfg.enabled);
     // Seit der NEXA seinen eigenen Smart-Modus kann (gekoppelter Zaehler), heisst "Regler aus" nicht mehr "von Hand".
     // "Grid First" ist die Beschriftung, die dieser Stack bis 09/2026 fuer denselben Geraete-Wert 2 geschrieben hat.

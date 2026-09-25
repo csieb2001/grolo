@@ -92,6 +92,14 @@ def read_shelly(host):
     raise RuntimeError("keine Zählerdaten vom Shelly")
 
 
+def household_w(grid, out):
+    """Hausverbrauch = Netzbezug + was der NEXA gerade abgibt. Ist der Ausgang unbekannt, ist auch der
+    Hausverbrauch unbekannt: dann None melden statt den Netzwert als Hausverbrauch auszugeben."""
+    if grid is None or out is None:
+        return None
+    return max(0.0, grid + out)
+
+
 def publish_state(grid, household, out, target, ok, reason, limited=False):
     payload = {"ts": int(time.time()), "grid_w": grid, "household_w": household, "out_w": out,
                "target_w": target, "setpoint_w": state["cfg"]["setpoint_w"], "ok": ok, "limited": bool(limited), "reason": reason,
@@ -146,7 +154,7 @@ def measure_step(cfg, now):
     state["fail_since"] = None
     device_ok = state["online"] is not False and state["out_w"] is not None and now - state["out_ts"] < STALE_S
     real_out = state["out_w"] if device_ok else (0.0 if state["online"] is False else None)
-    publish_state(grid, max(0.0, grid + (real_out or 0)), real_out, None, True, "disabled")
+    publish_state(grid, household_w(grid, real_out), real_out, None, True, "disabled")
 
 
 def ensure_load_first(now):
@@ -241,8 +249,7 @@ def control_step():
         reason = "ok"
     # Anzeige: echter gemessener Ausgang (falls vorhanden) fuer Hausverbrauch, sonst der kommandierte Wert
     shown_out = real_out if real_out is not None else (0.0 if state["online"] is False else state["last_target"])
-    household = max(0.0, grid + (shown_out or 0))
-    publish_state(grid, household, shown_out, state["last_target"], True, reason, limited)
+    publish_state(grid, household_w(grid, shown_out), shown_out, state["last_target"], True, reason, limited)
 
 
 def apply_cfg(payload):
