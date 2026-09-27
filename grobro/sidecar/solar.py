@@ -3,6 +3,8 @@
 
   sun_position(ts, lat, lon)          -> (Azimut in Grad, 0 = Nord, 90 = Ost, 180 = Süd; Höhe über Horizont in Grad)
   poa_irradiance(ghi, dni, dhi, az, el, tilt, azimuth) -> W/m² auf einer Fläche mit Neigung tilt und Ausrichtung azimuth
+  horizon_profile({"105": 33, ...})   -> gemessene Horizontmaske, auswertbar zwischen den Stützstellen
+  horizon_filter(profile, ghi, dni, dhi, az, el) -> dieselben drei Werte hinter dem Horizont
   string_config()                     -> konfigurierte Strings aus STRING<n>_TILT / STRING<n>_AZIMUTH / STRING<n>_WP
 
 Sonnenstand nach dem NOAA-Algorithmus (Genauigkeit besser als 0,1°), Einstrahlung nach dem isotropen Himmelsmodell:
@@ -10,6 +12,9 @@ Sonnenstand nach dem NOAA-Algorithmus (Genauigkeit besser als 0,1°), Einstrahlu
   diffus  = DHI · (1 + cos tilt) / 2
   Boden   = GHI · Albedo · (1 − cos tilt) / 2
 Die erwartete Leistung eines Strings ist Einstrahlung / 1000 · Wp · Performance-Ratio (Standard 0,85).
+
+Liegt eine gemessene Horizontmaske vor, wird sie vor dem Himmelsmodell angewandt: unter dem Horizont kein
+Direktstrahl, Diffus- und Bodenanteil mit dem Himmelssichtfaktor der Maske gedämpft.
 """
 import math
 import os
@@ -67,11 +72,96 @@ def sun_position(ts, lat, lon):
     return az, el + refr
 
 
-def poa_irradiance(ghi, dni, dhi, sun_az, sun_el, tilt, azimuth, albedo=ALBEDO):
-    """Einstrahlung (W/m²) auf eine Fläche mit Neigung tilt (0 = flach) und Ausrichtung azimuth (180 = Süd)."""
+# ---------------------------------------------------------------------------------------------------------
+# Die gemessene Horizontmaske
+#
+# Eine Maske ist {Sonnenazimut: Höhenwinkel des Horizonts}, beides in Grad – so, wie ein Vermessungsamt sie
+# aus einem Oberflächenmodell abgreift oder wie man sie mit einem Neigungsmesser vom Dach aus aufnimmt.
+# Sie ist eine Messung und damit jeder aus Betriebsdaten erschlossenen Verschattung überlegen: sie kennt
+# den Baum, auch wenn er den halben Himmel einnimmt und deshalb in keinem Sektorvergleich mehr auffällt.
+#
+# Zwei Dinge macht sie mit der Einstrahlung:
+#
+#   * Direktstrahl. Steht die Sonne bei diesem Azimut unter dem Horizont, erreicht kein Direktstrahl die
+#     Fläche – nicht gedämpft, sondern null. Ein Stamm ist kein Graufilter. Zwischen den Stützstellen wird
+#     linear interpoliert; außerhalb des vermessenen Azimutbereichs gilt freier Horizont, weil dort nichts
+#     gemessen wurde und "unbekannt" nicht als "verbaut" gelten darf.
+#   * Diffus- und Bodenanteil. Ein Baum nimmt auch Himmel weg. Im isotropen Himmelsmodell ist der Anteil
+#     des sichtbaren Himmels der Himmelssichtfaktor
+#           SVF = 1/2π · ∫ cos²(h(a)) da
+#     (die übliche Herleitung: über den Halbraum integriert, mit cos des Zenitwinkels gewichtet, ergibt der
+#     freie Himmel π, der Himmel oberhalb h(a) die Hälfte von ∫cos²h). Genau dieser Faktor dämpft den
+#     Diffusanteil. Der Bodenanteil bekommt denselben Faktor: der Vorplatz, dessen Reflex die Module sehen,
+#     liegt unter demselben Baum und ist um denselben Anteil dunkler. Das ist grob, aber in derselben
+#     Richtung grob wie die Wirklichkeit, und es ist eine Zahl statt einer Annahme je Azimut.
+#
+# Absichtlich NICHT enthalten: eine Durchlässigkeit für den kahlen Zustand. Eine Maske gilt für den
+# Zustand, in dem sie aufgenommen wurde; im Winter lässt ein Laubbaum mehr durch, um wieviel mehr ist an
+# diesem Standort nicht gemessen. Wer das später misst, legt eine zweite Maske daneben (horizon_profile
+# kennt keine Jahreszeit – die Auswahl trifft der Aufrufer) und erfindet sie nicht.
+# ---------------------------------------------------------------------------------------------------------
+def horizon_profile(points):
+    """Aus {Azimut: Höhenwinkel} ein auswertbares Profil; None, wenn weniger als zwei Stützstellen taugen."""
+    pts = []
+    for k, v in (points or {}).items():
+        try:
+            a, h = float(k) % 360.0, float(v)
+        except (TypeError, ValueError):
+            continue
+        if -5.0 <= h <= 90.0:
+            pts.append((a, max(0.0, h)))
+    if len(pts) < 2:
+        return None
+    pts.sort()
+    prof = {"points": pts, "az_from": pts[0][0], "az_to": pts[-1][0], "max_el": max(h for _, h in pts)}
+    prof["svf"] = round(_sky_view(prof), 4)
+    return prof
+
+
+def horizon_elevation(profile, sun_az):
+    """Höhenwinkel des Horizonts bei diesem Azimut, linear zwischen den Stützstellen; außerhalb 0 (frei)."""
+    if not profile:
+        return 0.0
+    pts = profile["points"]
+    a = float(sun_az) % 360.0
+    if a <= pts[0][0] or a >= pts[-1][0]:
+        return 0.0
+    lo = 0
+    while lo + 1 < len(pts) and pts[lo + 1][0] < a:
+        lo += 1
+    a0, h0 = pts[lo]; a1, h1 = pts[lo + 1]
+    return h0 if a1 == a0 else h0 + (h1 - h0) * (a - a0) / (a1 - a0)
+
+
+def _sky_view(profile):
+    """Anteil des sichtbaren Himmels: 1/2π · ∫ cos²(h) da, in 1°-Schritten über den ganzen Kreis."""
+    s = 0.0
+    for a in range(360):
+        s += math.cos(math.radians(horizon_elevation(profile, a + 0.5))) ** 2
+    return s / 360.0
+
+
+def horizon_filter(profile, ghi, dni, dhi, sun_az, sun_el):
+    """(ghi, dni, dhi) hinter dem gemessenen Horizont – ghi trägt hier nur den Bodenanteil."""
+    if not profile:
+        return ghi, dni, dhi
+    svf = profile["svf"]
+    if sun_el < horizon_elevation(profile, sun_az):
+        dni = 0.0
+    return ghi * svf, dni, dhi * svf
+
+
+def poa_irradiance(ghi, dni, dhi, sun_az, sun_el, tilt, azimuth, albedo=ALBEDO, horizon=None):
+    """Einstrahlung (W/m²) auf eine Fläche mit Neigung tilt (0 = flach) und Ausrichtung azimuth (180 = Süd).
+
+    horizon: ein Profil aus horizon_profile(); dann fällt der Direktstrahl unter dem Horizont weg und
+    Diffus- wie Bodenanteil werden mit dem Himmelssichtfaktor gedämpft.
+    """
     ghi = max(float(ghi or 0.0), 0.0); dni = max(float(dni or 0.0), 0.0); dhi = max(float(dhi or 0.0), 0.0)
     if sun_el <= 0.0:
         return 0.0
+    if horizon:
+        ghi, dni, dhi = horizon_filter(horizon, ghi, dni, dhi, sun_az, sun_el)
     zen = math.radians(90.0 - sun_el); tl = math.radians(tilt)
     cos_aoi = math.cos(zen) * math.cos(tl) + math.sin(zen) * math.sin(tl) * math.cos(math.radians(sun_az - azimuth))
     beam = dni * max(cos_aoi, 0.0)

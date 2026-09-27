@@ -73,6 +73,19 @@ D = {
 MIN_HOUSE_DAYS = 14        # so viele volle Messtage, bevor der gemessene Haushalt den Standardwert ablöst
 PV_CAL_DAYS = 30           # Zeitraum, über den die PV gegen die Messung geeicht wird
 MIN_HEAT_DAYS = 20         # Heiztage, bevor die gemessene Gebäudekennlinie den Gasverbrauch ablöst
+MIN_ETA_DAYS = 30          # Tage mit eigenen Zählerständen, bevor der gemessene Gütegrad den Standardwert ablöst
+MIN_ETA_SPREAD_K = 10.0    # und so weit müssen die Tagesmitteltemperaturen darin auseinanderliegen
+
+# Grenzen, in denen ein Gütegrad überhaupt liegen kann. Nicht gefühlt, sondern nachgerechnet:
+# Der Carnot-Bestwert bei A7/W35 ist (35+273,15)/(35−7) = 11,0. Eine gute Luft-Wasser-Wärmepumpe
+# schafft dort einen COP von rund 4,8 – das sind 4,8/11,0 = 0,44. Bei A−7/W35 ist der Bestwert
+# (35+273,15)/42 = 7,3, das Gerät liefert etwa 2,6, also 0,35. Feldmessungen an Bestandsanlagen
+# liegen mit Pumpen, Regelung und Takten eher bei 0,30. Nach oben hin erreichen selbst große
+# Industriemaschinen mit idealer Quelle nur etwa 0,6; Luft-Wasser-Geräte im Haus bleiben unter 0,5.
+# 0,55 lässt darauf noch Luft und schneidet trotzdem jeden unmöglichen Wert ab: die bisherige
+# Schätzung von 0,93 hieße, das Gerät läuft bei 93 % des thermodynamischen Ideals. Das gibt es nicht,
+# und wenn es herauskommt, ist die Messung kaputt und nicht die Maschine gut.
+ETA_MIN, ETA_MAX = 0.20, 0.55
 
 # Stundenprofil des Haushalts, falls noch keines gemessen ist: Nachtgrundlast, Morgen- und Abendspitze.
 PROFILE = [0.025, 0.021, 0.019, 0.018, 0.018, 0.022, 0.033, 0.044, 0.046, 0.043, 0.041, 0.043,
@@ -125,27 +138,79 @@ def flow_temp(t_out, curve):
     return min(f_norm, f_base + k * (room - t_out))
 
 
-def cop(t_out, t_flow, eta):
-    """COP nach Carnot mit Gütegrad, mit Abschlag fürs Abtauen im Nassbereich um den Gefrierpunkt."""
-    dt = max(t_flow - t_out, 8.0)
-    value = eta * (t_flow + 273.15) / dt
+def carnot_cop(t_out, t_flow):
+    """Der thermodynamische Bestwert bei diesen Temperaturen, ohne jede Deckelung.
+
+    Bewusst getrennt von cop(): die 6,5 dort sind die Obergrenze einer *realen* Maschine, nicht die des
+    Kreisprozesses. Wer einen Gütegrad gegen einen gedeckelten Bestwert misst, bekommt ihn zwangsläufig
+    zu groß – bei 15 °C draußen und 32 °C Vorlauf liegt der echte Bestwert bei 18, nicht bei 6,5, und
+    jede Messung dagegen gerechnet sieht dreimal so gut aus, wie sie ist.
+    """
+    value = (t_flow + 273.15) / max(t_flow - t_out, 8.0)
     if -7.0 <= t_out <= 5.0:
         value *= D["defrost_penalty"]
-    return max(1.0, min(value, 6.5))
+    return value
 
 
-def fit_eta(points, curve):
-    """Gütegrad aus gemessenen Takten schätzen: welcher Wert bringt den Carnot-COP im Mittel auf die Messung."""
-    ratios = []
-    for t_out, measured in points:
-        t_flow = flow_temp(t_out, curve)
-        base = cop(t_out, t_flow, 1.0)
-        if base > 0.5 and 1.0 < measured < 8.0:
-            ratios.append(measured / base)
-    if len(ratios) < 20:
-        return None
-    ratios.sort()
-    return round(ratios[len(ratios) // 2], 3)
+def cop(t_out, t_flow, eta):
+    """COP nach Carnot mit Gütegrad, mit Abschlag fürs Abtauen im Nassbereich um den Gefrierpunkt."""
+    return max(1.0, min(eta * carnot_cop(t_out, t_flow), 6.5))
+
+
+def fit_eta(days, curve, dhw_share=None):
+    """Gütegrad aus den Tagesbilanzen der Wärmepumpe: welcher Wert bringt das Modell auf den gezählten Strom.
+
+    Gemessen wird an den Energiezählern des Geräts (erzeugte Wärme und aufgenommener Strom je Tag), nicht
+    mehr an den Takt-COPs. Der Takt-COP kommt aus aktuelle_sekundaerleistung / leistungsaufnahme_wp_ehz,
+    und dieser Nenner löst in 100-W-Schritten auf: Umwälzpumpe, Regelung und Standby liegen darunter und
+    zählen als null. Über vier Fünftel aller Messpunkte stehen deshalb auf glatt null, und in der Summe
+    deckt der Takt-Strom nur etwa 40 % dessen ab, was der Zähler am selben Tag sieht. Zu kleiner Nenner,
+    zu großer COP – daran ist die alte Schätzung gescheitert.
+
+    Gerechnet wird die Umkehrung des Modells: Für jede Stunde wird der Wärmebedarf genauso aufgeteilt wie
+    in build_forecast (Heizung nach Heizgradstunden auf der Heizkurve, Warmwasser als Grundlast bei
+    dhw_flow_c), daraus der Strom bei einem gedachten Gütegrad von 1. Der gemessene Strom geteilt durch
+    diesen Idealstrom ist der Gütegrad. Damit ist der Wert genau der, der das Modell auf die Messung
+    bringt – und nicht irgendeine andere Definition, die zufällig ähnlich heißt.
+    """
+    share = D["dhw_share"] if dhw_share is None else dhw_share
+    limit = D["heat_limit_c"] + ((curve.get("room_c") or D["room_c"]) - D["room_c"])
+    el_ideal = el_meas = heat_sum = 0.0
+    temps = []
+    used = 0
+    for d in days:
+        hours = d.get("hours") or []
+        heat, el = d.get("heat_kwh") or 0.0, d.get("el_kwh") or 0.0
+        if heat <= 0 or el <= 0 or len(hours) < 20:
+            continue
+        weights = [max(0.0, limit - t) for t in hours]
+        total_w = sum(weights)
+        for t, w in zip(hours, weights):
+            # Heizung nach Heizgradstunden, Warmwasser gleichmäßig über den Tag; an Tagen ohne
+            # Heizbedarf geht die ganze Wärme über den Warmwasservorlauf.
+            q_heat = heat * (1.0 - share) * (w / total_w) if total_w > 0 else 0.0
+            q_dhw = heat * share / len(hours) + (heat * (1.0 - share) / len(hours) if total_w <= 0 else 0.0)
+            el_ideal += q_heat / carnot_cop(t, flow_temp(t, curve)) + q_dhw / carnot_cop(t, D["dhw_flow_c"])
+        el_meas += el
+        heat_sum += heat
+        temps.append(sum(hours) / len(hours))
+        used += 1
+    if used < MIN_ETA_DAYS or el_meas <= 0:
+        return {"days": used, "enough": False}
+    spread = max(temps) - min(temps)
+    if spread < MIN_ETA_SPREAD_K:
+        # Ein Gütegrad aus lauter milden Tagen beschreibt kein Jahr. In der Übergangszeit läuft die
+        # Maschine kurz, taktet viel und heizt fast nur Warmwasser; das dabei gemessene Verhältnis
+        # nach unten wie nach oben auf den Winter zu verlängern, wäre geraten und nicht gemessen.
+        return {"days": used, "spread_k": round(spread, 1), "enough": False}
+    eta = el_ideal / el_meas
+    if not ETA_MIN <= eta <= ETA_MAX:
+        LOG.warning("Gütegrad %.3f aus %d Tagen liegt außerhalb von %.2f bis %.2f – verworfen, "
+                    "die Messung ist eher kaputt als die Maschine besonders (Wärme %.0f kWh, Strom %.0f kWh)",
+                    eta, used, ETA_MIN, ETA_MAX, heat_sum, el_meas)
+        return {"days": used, "spread_k": round(spread, 1), "rejected": round(eta, 3), "enough": False}
+    return {"days": used, "spread_k": round(spread, 1), "enough": True, "eta": round(eta, 3),
+            "heat_kwh": round(heat_sum), "el_kwh": round(el_meas), "spf": round(heat_sum / el_meas, 2)}
 
 
 def season(month):
@@ -291,6 +356,67 @@ union(tables: [warm, temp])
             "r2": round(max(0.0, 1.0 - ssr / sst), 3)}
 
 
+def heatpump_days(days=365):
+    """Tagesbilanz der Wärmepumpe aus ihren eigenen Zählern, mit den Stundentemperaturen desselben Tages.
+
+    Das Gerät führt drei Register über den abgelaufenen Tag: erzeugte_waermemenge_vortag,
+    verbrauch_vortag und taz_vortag (die Tagesarbeitszahl, die es selbst daraus bildet). Die zählen
+    über 24 Stunden mit, also auch Umwälzpumpe, Regelung, Abtauen und Standby – alles, was die
+    Momentanleistung mit ihren 100-W-Schritten verschluckt. Sie lösen nur in ganzen kWh auf, aber über
+    viele Tage summiert fällt das heraus, während ein zu kleiner Nenner in jeder einzelnen Messung in
+    dieselbe Richtung zieht und sich nie herausmittelt.
+
+    Die Register stehen unter dem Tag, an dem sie gelesen werden, beschreiben aber den Tag davor;
+    die Außentemperatur wird deshalb um einen Tag nach vorn geschoben, damit beides zusammenpasst.
+    """
+    # Der Tagesschlüssel kommt aus Flux, nicht aus dem UTC-Anteil des Zeitstempels: ein lokaler Tag
+    # beginnt im Sommer um 22:00 UTC des Vortages, und wer danach nach UTC-Datum gruppiert, schiebt
+    # zwei Stunden in den falschen Tag und die Temperaturen um einen ganzen Tag gegen die Zähler.
+    rows = influx_query(f'''import "timezone"
+import "date"
+option location = timezone.location(name: "Europe/Berlin")
+cnt = from(bucket: "{INFLUX_BUCKET}")
+  |> range(start: -{int(days)}d)
+  |> filter(fn: (r) => r._measurement == "wolf" and r.device == "heatpump"
+        and (r._field == "erzeugte_waermemenge_vortag" or r._field == "verbrauch_vortag" or r._field == "taz_vortag"))
+  |> aggregateWindow(every: 1d, fn: last, createEmpty: false, timeSrc: "_start")
+  |> keep(columns: ["_time", "_field", "_value"])
+temp = from(bucket: "{INFLUX_BUCKET}")
+  |> range(start: -{int(days)}d)
+  |> filter(fn: (r) => r._measurement == "wolf" and r.device == "heatpump" and r._field == "aussentemperatur")
+  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: "_start")
+  |> timeShift(duration: 1d)
+  |> keep(columns: ["_time", "_value"])
+  |> set(key: "_field", value: "t_hour")
+union(tables: [cnt, temp])
+  |> map(fn: (r) => ({{ r with day: string(v: date.truncate(t: r._time, unit: 1d)) }}))
+  |> keep(columns: ["day", "_field", "_value"])''')
+    # Die *_vortag-Register stehen unter dem Tag, an dem sie gelesen werden, beschreiben aber den Tag
+    # davor; die Stundentemperaturen sind in Flux um einen Tag nach vorn geschoben und stehen damit
+    # unter demselben Schlüssel. Hier wird nur noch beides zusammengeführt.
+    counters, hours = {}, {}
+    for r in rows:
+        try:
+            day, field, value = r["day"][:10], r["_field"], float(r["_value"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if field == "t_hour":
+            hours.setdefault(day, []).append(value)
+        else:
+            counters.setdefault(day, {})[field] = value
+    out = []
+    for day in sorted(counters):
+        c = counters[day]
+        heat, el = c.get("erzeugte_waermemenge_vortag"), c.get("verbrauch_vortag")
+        if not heat or not el:
+            continue
+        # "day" ist der Lesetag; beschrieben wird der Tag davor – nur fürs Protokoll, gerechnet wird
+        # mit den Summen, nicht mit dem Datum.
+        out.append({"day": day, "heat_kwh": heat, "el_kwh": el, "spf": c.get("taz_vortag"),
+                    "hours": hours.get(day, [])})
+    return out
+
+
 def battery_wh_per_pct(days=90):
     """Wie viel Energie ein Prozentpunkt Ladezustand kostet, gemessen über alle Ladephasen.
 
@@ -402,13 +528,46 @@ def build_forecast(lat, lon, strings, cfg, measured):
              f"Room temperature assumed at {D['room_c']:.0f} °C – without measured rooms that is the usual "
              "reference for heating limit and heating curve.", "default", D["room_c"])
     dhw_share = cfg.get("dhw_share") if cfg.get("dhw_share") is not None else D["dhw_share"]
+    # Der Deckel gilt für jeden Weg, auf dem ein Gütegrad hereinkommt – auch für einen von Hand
+    # eingetragenen. Wer 0,9 einträgt, hat sich vertan, und eine Prognose, die das übernimmt, ist falsch.
     eta = measured.get("eta_carnot") or cfg.get("eta_carnot") or D["eta_carnot"]
+    if not ETA_MIN <= eta <= ETA_MAX:
+        LOG.warning("Gütegrad %.3f außerhalb von %.2f bis %.2f – es bleibt bei %.2f", eta, ETA_MIN, ETA_MAX, D["eta_carnot"])
+        eta = D["eta_carnot"]
+    fit = measured.get("eta_fit") or {}
+    spf_m, spf_days = measured.get("spf_measured"), measured.get("spf_days", 0)
+    check_de = (f" Gezählt hat das Gerät bisher eine Arbeitszahl von {spf_m:.2f} über {spf_days} Tage – "
+                "daran muss sich die Prognose messen lassen." if spf_m else "")
+    check_en = (f" The unit has counted a seasonal performance factor of {spf_m:.2f} over {spf_days} days so far – "
+                "that is what the forecast has to match." if spf_m else "")
     if measured.get("eta_carnot"):
-        note("cop", f"COP-Kennlinie aus {measured.get('cop_points', 0)} gemessenen Takten (Gütegrad {eta:.2f})",
-             f"COP curve from {measured.get('cop_points', 0)} measured cycles (quality factor {eta:.2f})", "measured", eta)
+        note("cop", f"Gütegrad {eta:.2f}, gemessen an den Energiezählern der Wärmepumpe: {fit.get('heat_kwh', 0):.0f} kWh "
+                    f"Wärme aus {fit.get('el_kwh', 0):.0f} kWh Strom an {fit['days']} Tagen, über eine Spanne von "
+                    f"{fit.get('spread_k', 0):.0f} K Tagesmitteltemperatur." + check_de,
+             f"Quality factor {eta:.2f}, measured against the heat pump's own energy meters: "
+             f"{fit.get('heat_kwh', 0):.0f} kWh of heat from {fit.get('el_kwh', 0):.0f} kWh of electricity over "
+             f"{fit['days']} days, across a {fit.get('spread_k', 0):.0f} K range of daily mean temperature." + check_en,
+             "measured", eta)
     else:
-        note("cop", f"COP nach Carnot mit Gütegrad {eta:.2f}, bis genug eigene Takte gemessen sind",
-             f"COP from Carnot with quality factor {eta:.2f} until enough of your own cycles are measured", "default", eta)
+        if fit.get("rejected"):
+            why_de = (f" Aus {fit['days']} Tagen kam {fit['rejected']:.2f} heraus, und das gibt es nicht – "
+                      f"ein Gütegrad liegt zwischen {ETA_MIN:.2f} und {ETA_MAX:.2f}, sonst stimmt die Messung nicht.")
+            why_en = (f" {fit['days']} days gave {fit['rejected']:.2f}, which does not exist – a quality factor lies "
+                      f"between {ETA_MIN:.2f} and {ETA_MAX:.2f}, otherwise the measurement is wrong.")
+        elif fit.get("days", 0) >= MIN_ETA_DAYS:
+            why_de = (f" Die {fit['days']} gezählten Tage liegen nur {fit.get('spread_k', 0):.0f} K auseinander; "
+                      f"ab {MIN_ETA_SPREAD_K:.0f} K deckt die Messung genug vom Heizbetrieb ab, um für ein Jahr zu gelten.")
+            why_en = (f" The {fit['days']} counted days span only {fit.get('spread_k', 0):.0f} K; from "
+                      f"{MIN_ETA_SPREAD_K:.0f} K on the measurement covers enough of the heating season to stand for a year.")
+        else:
+            why_de = (f" Für die Schätzung taugen bisher {fit.get('days', 0)} Tage (Zählerstand und voller "
+                      f"Temperaturverlauf), ab {MIN_ETA_DAYS} rechnet die Prognose damit.")
+            why_en = (f" {fit.get('days', 0)} days are usable for the estimate so far (meter reading and a full "
+                      f"temperature record), from {MIN_ETA_DAYS} on the forecast uses them.")
+        note("cop", f"COP nach Carnot mit Gütegrad {eta:.2f}, dem üblichen Wert für eine Luft-Wasser-Wärmepumpe."
+                    + why_de + check_de,
+             f"COP from Carnot with a quality factor of {eta:.2f}, the usual value for an air-to-water heat pump."
+             + why_en + check_en, "default", eta)
 
     # ---------------------------------------------------------------- Haushalt
     # Rangfolge: die eigene Jahresabrechnung schlägt jede Hochrechnung aus wenigen Tagen; erst ab zwei Wochen
@@ -578,6 +737,10 @@ def build_forecast(lat, lon, strings, cfg, measured):
                        "grid_kwh", "feedin_kwh", "lost_kwh")}
     total["load_kwh"] = round(total["household_kwh"] + total["heatpump_kwh"], 1)
     total["spf"] = round(total["heat_kwh"] / total["heatpump_kwh"], 2) if total["heatpump_kwh"] else None
+    # Die gezählte Arbeitszahl steht daneben, damit jeder die Prognose gegen das Gerät halten kann.
+    if measured.get("spf_measured"):
+        total["spf_measured"] = measured["spf_measured"]
+        total["spf_measured_days"] = measured.get("spf_days", 0)
     total["self_share_pct"] = round(100.0 * total["self_kwh"] / total["pv_kwh"], 1) if total["pv_kwh"] else None
     total["autarky_pct"] = round(100.0 * total["self_kwh"] / total["load_kwh"], 1) if total["load_kwh"] else None
     total["cost_energy_eur"] = round(total["grid_kwh"] * price, 2)
@@ -704,8 +867,8 @@ def influx_write(lines):
         r.read()
 
 
-def measure(curve):
-    """Was sich messen lässt, aus InfluxDB holen: Haushalt je Tag und Stundenprofil, COP je Außentemperatur."""
+def measure(curve, dhw_share=None):
+    """Was sich messen lässt, aus InfluxDB holen: Haushalt je Tag und Stundenprofil, Gütegrad aus den Tageszählern."""
     out = {}
     # Haushalt ohne Wärmepumpe: der Shelly misst den ganzen Hausverbrauch, die Wolf ihren eigenen Anteil.
     try:
@@ -751,21 +914,22 @@ from(bucket: "{INFLUX_BUCKET}")
                 out["profile"] = [round(v / total, 5) for v in shape]
     except Exception as exc:
         LOG.warning("Haushaltsmessung nicht lesbar: %s", exc)
-    # COP je Außentemperatur aus den einzelnen Takten
+    # Gütegrad aus den Tageszählern der Wärmepumpe – nicht aus den Takt-COPs, siehe fit_eta()
     try:
-        rows = influx_query(f'''
-from(bucket: "{INFLUX_BUCKET}")
-  |> range(start: -365d)
-  |> filter(fn: (r) => r._measurement == "wolf_cycle" and (r._field == "cop" or r._field == "t_out"))
-  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-  |> keep(columns: ["_time", "cop", "t_out"])''')
-        points = [(float(r["t_out"]), float(r["cop"])) for r in rows if r.get("cop") and r.get("t_out")]
-        out["cop_points"] = len(points)
-        fitted = fit_eta(points, curve)
-        if fitted:
-            out["eta_carnot"] = fitted
+        hp_days = heatpump_days()
+        fit = fit_eta(hp_days, curve, dhw_share)
+        out["eta_fit"] = fit
+        # Gemessene Arbeitszahl der letzten Tage, unabhängig davon, ob sie für eine Jahresaussage reicht:
+        # sie ist der Prüfstein, an dem sich die Prognose messen lassen muss.
+        heat = sum(d["heat_kwh"] for d in hp_days)
+        el = sum(d["el_kwh"] for d in hp_days)
+        if heat > 0 and el > 0:
+            out["spf_measured"] = round(heat / el, 2)
+            out["spf_days"] = len(hp_days)
+        if fit.get("enough"):
+            out["eta_carnot"] = fit["eta"]
     except Exception as exc:
-        LOG.warning("COP-Messwerte nicht lesbar: %s", exc)
+        LOG.warning("Zählerstände der Wärmepumpe nicht lesbar: %s", exc)
     try:
         out["battery"] = battery_wh_per_pct()
     except Exception as exc:
@@ -892,7 +1056,7 @@ def run_once(client):
     curve = {k: cfg.get(k) if cfg.get(k) is not None else D[k] for k in ("t_norm_c", "flow_norm_c", "flow_base_c")}
     curve["room_c"] = cfg.get("room_c") or D["room_c"]
     strings = strings_of(site, CFG["pv_model"])
-    measured = measure(curve)
+    measured = measure(curve, cfg.get("dhw_share"))
     try:
         measured["pv_cal"] = calibrate_pv(float(lat), float(lon), strings, cfg.get("pr") or D["pr"])
     except Exception as exc:

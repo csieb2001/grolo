@@ -2309,7 +2309,7 @@
   {
    "id": 35,
    "type": "row",
-   "title": "Taktung und Laufzeit",
+   "title": "Taktung: Bewertung",
    "collapsed": false,
    "gridPos": {
     "x": 0,
@@ -2465,346 +2465,6 @@
   },
   {
    "type": "stat",
-   "title": "Takte heute",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"takte_heute\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "decimals": 0,
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       },
-       {
-        "color": "yellow",
-        "value": 12
-       },
-       {
-        "color": "orange",
-        "value": 20
-       },
-       {
-        "color": "red",
-        "value": 30
-       }
-      ]
-     },
-     "color": {
-      "mode": "thresholds"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "description": "Wie oft der Verdichter heute angelaufen ist. Wenige lange Takte schonen ihn, viele kurze sind der häufigste Auslegungsfehler.",
-   "id": 38,
-   "gridPos": {
-    "x": 0,
-    "y": 56,
-    "w": 4,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Laufzeit je Takt",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"laufzeit_je_takt_min\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "m",
-     "decimals": 0,
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "red",
-        "value": null
-       },
-       {
-        "color": "orange",
-        "value": 10
-       },
-       {
-        "color": "yellow",
-        "value": 20
-       },
-       {
-        "color": "green",
-        "value": 30
-       }
-      ]
-     },
-     "color": {
-      "mode": "thresholds"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "description": "Mittlere Laufzeit eines Takts heute. Unter zehn Minuten taktet die Anlage zu kurz.",
-   "id": 39,
-   "gridPos": {
-    "x": 4,
-    "y": 56,
-    "w": 4,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Laufzeit heute",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"laufzeit_min_heute\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "m",
-     "decimals": 0,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "purple"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "id": 40,
-   "gridPos": {
-    "x": 8,
-    "y": 56,
-    "w": 4,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Abtauungen heute",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"abtauungen_heute\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "decimals": 0,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "blue"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "description": "Abtauvorgänge kosten Wärme aus dem Speicher. Bei Außentemperaturen um 0 bis 5 °C mit Feuchte sind sie normal.",
-   "id": 41,
-   "gridPos": {
-    "x": 12,
-    "y": 56,
-    "w": 4,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Verdichterstarts gesamt",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"verdichterstarts\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "decimals": 0,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "text"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "id": 42,
-   "gridPos": {
-    "x": 16,
-    "y": 56,
-    "w": 4,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Betriebsstunden Verdichter",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"betriebsstunden_verdichter\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "h",
-     "decimals": 0,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "text"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "id": 43,
-   "gridPos": {
-    "x": 20,
-    "y": 56,
-    "w": 4,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
    "title": "Laufzeit je Takt, Median",
    "targets": [
     {
@@ -2863,10 +2523,10 @@
     "wideLayout": true
    },
    "description": "Mittelwert der letzten vierzehn Tage. Zehn bis zwanzig Minuten sind üblich, dreißig bis sechzig das Ideal; unter zehn ist Kurztakten.",
-   "id": 44,
+   "id": 38,
    "gridPos": {
     "x": 0,
-    "y": 61,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -2935,10 +2595,10 @@
     "wideLayout": true
    },
    "description": "Anteil der Takte unter zehn Minuten. Der BWP nennt bewusst keine Höchstzahl an Starts, sondern die Laufzeit am Stück als Maßstab.",
-   "id": 45,
+   "id": 39,
    "gridPos": {
     "x": 4,
-    "y": 61,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -3006,10 +2666,10 @@
     "wideLayout": true
    },
    "description": "Zehn bis fünfzehn Starts am Tag gelten als guter Wert. Steht hier ein Strich, ist noch kein ganzer Tag aufgezeichnet – dann zählt „Takte heute“ daneben.",
-   "id": 46,
+   "id": 40,
    "gridPos": {
     "x": 8,
-    "y": 61,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -3077,10 +2737,10 @@
     "wideLayout": true
    },
    "description": "Aus dem laufenden Schnitt aufs Jahr gerechnet, erst ab drei Tagen Datenbasis. Unter 2000 gilt als optimal, 4000 als Grenze, ab 6000 zehrt es an der Lebensdauer des Verdichters. Im Feldtest des Fraunhofer ISE lagen die Anlagen zwischen 540 und 15.820 Starts im Jahr.",
-   "id": 47,
+   "id": 41,
    "gridPos": {
     "x": 12,
-    "y": 61,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -3129,10 +2789,10 @@
     "wideLayout": true
    },
    "description": "Wie viel Prozent der Zeit der Verdichter läuft. Ein hoher Anteil bei wenigen Takten ist der beste Zustand: lange Läufe auf kleiner Leistung.",
-   "id": 48,
+   "id": 42,
    "gridPos": {
     "x": 16,
-    "y": 61,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -3181,10 +2841,10 @@
     "wideLayout": true
    },
    "description": "Median der Pausen. Kurze Läufe und kurze Pausen zusammen heißen: die Hysterese ist zu eng gewählt, der Verdichter erreicht seinen Arbeitspunkt nie.",
-   "id": 49,
+   "id": 43,
    "gridPos": {
     "x": 20,
-    "y": 61,
+    "y": 56,
     "w": 4,
     "h": 5
    },
@@ -3192,6 +2852,424 @@
     "type": "influxdb",
     "uid": "influx-nexa"
    }
+  },
+  {
+   "id": 44,
+   "type": "row",
+   "title": "Taktung: Zähler",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 61,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "Takte heute",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"takte_heute\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 12
+       },
+       {
+        "color": "orange",
+        "value": 20
+       },
+       {
+        "color": "red",
+        "value": 30
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Wie oft der Verdichter heute angelaufen ist. Wenige lange Takte schonen ihn, viele kurze sind der häufigste Auslegungsfehler.",
+   "id": 45,
+   "gridPos": {
+    "x": 0,
+    "y": 62,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Laufzeit je Takt",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"laufzeit_je_takt_min\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "m",
+     "decimals": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 10
+       },
+       {
+        "color": "yellow",
+        "value": 20
+       },
+       {
+        "color": "green",
+        "value": 30
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Mittlere Laufzeit eines Takts heute. Unter zehn Minuten taktet die Anlage zu kurz.",
+   "id": 46,
+   "gridPos": {
+    "x": 4,
+    "y": 62,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Laufzeit heute",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"laufzeit_min_heute\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "m",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "purple"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 47,
+   "gridPos": {
+    "x": 8,
+    "y": 62,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Abtauungen heute",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"abtauungen_heute\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Abtauvorgänge kosten Wärme aus dem Speicher. Bei Außentemperaturen um 0 bis 5 °C mit Feuchte sind sie normal.",
+   "id": 48,
+   "gridPos": {
+    "x": 12,
+    "y": 62,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Verdichterstarts gesamt",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"verdichterstarts\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 49,
+   "gridPos": {
+    "x": 16,
+    "y": 62,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Betriebsstunden Verdichter",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"betriebsstunden_verdichter\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "h",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 50,
+   "gridPos": {
+    "x": 20,
+    "y": 62,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "barchart",
+   "title": "Laufzeitanteile heute",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and (r._field == \"hz_min_heute\" or r._field == \"ww_min_heute\" or r._field == \"abtau_min_heute\" or r._field == \"kuehl_min_heute\" or r._field == \"sperr_min_heute\" or r._field == \"eheiz_min_heute\"))\n  |> last()\n  |> map(fn: (r) => ({ r with _field:\n        if r._field == \"hz_min_heute\" then \"Heizen\"\n        else if r._field == \"ww_min_heute\" then \"Warmwasser\"\n        else if r._field == \"abtau_min_heute\" then \"Abtauen\"\n        else if r._field == \"kuehl_min_heute\" then \"Kühlen\"\n        else if r._field == \"eheiz_min_heute\" then \"Heizstab\"\n        else \"Sperrzeit\" }))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 80,
+      "stacking": {
+       "mode": "none"
+      }
+     },
+     "unit": "m"
+    },
+    "overrides": []
+   },
+   "options": {
+    "xTickLabelRotation": 0,
+    "showValue": "auto",
+    "stacking": "none",
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "description": "Minuten je Betriebsart seit Mitternacht, vom Sidecar mitgezählt.",
+   "id": 51,
+   "gridPos": {
+    "x": 0,
+    "y": 67,
+    "w": 24,
+    "h": 8
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "id": 52,
+   "type": "row",
+   "title": "Taktung: Verteilungen",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 75,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
   },
   {
    "type": "histogram",
@@ -3227,10 +3305,10 @@
     }
    },
    "description": "Jeder Balken ist eine Klasse von fünf Minuten, die Höhe die Zahl der Takte darin. Ein Mittelwert verdeckt, ob es viele kurze und wenige lange Takte sind; hier sieht man es. Warmwasserladungen sind getrennt, sie dürfen kurz sein.",
-   "id": 50,
+   "id": 53,
    "gridPos": {
     "x": 0,
-    "y": 66,
+    "y": 76,
     "w": 12,
     "h": 9
    },
@@ -3303,10 +3381,10 @@
     "xField": "Außentemperatur"
    },
    "description": "Hier entscheidet sich, was zu tun ist. Ein Buckel bei acht bis fünfzehn Grad ist Übergangszeit-Takten: das Haus braucht weniger, als der Verdichter herunterregeln kann – Heizkurve flacher, Hysterese größer. Ein Buckel bei Frost ist hydraulisch: zu wenig Durchfluss oder Volumen (VDI 4645 nennt 20 l je kW), oder die Anlage ist zu groß.",
-   "id": 51,
+   "id": 54,
    "gridPos": {
     "x": 12,
-    "y": 66,
+    "y": 76,
     "w": 12,
     "h": 9
    },
@@ -3397,63 +3475,11 @@
     }
    },
    "description": "Der Verlauf nach einer Einstellungsänderung: die Balken sollen sinken, die Linie steigen. Beides zusammen ist der Beleg, dass es gewirkt hat.",
-   "id": 52,
+   "id": 55,
    "gridPos": {
     "x": 0,
-    "y": 75,
-    "w": 12,
-    "h": 8
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "barchart",
-   "title": "Laufzeitanteile heute",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and (r._field == \"hz_min_heute\" or r._field == \"ww_min_heute\" or r._field == \"abtau_min_heute\" or r._field == \"kuehl_min_heute\" or r._field == \"sperr_min_heute\" or r._field == \"eheiz_min_heute\"))\n  |> last()\n  |> map(fn: (r) => ({ r with _field:\n        if r._field == \"hz_min_heute\" then \"Heizen\"\n        else if r._field == \"ww_min_heute\" then \"Warmwasser\"\n        else if r._field == \"abtau_min_heute\" then \"Abtauen\"\n        else if r._field == \"kuehl_min_heute\" then \"Kühlen\"\n        else if r._field == \"eheiz_min_heute\" then \"Heizstab\"\n        else \"Sperrzeit\" }))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "custom": {
-      "lineWidth": 1,
-      "fillOpacity": 80,
-      "stacking": {
-       "mode": "none"
-      }
-     },
-     "unit": "m"
-    },
-    "overrides": []
-   },
-   "options": {
-    "xTickLabelRotation": 0,
-    "showValue": "auto",
-    "stacking": "none",
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true
-    },
-    "tooltip": {
-     "mode": "multi"
-    }
-   },
-   "description": "Minuten je Betriebsart seit Mitternacht, vom Sidecar mitgezählt.",
-   "id": 53,
-   "gridPos": {
-    "x": 12,
-    "y": 75,
-    "w": 12,
+    "y": 85,
+    "w": 24,
     "h": 8
    },
    "datasource": {
@@ -3513,10 +3539,10 @@
     }
    },
    "description": "An und Aus über die Zeit. Ein regelmäßiges Streifenmuster ist Takten, lange Blöcke sind der gewünschte Zustand.",
-   "id": 54,
+   "id": 56,
    "gridPos": {
     "x": 0,
-    "y": 83,
+    "y": 93,
     "w": 24,
     "h": 5
    },
@@ -3586,10 +3612,10 @@
     }
    ],
    "description": "Jeder Verdichterlauf einzeln, der jüngste oben. Nützlich, wenn eine Kennzahl auffällt und man wissen will, welche Takte dahinterstecken.",
-   "id": 55,
+   "id": 57,
    "gridPos": {
     "x": 0,
-    "y": 88,
+    "y": 98,
     "w": 24,
     "h": 10
    },
@@ -3599,13 +3625,13 @@
    }
   },
   {
-   "id": 56,
+   "id": 58,
    "type": "row",
    "title": "Räume (tado über Matter)",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 98,
+    "y": 108,
     "w": 24,
     "h": 1
    },
@@ -3650,10 +3676,10 @@
     "wideLayout": true
    },
    "description": "Wie viele Räume gerade Messwerte liefern.",
-   "id": 57,
+   "id": 59,
    "gridPos": {
     "x": 0,
-    "y": 99,
+    "y": 109,
     "w": 3,
     "h": 5
    },
@@ -3702,10 +3728,10 @@
     "wideLayout": true
    },
    "description": "Der Bezugspunkt, mit dem die Jahresprognose rechnet: Heizgrenze und Heizkurve hängen beide daran. Zwei Grad mehr im Haus sind kein Detail, sondern verschieben den Wärmebedarf spürbar.",
-   "id": 58,
+   "id": 60,
    "gridPos": {
     "x": 3,
-    "y": 99,
+    "y": 109,
     "w": 4,
     "h": 5
    },
@@ -3753,10 +3779,10 @@
     "justifyMode": "center",
     "wideLayout": true
    },
-   "id": 59,
+   "id": 61,
    "gridPos": {
     "x": 7,
-    "y": 99,
+    "y": 109,
     "w": 3,
     "h": 5
    },
@@ -3804,10 +3830,10 @@
     "justifyMode": "center",
     "wideLayout": true
    },
-   "id": 60,
+   "id": 62,
    "gridPos": {
     "x": 10,
-    "y": 99,
+    "y": 109,
     "w": 3,
     "h": 5
    },
@@ -3890,10 +3916,10 @@
     "wideLayout": true
    },
    "description": "Der schlechteste Batteriestand aller Thermostate. tado meldet über Matter nur eine Stufe, keine Prozent.",
-   "id": 61,
+   "id": 63,
    "gridPos": {
     "x": 13,
-    "y": 99,
+    "y": 109,
     "w": 4,
     "h": 5
    },
@@ -3959,10 +3985,10 @@
     }
    ],
    "description": "„Stau“ ist die Differenz zwischen dem Thermostat am Heizkörper und einem frei hängenden Funkfühler im selben Raum: um so viel misst das Thermostat zu warm und regelt entsprechend zu früh ab. Nur dort gefüllt, wo ein Fühler hängt.",
-   "id": 62,
+   "id": 64,
    "gridPos": {
     "x": 0,
-    "y": 108,
+    "y": 118,
     "w": 24,
     "h": 9
    },
@@ -4015,10 +4041,10 @@
     }
    },
    "description": "Eine Linie je Raum. Laufen sie im Winter auseinander, verteilt sich die Wärme ungleich – das ist ein hydraulischer Abgleich, kein Thermostatproblem.",
-   "id": 63,
+   "id": 65,
    "gridPos": {
     "x": 0,
-    "y": 117,
+    "y": 127,
     "w": 12,
     "h": 9
    },
@@ -4071,10 +4097,10 @@
     }
    },
    "description": "Ist minus Soll je Raum. Dauerhaft negativ heißt: der Raum wird nicht warm, obwohl er soll – zu wenig Heizfläche, zu wenig Durchfluss oder eine zu flache Heizkurve.",
-   "id": 64,
+   "id": 66,
    "gridPos": {
     "x": 12,
-    "y": 117,
+    "y": 127,
     "w": 12,
     "h": 9
    },
@@ -4127,10 +4153,10 @@
     }
    },
    "description": "Über 60 % über längere Zeit ist die Schwelle, ab der Schimmel an kalten Außenwänden möglich wird. Im Sommer ist das normal, im Winter ein Hinweis aufs Lüften.",
-   "id": 65,
+   "id": 67,
    "gridPos": {
     "x": 0,
-    "y": 126,
+    "y": 136,
     "w": 24,
     "h": 8
    },
@@ -4140,13 +4166,13 @@
    }
   },
   {
-   "id": 66,
+   "id": 68,
    "type": "row",
    "title": "Kältekreis (Fachmann)",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 134,
+    "y": 144,
     "w": 24,
     "h": 1
    },
@@ -4219,10 +4245,10 @@
     }
    },
    "description": "Heißgas weit über 100 °C oder ein sehr kleiner Abstand zwischen Sauggas und Zuluft deutet auf Kältemittelmangel hin. Abluft −273 °C heißt: Fühler nicht vorhanden.",
-   "id": 67,
+   "id": 69,
    "gridPos": {
     "x": 0,
-    "y": 135,
+    "y": 145,
     "w": 12,
     "h": 8
    },
@@ -4309,10 +4335,10 @@
      "sort": "none"
     }
    },
-   "id": 68,
+   "id": 70,
    "gridPos": {
     "x": 12,
-    "y": 135,
+    "y": 145,
     "w": 12,
     "h": 8
    },
@@ -4322,13 +4348,13 @@
    }
   },
   {
-   "id": 69,
+   "id": 71,
    "type": "row",
    "title": "Heizkreis und Warmwasser",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 143,
+    "y": 153,
     "w": 24,
     "h": 1
    },
@@ -4401,10 +4427,10 @@
     }
    },
    "description": "Der Mischerkreis fährt die Heizkurve; die gemittelte Außentemperatur ist ihre Eingangsgröße.",
-   "id": 70,
+   "id": 72,
    "gridPos": {
     "x": 0,
-    "y": 144,
+    "y": 154,
     "w": 12,
     "h": 8
    },
@@ -4490,10 +4516,10 @@
     }
    },
    "description": "Die Sägezahnform ist normal: aufheizen bis zum Sollwert, dann Abkühlen bis zur Hysterese.",
-   "id": 71,
+   "id": 73,
    "gridPos": {
     "x": 12,
-    "y": 144,
+    "y": 154,
     "w": 12,
     "h": 8
    },
@@ -4503,13 +4529,13 @@
    }
   },
   {
-   "id": 72,
+   "id": 74,
    "type": "row",
    "title": "Zähler der Wolf",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 152,
+    "y": 162,
     "w": 24,
     "h": 1
    },
@@ -4563,10 +4589,10 @@
     }
    ],
    "description": "Direkt aus den Statistikregistern der Wärmepumpe, nicht von uns gerechnet.",
-   "id": 73,
+   "id": 75,
    "gridPos": {
     "x": 0,
-    "y": 153,
+    "y": 163,
     "w": 12,
     "h": 9
    },
@@ -4622,10 +4648,10 @@
      }
     }
    ],
-   "id": 74,
+   "id": 76,
    "gridPos": {
     "x": 12,
-    "y": 153,
+    "y": 163,
     "w": 12,
     "h": 9
    },
@@ -4635,13 +4661,227 @@
    }
   },
   {
-   "id": 75,
+   "id": 77,
    "type": "row",
-   "title": "Haus und PV",
+   "title": "Wärmekosten",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 162,
+    "y": 172,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "Wärmekosten heute",
+   "targets": [
+    {
+     "query": "import \"array\"\nstrom = from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"verbrauch_aktueller_tag\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\npreis = from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\narray.from(rows: [{ _time: now(), _value: (if length(arr: strom) > 0 then strom[0] else 0.0) * (if length(arr: preis) > 0 then preis[0] else 30.0) / 100.0 }])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyEUR",
+     "decimals": 2,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "red"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Stromverbrauch der Wärmepumpe heute mal dem hinterlegten Arbeitspreis (Einstellungsseite, Abschnitt Kosten).",
+   "id": 78,
+   "gridPos": {
+    "x": 0,
+    "y": 173,
+    "w": 6,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Wärmepreis je kWh",
+   "targets": [
+    {
+     "query": "import \"array\"\naz = from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"az_jahr\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\npreis = from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\narray.from(rows: [{ _time: now(), _value: (if length(arr: preis) > 0 then preis[0] else 30.0) / (if length(arr: az) > 0 and az[0] > 0.0 then az[0] else 1.0) }])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "decimals": 1,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "orange"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "description": "Arbeitspreis geteilt durch die Arbeitszahl des Jahres: was eine Kilowattstunde Wärme wirklich kostet, in Cent.",
+   "id": 79,
+   "gridPos": {
+    "x": 6,
+    "y": 173,
+    "w": 6,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Strom Wärmepumpe Jahr",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"verbrauch_aktuelles_jahr\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "kwatth",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "red"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 80,
+   "gridPos": {
+    "x": 12,
+    "y": 173,
+    "w": 6,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Wärme Jahr",
+   "targets": [
+    {
+     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"erzeugte_waermemenge_aktuelles_jahr\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx-nexa"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "kwatth",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "orange"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "/^Value$/",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value",
+    "justifyMode": "center",
+    "wideLayout": true
+   },
+   "id": 81,
+   "gridPos": {
+    "x": 18,
+    "y": 173,
+    "w": 6,
+    "h": 5
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx-nexa"
+   }
+  },
+  {
+   "id": 82,
+   "type": "row",
+   "title": "Brücke zum NEXA-Dashboard: Haus und PV",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 178,
     "w": 24,
     "h": 1
    },
@@ -4756,213 +4996,12 @@
     }
    },
    "description": "Die Wärmepumpe meldet ihre Aufnahme nur in ganzen kW, die Stufen sind daher grob. Der Shelly misst das ganze Haus inklusive Wärmepumpe.",
-   "id": 76,
+   "id": 83,
    "gridPos": {
     "x": 0,
-    "y": 163,
+    "y": 179,
     "w": 24,
     "h": 9
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Wärmekosten heute",
-   "targets": [
-    {
-     "query": "import \"array\"\nstrom = from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r.device == \"heatpump\" and r._field == \"verbrauch_aktueller_tag\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\npreis = from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\narray.from(rows: [{ _time: now(), _value: (if length(arr: strom) > 0 then strom[0] else 0.0) * (if length(arr: preis) > 0 then preis[0] else 30.0) / 100.0 }])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "currencyEUR",
-     "decimals": 2,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "red"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "description": "Stromverbrauch der Wärmepumpe heute mal dem hinterlegten Arbeitspreis (Einstellungsseite, Abschnitt Kosten).",
-   "id": 77,
-   "gridPos": {
-    "x": 0,
-    "y": 172,
-    "w": 6,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Wärmepreis je kWh",
-   "targets": [
-    {
-     "query": "import \"array\"\naz = from(bucket: \"nexa\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement == \"wolf_derived\" and r._field == \"az_jahr\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\npreis = from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\narray.from(rows: [{ _time: now(), _value: (if length(arr: preis) > 0 then preis[0] else 30.0) / (if length(arr: az) > 0 and az[0] > 0.0 then az[0] else 1.0) }])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "decimals": 1,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "orange"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "description": "Arbeitspreis geteilt durch die Arbeitszahl des Jahres: was eine Kilowattstunde Wärme wirklich kostet, in Cent.",
-   "id": 78,
-   "gridPos": {
-    "x": 6,
-    "y": 172,
-    "w": 6,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Strom Wärmepumpe Jahr",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"verbrauch_aktuelles_jahr\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "kwatth",
-     "decimals": 0,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "red"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "id": 79,
-   "gridPos": {
-    "x": 12,
-    "y": 172,
-    "w": 6,
-    "h": 5
-   },
-   "datasource": {
-    "type": "influxdb",
-    "uid": "influx-nexa"
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Wärme Jahr",
-   "targets": [
-    {
-     "query": "from(bucket: \"nexa\")\n  |> range(start: -2h)\n  |> filter(fn: (r) => r._measurement == \"wolf\" and r._field == \"erzeugte_waermemenge_aktuelles_jahr\" and r.device == \"heatpump\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-     "refId": "A",
-     "datasource": {
-      "type": "influxdb",
-      "uid": "influx-nexa"
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "kwatth",
-     "decimals": 0,
-     "color": {
-      "mode": "fixed",
-      "fixedColor": "orange"
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "/^Value$/",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "textMode": "value",
-    "justifyMode": "center",
-    "wideLayout": true
-   },
-   "id": 80,
-   "gridPos": {
-    "x": 18,
-    "y": 172,
-    "w": 6,
-    "h": 5
    },
    "datasource": {
     "type": "influxdb",

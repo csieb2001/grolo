@@ -186,6 +186,10 @@ EN = {
     "Top-Strings 24 h": "Top strings 24 h", "Top-Strings 7 Tage": "Top strings 7 days", "Top-Strings 30 Tage": "Top strings 30 days", "Anteil": "Share",
     "Energie je PV-Eingang (Spannung × Strom, Minutenmittel) im Zeitraum, absteigend sortiert. Anteil an der Summe aller Eingänge.": "Energy per PV input (voltage × current, minute means) in the window, sorted descending. Share of the total of all inputs.",
     "PV-Eingang 1 bis 4": "PV input 1 to 4", "Maximale Spannung je Eingang in 24 h. Grün = Panel angeschlossen (> 15 V), rot = frei.": "Maximum voltage per input in 24 h. Green = panel connected (> 15 V), red = free.", "Einstellungen": "Settings", "Einstellungsseite (GroLo)": "Settings page (GroLo)",
+    "Kosten: Jahresprognose": "Costs: annual forecast",
+    "Top-Strings": "Top strings", "Zeitraum": "Range", "7 Tage": "7 days", "30 Tage": "30 days",
+    "PV gesamt": "PV total", "PV: Stunde × Tag (30 Tage)": "PV: hour × day (30 days)",
+    "Technik und Diagnose": "Technical and diagnostics",
 }
 
 
@@ -651,6 +655,26 @@ def build(lang):
               overrides=[color_override(_("PV-Ertrag"), C_PV), color_override(_("Ins Haus"), C_HOUSE), color_override(_("Batterie geladen"), C_BAT), color_override(_("Batterie entladen"), "orange"), color_override(_("Aus dem Netz geladen"), "blue"), color_override(_("Hausverbrauch (Shelly)"), "purple"), color_override(_("Netzbezug"), "red")]),
     ]
     y += 9
+    # Was das Haus zieht und wie viel davon der NEXA deckt: beides in kWh bzw. Prozent, deshalb
+    # steht es hier bei der Energie und nicht mehr zwischen den Eurobeträgen.
+    panels += [
+        stat(_("Hausverbrauch heute"), 0, y, 12, 4, HEAD + q_sh_energy("h", "today()"), "kwatth", C_HOUSE, 2, desc=_("Netz + NEXA-Ausgang laut Shelly, integriert seit Tagesbeginn")),
+        stat(_("Eigenversorgung heute"), 12, y, 12, 4, HEAD + f'''house = {q_sh_energy("h", "today()", "house")}
+  |> findColumn(fn: (key) => true, column: "house")
+from(bucket: "{BUCKET}")
+  |> range(start: today())
+  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
+  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
+  |> sum()
+  |> map(fn: (r) => ({{ r with _value: if length(arr: house) > 0 and house[0] > 0.0 then r._value / 60000.0 / house[0] * 100.0 else 0.0 }}))
+  |> keep(columns: ["_value"])
+  |> rename(columns: {{_value: "Value"}})''', "percent", None, 0, thr=thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green")),
+             desc=_("Anteil des Hausverbrauchs, den der NEXA geliefert hat (Shelly)")),
+    ]
+    y += 4
 
     # ============================================================ Kosten und Ersparnis
     panels.append(row(_("Kosten und Ersparnis"), y)); y += 1
@@ -666,23 +690,8 @@ def build(lang):
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^Value$/", "values": False}, "showThresholdLabels": False, "showThresholdMarkers": True},
               defaults={"min": 0, "max": 100, "decimals": 1, "thresholds": thresholds((None, "red"), (25, "orange"), (50, "yellow"), (100, "green"))},
               desc=_("Gesamte Ersparnis im Verhältnis zum Anlagenpreis (Einstellungsseite). 0 %, solange kein Anlagenpreis eingetragen ist.")),
-        stat(_("Netzkosten heute"), 0, y + 4, 4, 4, HEAD + tariff_head() + q_sh_energy("+", "today()", factor="price / 100.0"), "currencyEUR", "red", 2, desc=_("Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.")),
-        stat(_("Netzkosten Monat"), 4, y + 4, 4, 4, HEAD + tariff_head() + q_sh_energy("+", "date.truncate(t: now(), unit: 1mo)", factor="price / 100.0"), "currencyEUR", "red", 2, desc=_("Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.")),
-        stat(_("Hausverbrauch heute"), 8, y + 4, 4, 4, HEAD + q_sh_energy("h", "today()"), "kwatth", C_HOUSE, 2, desc=_("Netz + NEXA-Ausgang laut Shelly, integriert seit Tagesbeginn")),
-        stat(_("Eigenversorgung heute"), 12, y + 4, 4, 4, HEAD + f'''house = {q_sh_energy("h", "today()", "house")}
-  |> findColumn(fn: (key) => true, column: "house")
-from(bucket: "{BUCKET}")
-  |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "nexa" and ({FLOW_FILT}))
-  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
-  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)
-  |> map(fn: (r) => ({{ r with _value: if {OUT_EXPR} > 0.0 then {OUT_EXPR} else 0.0 }}))
-  |> sum()
-  |> map(fn: (r) => ({{ r with _value: if length(arr: house) > 0 and house[0] > 0.0 then r._value / 60000.0 / house[0] * 100.0 else 0.0 }}))
-  |> keep(columns: ["_value"])
-  |> rename(columns: {{_value: "Value"}})''', "percent", None, 0, thr=thresholds((None, "red"), (20, "orange"), (50, "yellow"), (80, "green")),
-             desc=_("Anteil des Hausverbrauchs, den der NEXA geliefert hat (Shelly)")),
+        stat(_("Netzkosten heute"), 0, y + 4, 10, 4, HEAD + tariff_head() + q_sh_energy("+", "today()", factor="price / 100.0"), "currencyEUR", "red", 2, desc=_("Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.")),
+        stat(_("Netzkosten Monat"), 10, y + 4, 10, 4, HEAD + tariff_head() + q_sh_energy("+", "date.truncate(t: now(), unit: 1mo)", factor="price / 100.0"), "currencyEUR", "red", 2, desc=_("Netzbezug laut Shelly × Strompreis. Nur mit laufender Shelly-Regelung.")),
         ts(_("Ersparnis und Netzkosten pro Tag (30 Tage)"), 0, y + 8, 24, 8, [target(q_saved_daily(_("Ersparnis")), "A"), target(q_gridcost_daily(_("Netzkosten")), "B")], "currencyEUR", bars=True,
            overrides=[color_override(_("Ersparnis"), C_EUR), color_override(_("Netzkosten"), "red")],
            desc=_("Ersparnis = Abgabe ins Haus × Strompreis, Netzkosten = Netzbezug (Shelly) × Strompreis. Balken auf Tagesmitte.")),
@@ -733,7 +742,7 @@ from(bucket: "{BUCKET}")
         "measured": {"text": _("aus Messwerten"), "color": "green"},
         "partial": {"text": _("teils geschätzt"), "color": "blue"},
         "assumed": {"text": _("angenommen"), "color": "orange"}}}]
-    panels.append(row(_("Jahresprognose"), y)); y += 1
+    panels.append(row(_("Kosten: Jahresprognose"), y)); y += 1
     panels += [
         stat(_("Verbrauch im Jahr"), 0, y, 4, 5, q_fc("load_kwh"), "kwatth", C_HOUSE, 0,
              desc=_("Haushalt plus Wärmepumpe, modelliert über ein volles Jahr mit dem echten Wetter des Standorts. Grundlage sind deine Angaben auf der Einstellungsseite und alles, was bis jetzt gemessen wurde.")),
@@ -927,9 +936,10 @@ e
     rank_ovr = [{"matcher": {"id": "byName", "options": "kWh"}, "properties": [{"id": "unit", "value": "kwatth"}, {"id": "decimals", "value": 3}, {"id": "custom.cellOptions", "value": {"type": "gauge", "mode": "gradient"}}, {"id": "color", "value": {"mode": "fixed", "fixedColor": C_PV}}, {"id": "min", "value": 0}]},
                 {"matcher": {"id": "byName", "options": _("Anteil")}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 0}, {"id": "custom.width", "value": 70}]},
                 {"matcher": {"id": "byName", "options": S}, "properties": [{"id": "custom.width", "value": 90}]}]
+    # Eine Tabelle statt dreier nebeneinander: der Zeitraum steht in der Variablen $rank.
     panels += [
-        panel("table", _(title), x, y, 8, 7, [target(q_rank(start))], None, opts={"showHeader": True, "cellHeight": "sm", "sortBy": [{"displayName": "kWh", "desc": True}]}, overrides=rank_ovr, desc=rank_desc)
-        for title, x, start in (("Top-Strings 24 h", 0, "-24h"), ("Top-Strings 7 Tage", 8, "-7d"), ("Top-Strings 30 Tage", 16, "-30d"))
+        panel("table", _("Top-Strings") + " ${rank:text}", 0, y, 24, 7, [target(q_rank("$rank"))], None,
+              opts={"showHeader": True, "cellHeight": "sm", "sortBy": [{"displayName": "kWh", "desc": True}]}, overrides=rank_ovr, desc=rank_desc),
     ]
     y += 7
 
@@ -971,14 +981,18 @@ join.left(left: peaks, right: sun, on: (l, r) => l._time == r._time, as: (l, r) 
   |> timeShift(duration: 12h)
   |> keep(columns: ["_time", "_value", "string"])'''
 
-    def q_heat(expr):
-        return HEAD + f'''from(bucket: "{BUCKET}")
+    def q_heat():
+        """Eine Heatmap fuer beide Faelle. $string waehlt "alle" oder einen einzelnen String; der
+        Ausdruck je Fall ist Zeichen fuer Zeichen derselbe wie vorher in den zwei Panels."""
+        pick = "".join(f'if sel == "{i}" then r.pv{i}Voltage * r.pv{i}Current else ' for i in range(1, 5))
+        return HEAD + f'''sel = "$string"
+from(bucket: "{BUCKET}")
   |> range(start: -30d)
   |> filter(fn: (r) => r._measurement == "nexa" and ({PV_FILT}))
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: "_start")
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)
-  |> map(fn: (r) => ({{ _time: date.truncate(t: r._time, unit: 1d), hour: string(v: date.hour(t: r._time)), _value: {expr} }}))
+  |> map(fn: (r) => ({{ _time: date.truncate(t: r._time, unit: 1d), hour: string(v: date.hour(t: r._time)), _value: {pick}({PV_EXPR}) }}))
   |> filter(fn: (r) => r._value > 2.0)
   |> group()
   |> pivot(rowKey: ["_time"], columnKey: ["hour"], valueColumn: "_value")
@@ -1050,8 +1064,7 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
     heat_desc = _("Stundenmittel der Leistung, Zeile = Tag, Spalte = Stunde (lokale Zeit). Dunkel = wenig, hell = viel. Wandernde Muster zeigen Ausrichtung und Verschattung.")
     heat_def = {"custom": {"hideFrom": {"legend": False, "tooltip": False, "viz": False}, "scaleDistribution": {"type": "linear"}}}
     panels += [
-        {**panel("heatmap", _("PV gesamt: Stunde × Tag (30 Tage)"), 0, y, 12, 9, [target(q_heat(PV_EXPR))], "watt", opts=heat_opts, defaults=heat_def, desc=heat_desc), "transformations": heat_tf},
-        {**panel("heatmap", _("String $string: Stunde × Tag (30 Tage)"), 12, y, 12, 9, [target(q_heat("r.pv${string}Voltage * r.pv${string}Current"))], "watt", opts=heat_opts, defaults=heat_def, desc=heat_desc), "transformations": heat_tf},
+        {**panel("heatmap", _("PV: Stunde × Tag (30 Tage)") + " · ${string:text}", 0, y, 24, 9, [target(q_heat())], "watt", opts=heat_opts, defaults=heat_def, desc=heat_desc), "transformations": heat_tf},
     ]
     y += 9
     panels += [
@@ -1112,7 +1125,7 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
   |> group()
   |> map(fn: (r) => ({{ "{S}": r.string, "{_("Basis")}": r.basis, "{_("Azimut")}": r.azimuth, "{_("Neigung")}": r.tilt, "kWh/kWp": r.kwh_kwp, "{_("vom Optimum")}": r.pct_of_best,
-      "{_("Optimum")}": string(v: int(v: r.best_azimuth)) + "° / " + string(v: int(v: r.best_tilt)) + "°", "{_("Gewinn Optimum")}": r.best_gain_pct,
+      "{_("Optimum")}": if exists r.best_azimuth and exists r.best_tilt then string(v: int(v: r.best_azimuth)) + "° / " + string(v: int(v: r.best_tilt)) + "°" else "–", "{_("Gewinn Optimum")}": r.best_gain_pct,
       "{_("Gleiche Richtung, Neigung")}": string(v: int(v: r.same_azimuth_tilt)) + "°", "{_("Gewinn")}": r.same_azimuth_gain_pct,
       "{_("Senkrecht nach")}": string(v: int(v: r.vertical_azimuth)) + "°", "{_("Gewinn senkrecht")}": r.vertical_gain_pct, "{_("Gewinn flach")}": r.flat_gain_pct,
       "{_("Winteranteil")}": r.winter_share_pct, "{_("Verschattung")}": r.shading_loss_pct, "{_("Zonen")}": r.shading_zones, "{_("Stand")}": r._time }}))
@@ -1194,8 +1207,9 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
     ]
     y += 8
 
-    # ============================================================ Batterie und Technik
-    panels.append(row(_("Batterie und Technik"), y)); y += 1
+    # ============================================================ Batterie
+    # Alles, was die Batterie selbst betrifft: Zellen, Zyklen, Gesundheit, Temperaturen.
+    panels.append(row(_("Batterie"), y)); y += 1
     B = _("Batterie")
     panels += [
         ts(_("Temperaturen"), 0, y, 12, 9, [
@@ -1212,13 +1226,9 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
     ]
     y += 9
     panels += [
-        stat_field(_("Entlade-Grenze"), 0, y, 4, 4, "dischargeSocLimit", "percent", "orange", 0, desc=_("Unter diesen SoC entlädt die Batterie nicht")),
-        stat_field(_("Lade-Grenze"), 4, y, 4, 4, "chargeSocLimit", "percent", "green", 0),
-        stat_field(_("Netzspannung"), 8, y, 4, 4, "onGridVoltage", "volt", "purple", 1, desc=_("Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist.")),
-        panel("stat", _("Geräteregister zum Vergleich"), 12, y, 4, 4, [target(q_last_named("pac", "pac (5)"), "A"), target(q_last_named("totalBatteryPackChargingPower", _("Batterie") + " (11)"), "B"), target(q_last_named("ppv", "ppv (7)"), "C")], "watt",
-              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
-              defaults={"color": {"mode": "fixed", "fixedColor": "purple"}}, desc=_("Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings.")),
-        stat(_("Zellspannung Differenz"), 16, y, 4, 4, HEAD + f'''from(bucket: "{BUCKET}")
+        stat_field(_("Entlade-Grenze"), 0, y, 6, 4, "dischargeSocLimit", "percent", "orange", 0, desc=_("Unter diesen SoC entlädt die Batterie nicht")),
+        stat_field(_("Lade-Grenze"), 6, y, 6, 4, "chargeSocLimit", "percent", "green", 0),
+        stat(_("Zellspannung Differenz"), 12, y, 6, 4, HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "maxCellVoltage" or r._field == "minCellVoltage"))
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -1226,14 +1236,22 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
   |> last(column: "maxCellVoltage")
   |> map(fn: (r) => ({{ _time: r._time, _value: r.maxCellVoltage - r.minCellVoltage }}))
   |> keep(columns: ["_time", "_value"])''', "volt", None, 3, thr=thresholds((None, "green"), (0.05, "orange"), (0.1, "red"))),
-        stat(_("Letzte Nachricht"), 20, y, 4, 4, f'''from(bucket: "{BUCKET}")
-  |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "nexa" and r._field == "ppv")
-  |> last()
-  |> map(fn: (r) => ({{ _time: r._time, _value: float(v: uint(v: r._time)) / 1000000.0 }}))
-  |> keep(columns: ["_time", "_value"])''', "dateTimeFromNow", "text", desc=_("Zeitpunkt des letzten Datensatzes vom Dongle")),
+        stat_field(_("Zellspannung min"), 18, y, 6, 4, "minCellVoltage", "volt", "green", 3),
     ]
     y += 4
+    P = _("Pack")
+    panels += [
+        ts(_("SoC je Batteriepack"), 0, y, 16, 8, [target(q_series(f"battery{i}Soc", f"{P} {i}"), r) for i, r in zip(range(1, 5), "ABCD")], "percent", fill=5, mn=0, mx=100),
+        panel("stat", _("Temperatur je Pack"), 16, y, 8, 8, [target(q_last_named(f"battery{i}Temp", f"{P} {i}"), r) for i, r in zip(range(1, 5), "ABCD")], "celsius",
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
+              defaults={"decimals": 1, "color": {"mode": "thresholds"}, "thresholds": temp_thr}),
+    ]
+    y += 8
+
+    # ============================================================ Technik und Diagnose
+    # Firmware, Funk, Seriennummern und die Register, die die Bridge nicht deutet: nichts davon sagt
+    # etwas über den Zustand der Batterie, alles davon über den Zustand der Technik drumherum.
+    panels.append(row(_("Technik und Diagnose"), y)); y += 1
     panels += [
         stat(_("Firmware NEXA (Reg. 119/120)"), 0, y, 6, 4, HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
@@ -1251,25 +1269,26 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
   |> keep(columns: ["_time", "_value"])''', None, "text"),
         stat(_("WLAN-Signal Dongle"), 12, y, 4, 4, q_last("wifi_signal", "dongle", "-30d"), "dBm", None, 0, thr=thresholds((None, "red"), (-80, "orange"), (-67, "green")),
              desc=_("Wird nur beim Verbindungsaufbau des Dongles gemeldet")),
-        stat_field(_("Batteriepacks erkannt"), 16, y, 4, 4, "batteryPackageQuantity", None, "blue", 0),
-        stat_field(_("Zellspannung min"), 20, y, 4, 4, "minCellVoltage", "volt", "green", 3),
+        stat_field(_("Netzspannung"), 16, y, 4, 4, "onGridVoltage", "volt", "purple", 1, desc=_("Register 115. Nahe 0 V, wenn der NEXA vom Netz getrennt ist.")),
+        stat(_("Letzte Nachricht"), 20, y, 4, 4, f'''from(bucket: "{BUCKET}")
+  |> range(start: -7d)
+  |> filter(fn: (r) => r._measurement == "nexa" and r._field == "ppv")
+  |> last()
+  |> map(fn: (r) => ({{ _time: r._time, _value: float(v: uint(v: r._time)) / 1000000.0 }}))
+  |> keep(columns: ["_time", "_value"])''', "dateTimeFromNow", "text", desc=_("Zeitpunkt des letzten Datensatzes vom Dongle")),
     ]
     y += 4
     P = _("Pack")
     panels += [
-        ts(_("SoC je Batteriepack"), 0, y, 12, 8, [target(q_series(f"battery{i}Soc", f"{P} {i}"), r) for i, r in zip(range(1, 5), "ABCD")], "percent", fill=5, mn=0, mx=100),
-        panel("stat", _("Temperatur je Pack"), 12, y, 12, 4, [target(q_last_named(f"battery{i}Temp", f"{P} {i}"), r) for i, r in zip(range(1, 5), "ABCD")], "celsius",
-              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
-              defaults={"decimals": 1, "color": {"mode": "thresholds"}, "thresholds": temp_thr}),
-        panel("stat", _("Seriennummern Erweiterungspacks"), 12, y + 4, 12, 4, [target(q_last_named(f"bat{i}_serial", f"{P} {i}", rng="-7d"), r) for i, r in zip(range(2, 5), "ABC")], None,
+        panel("stat", _("Geräteregister zum Vergleich"), 0, y, 12, 4, [target(q_last_named("pac", "pac (5)"), "A"), target(q_last_named("totalBatteryPackChargingPower", _("Batterie") + " (11)"), "B"), target(q_last_named("ppv", "ppv (7)"), "C")], "watt",
+              opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
+              defaults={"color": {"mode": "fixed", "fixedColor": "purple"}}, desc=_("Rohwerte der Geräteregister. pac und Batterieleistung bleiben auf aktueller Firmware bei 0, deshalb rechnet das Dashboard mit Register 116 und den Strings.")),
+        panel("stat", _("Seriennummern Erweiterungspacks"), 12, y, 12, 4, [target(q_last_named(f"bat{i}_serial", f"{P} {i}", rng="-7d"), r) for i, r in zip(range(2, 5), "ABC")], None,
               opts={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "/.*/", "values": False}, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center"},
               defaults={"color": {"mode": "fixed", "fixedColor": "text"}},
               desc=_("Pack 1 ist das Hauptgerät mit der Geräteseriennummer. Leer = kein Erweiterungspack.")),
     ]
-    y += 8
-
-    # ============================================================ Forschung
-    panels.append(row(_("Unbekannte Register (Forschung)"), y)); y += 1
+    y += 4
     panels += [
         ts(_("Unbekannte Eingangsregister, Verlauf (nur ≠ 0)"), 0, y, 16, 10, [target(HEAD + f'''from(bucket: "{BUCKET}")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -1299,8 +1318,18 @@ join.inner(left: sun, right: pv, on: (l, r) => l._time == r._time, as: (l, r) =>
             {"title": "Deutsch" if lang == "en" else "English", "type": "link", "url": "/d/nexa2000-de" if lang == "en" else "/d/nexa2000", "icon": "external link", "tooltip": "", "targetBlank": False, "asDropdown": False, "keepTime": True},
         ],
         "schemaVersion": 39, "version": 1, "panels": panels, "annotations": {"list": []},
-        "templating": {"list": [{"type": "custom", "name": "string", "label": _("String") + " (Heatmap)", "query": "1,2,3,4", "current": {"text": "1", "value": "1", "selected": True},
-                                 "options": [{"text": str(i), "value": str(i), "selected": i == 1} for i in range(1, 5)], "hide": 0, "includeAll": False, "multi": False}]
+        "templating": {"list": [{"type": "custom", "name": "string", "label": _("Heatmap"),
+                                 "query": ",".join([f"{_('PV gesamt')} : all"] + [f"{_('String')} {i} : {i}" for i in range(1, 5)]),
+                                 "current": {"text": _("PV gesamt"), "value": "all", "selected": True},
+                                 "options": [{"text": _("PV gesamt"), "value": "all", "selected": True}]
+                                            + [{"text": f"{_('String')} {i}", "value": str(i), "selected": False} for i in range(1, 5)],
+                                 "hide": 0, "includeAll": False, "multi": False},
+                                {"type": "custom", "name": "rank", "label": _("Zeitraum") + " (Top-Strings)",
+                                 "query": ",".join([f"{t} : {v}" for t, v in (("24 h", "-24h"), (_("7 Tage"), "-7d"), (_("30 Tage"), "-30d"))]),
+                                 "current": {"text": "24 h", "value": "-24h", "selected": True},
+                                 "options": [{"text": t, "value": v, "selected": i == 0}
+                                             for i, (t, v) in enumerate((("24 h", "-24h"), (_("7 Tage"), "-7d"), (_("30 Tage"), "-30d")))],
+                                 "hide": 0, "includeAll": False, "multi": False}]
                        + [{"type": "query", "name": f"s{i}", "label": f"{_('String')} {i}", "hide": 2, "refresh": 1, "datasource": DS, "includeAll": False, "multi": False,
                            "query": {"query": f'''import "array"
 array.from(rows: [{{_value: (array.concat(arr: from(bucket: "{BUCKET}") |> range(start: -10y) |> filter(fn: (r) => r._measurement == "string_names" and r._field == "s{i}") |> last() |> findColumn(fn: (key) => true, column: "_value"), v: ["{_('String')} {i}"]))[0]}}])'''},

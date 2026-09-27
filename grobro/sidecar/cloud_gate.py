@@ -40,8 +40,11 @@ try:
 except Exception:
     grobro_parser = None
 
+# config_filter wandert mit in den Status: steht er auf false, kann blocked_config_writes gar nicht mehr
+# steigen. Ohne diese Angabe behauptet die Bedienseite einen Schutz, den es nicht gibt (25.09.2026 passiert).
 state = {"enabled": False, "connections": 0, "cloud_connected": 0, "bytes_up": 0, "bytes_down": 0,
-         "blocked_config_writes": 0, "cloud_host": None, "last_error": None, "since": time.strftime("%Y-%m-%d %H:%M:%S")}
+         "blocked_config_writes": 0, "config_filter": CONFIG_FILTER, "cloud_host": None, "last_error": None,
+         "since": time.strftime("%Y-%m-%d %H:%M:%S")}
 active_conns = set()
 loop = None
 mq = None

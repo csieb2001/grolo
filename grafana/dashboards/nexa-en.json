@@ -2119,442 +2119,12 @@
     },
     {
       "id": 32,
-      "type": "row",
-      "title": "Costs and savings",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 50,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 33,
-      "type": "stat",
-      "title": "Electricity price",
-      "gridPos": {
-        "x": 0,
-        "y": 51,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\narray.from(rows: [{_time: now(), _value: price}])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix: ct/kWh",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "text"
-          },
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Set on the settings page under “Electricity price and savings” (retained grolo/config/tariff). Without an entry the dashboard assumes 30 ct/kWh."
-    },
-    {
-      "id": 34,
-      "type": "stat",
-      "title": "Saved today",
-      "gridPos": {
-        "x": 4,
-        "y": 51,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: today())\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyEUR",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "green"
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
-    },
-    {
-      "id": 35,
-      "type": "stat",
-      "title": "Saved this month",
-      "gridPos": {
-        "x": 8,
-        "y": 51,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: date.truncate(t: now(), unit: 1mo))\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyEUR",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "green"
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
-    },
-    {
-      "id": 36,
-      "type": "stat",
-      "title": "Saved this year",
-      "gridPos": {
-        "x": 12,
-        "y": 51,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: date.truncate(t: now(), unit: 1y))\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyEUR",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "green"
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
-    },
-    {
-      "id": 37,
-      "type": "stat",
-      "title": "Saved in total",
-      "gridPos": {
-        "x": 16,
-        "y": 51,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: 0)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyEUR",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "green"
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
-    },
-    {
-      "id": 38,
-      "type": "gauge",
-      "title": "Payback",
-      "gridPos": {
-        "x": 20,
-        "y": 51,
-        "w": 4,
-        "h": 8
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\ncost = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"system_cost_eur\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: 0)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: if cost > 0.0 then (r._value / 60000.0 * price / 100.0) / cost * 100.0 else 0.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 25
-              },
-              {
-                "color": "yellow",
-                "value": 50
-              },
-              {
-                "color": "green",
-                "value": 100
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "description": "Total savings relative to the system price (settings page). 0 % until a system price is entered."
-    },
-    {
-      "id": 39,
-      "type": "stat",
-      "title": "Grid cost today",
-      "gridPos": {
-        "x": 0,
-        "y": 55,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: today())\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"grid_w\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then r._value else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyEUR",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "red"
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Grid import per Shelly × electricity price. Only with the Shelly control running."
-    },
-    {
-      "id": 40,
-      "type": "stat",
-      "title": "Grid cost this month",
-      "gridPos": {
-        "x": 4,
-        "y": 55,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: date.truncate(t: now(), unit: 1mo))\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"grid_w\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then r._value else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyEUR",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "red"
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Grid import per Shelly × electricity price. Only with the Shelly control running."
-    },
-    {
-      "id": 41,
       "type": "stat",
       "title": "Household today",
       "gridPos": {
-        "x": 8,
-        "y": 55,
-        "w": 4,
+        "x": 0,
+        "y": 50,
+        "w": 12,
         "h": 4
       },
       "datasource": {
@@ -2598,13 +2168,13 @@
       "description": "Grid + NEXA output per Shelly, integrated since midnight"
     },
     {
-      "id": 42,
+      "id": 33,
       "type": "stat",
       "title": "Self-sufficiency today",
       "gridPos": {
         "x": 12,
-        "y": 55,
-        "w": 4,
+        "y": 50,
+        "w": 12,
         "h": 4
       },
       "datasource": {
@@ -2668,12 +2238,442 @@
       "description": "Share of the household load supplied by the NEXA (Shelly)"
     },
     {
+      "id": 34,
+      "type": "row",
+      "title": "Costs and savings",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 35,
+      "type": "stat",
+      "title": "Electricity price",
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\narray.from(rows: [{_time: now(), _value: price}])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: ct/kWh",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Set on the settings page under “Electricity price and savings” (retained grolo/config/tariff). Without an entry the dashboard assumes 30 ct/kWh."
+    },
+    {
+      "id": 36,
+      "type": "stat",
+      "title": "Saved today",
+      "gridPos": {
+        "x": 4,
+        "y": 55,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: today())\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
+    },
+    {
+      "id": 37,
+      "type": "stat",
+      "title": "Saved this month",
+      "gridPos": {
+        "x": 8,
+        "y": 55,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: date.truncate(t: now(), unit: 1mo))\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
+    },
+    {
+      "id": 38,
+      "type": "stat",
+      "title": "Saved this year",
+      "gridPos": {
+        "x": 12,
+        "y": 55,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: date.truncate(t: now(), unit: 1y))\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
+    },
+    {
+      "id": 39,
+      "type": "stat",
+      "title": "Saved in total",
+      "gridPos": {
+        "x": 16,
+        "y": 55,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: 0)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Energy delivered to the house × electricity price: grid power that did not have to be bought."
+    },
+    {
+      "id": 40,
+      "type": "gauge",
+      "title": "Payback",
+      "gridPos": {
+        "x": 20,
+        "y": 55,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\ncost = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"system_cost_eur\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: 0)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\" or r._field == \"onGridPower\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.onGridPower and exists r.pv1Voltage)\n  |> map(fn: (r) => ({ r with _value: if (r.onGridPower - 30000.0) / 10.0 > 0.0 then (r.onGridPower - 30000.0) / 10.0 else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: if cost > 0.0 then (r._value / 60000.0 * price / 100.0) / cost * 100.0 else 0.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "description": "Total savings relative to the system price (settings page). 0 % until a system price is entered."
+    },
+    {
+      "id": 41,
+      "type": "stat",
+      "title": "Grid cost today",
+      "gridPos": {
+        "x": 0,
+        "y": 59,
+        "w": 10,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: today())\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"grid_w\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then r._value else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Grid import per Shelly × electricity price. Only with the Shelly control running."
+    },
+    {
+      "id": 42,
+      "type": "stat",
+      "title": "Grid cost this month",
+      "gridPos": {
+        "x": 10,
+        "y": 59,
+        "w": 10,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nprice = (array.concat(arr: from(bucket: \"nexa\")\n  |> range(start: -10y)\n  |> filter(fn: (r) => r._measurement == \"tariff\" and r._field == \"price_ct_kwh\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\"), v: [30.0]))[0]\nfrom(bucket: \"nexa\")\n  |> range(start: date.truncate(t: now(), unit: 1mo))\n  |> filter(fn: (r) => r._measurement == \"shelly\" and r._field == \"grid_w\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then r._value else 0.0 }))\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 60000.0 * price / 100.0 }))\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Value\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Grid import per Shelly × electricity price. Only with the Shelly control running."
+    },
+    {
       "id": 43,
       "type": "timeseries",
       "title": "Savings and grid cost per day (30 days)",
       "gridPos": {
         "x": 0,
-        "y": 59,
+        "y": 63,
         "w": 24,
         "h": 8
       },
@@ -2770,11 +2770,11 @@
     {
       "id": 44,
       "type": "row",
-      "title": "Annual forecast",
+      "title": "Costs: annual forecast",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 67,
+        "y": 71,
         "w": 24,
         "h": 1
       },
@@ -2786,7 +2786,7 @@
       "title": "Consumption per year",
       "gridPos": {
         "x": 0,
-        "y": 68,
+        "y": 72,
         "w": 4,
         "h": 5
       },
@@ -2836,7 +2836,7 @@
       "title": "of it heat pump",
       "gridPos": {
         "x": 4,
-        "y": 68,
+        "y": 72,
         "w": 4,
         "h": 5
       },
@@ -2886,7 +2886,7 @@
       "title": "PV yield",
       "gridPos": {
         "x": 8,
-        "y": 68,
+        "y": 72,
         "w": 4,
         "h": 5
       },
@@ -2936,7 +2936,7 @@
       "title": "Grid import per year",
       "gridPos": {
         "x": 12,
-        "y": 68,
+        "y": 72,
         "w": 4,
         "h": 5
       },
@@ -2986,7 +2986,7 @@
       "title": "Self-sufficiency",
       "gridPos": {
         "x": 16,
-        "y": 68,
+        "y": 72,
         "w": 4,
         "h": 5
       },
@@ -3036,7 +3036,7 @@
       "title": "Forecast quality",
       "gridPos": {
         "x": 20,
-        "y": 68,
+        "y": 72,
         "w": 4,
         "h": 5
       },
@@ -3103,7 +3103,7 @@
       "title": "Annual bill",
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 77,
         "w": 6,
         "h": 5
       },
@@ -3153,7 +3153,7 @@
       "title": "of it base fee",
       "gridPos": {
         "x": 6,
-        "y": 73,
+        "y": 77,
         "w": 4,
         "h": 5
       },
@@ -3202,7 +3202,7 @@
       "title": "Saved by the system",
       "gridPos": {
         "x": 10,
-        "y": 73,
+        "y": 77,
         "w": 5,
         "h": 5
       },
@@ -3252,7 +3252,7 @@
       "title": "Recommended monthly payment",
       "gridPos": {
         "x": 15,
-        "y": 73,
+        "y": 77,
         "w": 5,
         "h": 5
       },
@@ -3302,7 +3302,7 @@
       "title": "Current monthly payment",
       "gridPos": {
         "x": 20,
-        "y": 73,
+        "y": 77,
         "w": 4,
         "h": 5
       },
@@ -3352,7 +3352,7 @@
       "title": "Forecast uncertainty",
       "gridPos": {
         "x": 0,
-        "y": 78,
+        "y": 82,
         "w": 5,
         "h": 4
       },
@@ -3422,7 +3422,7 @@
       "title": "Bill, lower edge",
       "gridPos": {
         "x": 5,
-        "y": 78,
+        "y": 82,
         "w": 5,
         "h": 4
       },
@@ -3471,7 +3471,7 @@
       "title": "Bill, upper edge",
       "gridPos": {
         "x": 10,
-        "y": 78,
+        "y": 82,
         "w": 5,
         "h": 4
       },
@@ -3521,7 +3521,7 @@
       "title": "Immersion heater per year",
       "gridPos": {
         "x": 15,
-        "y": 78,
+        "y": 82,
         "w": 4,
         "h": 4
       },
@@ -3571,7 +3571,7 @@
       "title": "PV calibration factor",
       "gridPos": {
         "x": 19,
-        "y": 78,
+        "y": 82,
         "w": 5,
         "h": 4
       },
@@ -3640,7 +3640,7 @@
       "title": "Consumption per month",
       "gridPos": {
         "x": 0,
-        "y": 82,
+        "y": 86,
         "w": 12,
         "h": 9
       },
@@ -3736,7 +3736,7 @@
       "title": "Grid import and cost per month",
       "gridPos": {
         "x": 12,
-        "y": 82,
+        "y": 86,
         "w": 12,
         "h": 9
       },
@@ -3826,7 +3826,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 92,
+        "y": 96,
         "w": 24,
         "h": 1
       },
@@ -3838,7 +3838,7 @@
       "title": "Records of the year",
       "gridPos": {
         "x": 0,
-        "y": 93,
+        "y": 97,
         "w": 10,
         "h": 9
       },
@@ -3985,7 +3985,7 @@
       "title": "PV yield: day × month (year)",
       "gridPos": {
         "x": 10,
-        "y": 93,
+        "y": 97,
         "w": 14,
         "h": 9
       },
@@ -4111,7 +4111,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 102,
+        "y": 106,
         "w": 24,
         "h": 1
       },
@@ -4123,7 +4123,7 @@
       "title": "Power per string",
       "gridPos": {
         "x": 0,
-        "y": 103,
+        "y": 107,
         "w": 12,
         "h": 9
       },
@@ -4260,7 +4260,7 @@
       "title": "Voltage per string",
       "gridPos": {
         "x": 12,
-        "y": 103,
+        "y": 107,
         "w": 6,
         "h": 9
       },
@@ -4396,7 +4396,7 @@
       "title": "Current per string",
       "gridPos": {
         "x": 18,
-        "y": 103,
+        "y": 107,
         "w": 6,
         "h": 9
       },
@@ -4532,7 +4532,7 @@
       "title": "PV inputs in use",
       "gridPos": {
         "x": 0,
-        "y": 112,
+        "y": 116,
         "w": 4,
         "h": 4
       },
@@ -4581,7 +4581,7 @@
       "title": "PV input 1 to 4",
       "gridPos": {
         "x": 4,
-        "y": 112,
+        "y": 116,
         "w": 20,
         "h": 4
       },
@@ -4713,11 +4713,11 @@
     {
       "id": 72,
       "type": "table",
-      "title": "Top strings 24 h",
+      "title": "Top strings ${rank:text}",
       "gridPos": {
         "x": 0,
-        "y": 116,
-        "w": 8,
+        "y": 120,
+        "w": 24,
         "h": 7
       },
       "datasource": {
@@ -4730,7 +4730,7 @@
             "type": "influxdb",
             "uid": "influx-nexa"
           },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> sum()\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 60000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Share\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: $rank)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> sum()\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 60000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Share\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
           "refId": "A"
         }
       ],
@@ -4819,238 +4819,24 @@
     },
     {
       "id": 73,
-      "type": "table",
-      "title": "Top strings 7 days",
-      "gridPos": {
-        "x": 8,
-        "y": 116,
-        "w": 8,
-        "h": 7
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> sum()\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 60000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Share\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "kWh"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "kwatth"
-              },
-              {
-                "id": "decimals",
-                "value": 3
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "gauge",
-                  "mode": "gradient"
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "yellow"
-                }
-              },
-              {
-                "id": "min",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Share"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "custom.width",
-                "value": 70
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "String"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 90
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "kWh",
-            "desc": true
-          }
-        ]
-      },
-      "description": "Energy per PV input (voltage × current, minute means) in the window, sorted descending. Share of the total of all inputs."
-    },
-    {
-      "id": 74,
-      "type": "table",
-      "title": "Top strings 30 days",
-      "gridPos": {
-        "x": 16,
-        "y": 116,
-        "w": 8,
-        "h": 7
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nb = from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\ne = union(tables: [b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 1\", _value: r.pv1Voltage * r.pv1Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 2\", _value: r.pv2Voltage * r.pv2Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 3\", _value: r.pv3Voltage * r.pv3Current})), b |> map(fn: (r) => ({_time: r._time, _start: r._start, _stop: r._stop, string: \"String 4\", _value: r.pv4Voltage * r.pv4Current}))])\n  |> group(columns: [\"string\", \"_start\", \"_stop\"])\n  |> sum()\n  |> map(fn: (r) => ({ string: r.string, _value: r._value / 60000.0 }))\n  |> group()\ntot = (array.concat(arr: e |> sum() |> findColumn(fn: (key) => true, column: \"_value\"), v: [0.0]))[0]\ne\n  |> map(fn: (r) => ({ \"String\": r.string, \"kWh\": r._value, \"Share\": if tot > 0.0 then r._value / tot * 100.0 else 0.0 }))\n  |> sort(columns: [\"kWh\"], desc: true)",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "kWh"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "kwatth"
-              },
-              {
-                "id": "decimals",
-                "value": 3
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "gauge",
-                  "mode": "gradient"
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "yellow"
-                }
-              },
-              {
-                "id": "min",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Share"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "custom.width",
-                "value": 70
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "String"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 90
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "kWh",
-            "desc": true
-          }
-        ]
-      },
-      "description": "Energy per PV input (voltage × current, minute means) in the window, sorted descending. Share of the total of all inputs."
-    },
-    {
-      "id": 75,
       "type": "row",
       "title": "Daily peaks, sun position and model",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 123,
+        "y": 127,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 76,
+      "id": 74,
       "type": "table",
       "title": "Daily peak per string (30 days)",
       "gridPos": {
         "x": 0,
-        "y": 124,
+        "y": 128,
         "w": 10,
         "h": 10
       },
@@ -5191,12 +4977,12 @@
       "description": "Highest one-minute power per string and day with the time and the sun position at that moment. Only strings above 5 W."
     },
     {
-      "id": 77,
+      "id": 75,
       "type": "timeseries",
       "title": "Daily peaks per string (30 days)",
       "gridPos": {
         "x": 10,
-        "y": 124,
+        "y": 128,
         "w": 14,
         "h": 10
       },
@@ -5330,13 +5116,13 @@
       "description": "Highest one-minute power per day, bars on midday."
     },
     {
-      "id": 78,
+      "id": 76,
       "type": "heatmap",
-      "title": "PV total: hour × day (30 days)",
+      "title": "PV: hour × day (30 days) · ${string:text}",
       "gridPos": {
         "x": 0,
-        "y": 134,
-        "w": 12,
+        "y": 138,
+        "w": 24,
         "h": 9
       },
       "datasource": {
@@ -5349,7 +5135,7 @@
             "type": "influxdb",
             "uid": "influx-nexa"
           },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: \"_start\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\n  |> map(fn: (r) => ({ _time: date.truncate(t: r._time, unit: 1d), hour: string(v: date.hour(t: r._time)), _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }))\n  |> filter(fn: (r) => r._value > 2.0)\n  |> group()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"hour\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"])",
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nsel = \"$string\"\nfrom(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: \"_start\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\n  |> map(fn: (r) => ({ _time: date.truncate(t: r._time, unit: 1d), hour: string(v: date.hour(t: r._time)), _value: if sel == \"1\" then r.pv1Voltage * r.pv1Current else if sel == \"2\" then r.pv2Voltage * r.pv2Current else if sel == \"3\" then r.pv3Voltage * r.pv3Current else if sel == \"4\" then r.pv4Voltage * r.pv4Current else (r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current) }))\n  |> filter(fn: (r) => r._value > 2.0)\n  |> group()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"hour\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"])",
           "refId": "A"
         }
       ],
@@ -5447,129 +5233,12 @@
       ]
     },
     {
-      "id": 79,
-      "type": "heatmap",
-      "title": "String $string: hour × day (30 days)",
-      "gridPos": {
-        "x": 12,
-        "y": 134,
-        "w": 12,
-        "h": 9
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"pv1Voltage\" or r._field == \"pv1Current\" or r._field == \"pv2Voltage\" or r._field == \"pv2Current\" or r._field == \"pv3Voltage\" or r._field == \"pv3Current\" or r._field == \"pv4Voltage\" or r._field == \"pv4Current\"))\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: \"_start\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.pv1Voltage and exists r.pv1Current)\n  |> map(fn: (r) => ({ _time: date.truncate(t: r._time, unit: 1d), hour: string(v: date.hour(t: r._time)), _value: r.pv${string}Voltage * r.pv${string}Current }))\n  |> filter(fn: (r) => r._value > 2.0)\n  |> group()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"hour\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "watt",
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "cellValues": {
-          "unit": "watt"
-        },
-        "color": {
-          "mode": "scheme",
-          "scheme": "YlOrRd",
-          "steps": 48,
-          "fill": "dark-orange",
-          "reverse": false,
-          "exponent": 0.6,
-          "min": 0
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false,
-          "unit": "none",
-          "decimals": 0
-        },
-        "rowsFrame": {
-          "layout": "ge",
-          "value": "W"
-        },
-        "tooltip": {
-          "mode": "single",
-          "yHistogram": false,
-          "showColorScale": false
-        },
-        "legend": {
-          "show": true
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-09
-        },
-        "showValue": "never"
-      },
-      "description": "Hourly mean power, row = day, column = hour (local time). Dark = little, bright = much. Shifting patterns reveal orientation and shading.",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "indexByName": {
-              "_time": 0,
-              "0": 1,
-              "1": 2,
-              "2": 3,
-              "3": 4,
-              "4": 5,
-              "5": 6,
-              "6": 7,
-              "7": 8,
-              "8": 9,
-              "9": 10,
-              "10": 11,
-              "11": 12,
-              "12": 13,
-              "13": 14,
-              "14": 15,
-              "15": 16,
-              "16": 17,
-              "17": 18,
-              "18": 19,
-              "19": 20,
-              "20": 21,
-              "21": 22,
-              "22": 23,
-              "23": 24
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": 80,
+      "id": 77,
       "type": "state-timeline",
       "title": "Strongest string per hour",
       "gridPos": {
         "x": 0,
-        "y": 143,
+        "y": 147,
         "w": 24,
         "h": 5
       },
@@ -5649,12 +5318,12 @@
       "description": "Which string delivers the most in the hourly mean. East strings lead in the morning, west strings in the afternoon. Grey = below 5 W."
     },
     {
-      "id": 81,
+      "id": 78,
       "type": "timeseries",
       "title": "Measured vs. expected per string",
       "gridPos": {
         "x": 0,
-        "y": 148,
+        "y": 152,
         "w": 16,
         "h": 10
       },
@@ -5954,12 +5623,12 @@
       "description": "Measured: voltage × current per string. Expected: Open-Meteo irradiance (DNI/DHI/GHI) transposed onto the configured panel plane, times Wp times performance ratio (weather sidecar). Without tilt/azimuth on the settings page, “Expected” stays empty. Recurring dips at the same time of day = shading."
     },
     {
-      "id": 82,
+      "id": 79,
       "type": "timeseries",
       "title": "Sun position",
       "gridPos": {
         "x": 16,
-        "y": 148,
+        "y": 152,
         "w": 8,
         "h": 10
       },
@@ -6093,12 +5762,12 @@
       "description": "Azimuth 0 = north, 90 = east, 180 = south, 270 = west. Elevation above the horizon, computed every minute by the weather sidecar (NOAA)."
     },
     {
-      "id": 83,
+      "id": 80,
       "type": "xychart",
       "title": "Power vs. sun azimuth",
       "gridPos": {
         "x": 0,
-        "y": 158,
+        "y": 162,
         "w": 16,
         "h": 10
       },
@@ -6304,12 +5973,12 @@
       "description": "Each point is a 5-minute mean in the selected range. The centre of the cloud shows where a string faces; a dip at a fixed azimuth is an obstacle. For a sun-path polar chart see the GroLo website."
     },
     {
-      "id": 84,
+      "id": 81,
       "type": "stat",
       "title": "Sun now",
       "gridPos": {
         "x": 16,
-        "y": 158,
+        "y": 162,
         "w": 8,
         "h": 4
       },
@@ -6377,12 +6046,12 @@
       }
     },
     {
-      "id": 85,
+      "id": 82,
       "type": "table",
       "title": "Estimated orientation per string",
       "gridPos": {
         "x": 16,
-        "y": 162,
+        "y": 166,
         "w": 8,
         "h": 6
       },
@@ -6508,12 +6177,12 @@
       "description": "Once a day (and on request from the settings page) the weather sidecar estimates tilt, azimuth and Wp of every string from the hourly curves of the last 30 days against the irradiance model. Needs several sunny days. Apply it on the settings page under “Location and panels”, then “Expected” fills in."
     },
     {
-      "id": 86,
+      "id": 83,
       "type": "table",
       "title": "Recommendations per string (year model and shading)",
       "gridPos": {
         "x": 0,
-        "y": 168,
+        "y": 172,
         "w": 24,
         "h": 6
       },
@@ -6527,7 +6196,7 @@
             "type": "influxdb",
             "uid": "influx-nexa"
           },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -3d)\n  |> filter(fn: (r) => r._measurement == \"pv_advice\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({ \"String\": r.string, \"Basis\": r.basis, \"Azimuth\": r.azimuth, \"Tilt\": r.tilt, \"kWh/kWp\": r.kwh_kwp, \"of optimum\": r.pct_of_best,\n      \"Optimum\": string(v: int(v: r.best_azimuth)) + \"° / \" + string(v: int(v: r.best_tilt)) + \"°\", \"Gain optimum\": r.best_gain_pct,\n      \"Same direction, tilt\": string(v: int(v: r.same_azimuth_tilt)) + \"°\", \"Gain\": r.same_azimuth_gain_pct,\n      \"Vertical facing\": string(v: int(v: r.vertical_azimuth)) + \"°\", \"Gain vertical\": r.vertical_gain_pct, \"Gain flat\": r.flat_gain_pct,\n      \"Winter share\": r.winter_share_pct, \"Shading\": r.shading_loss_pct, \"Zones\": r.shading_zones, \"As of\": r._time }))\n  |> sort(columns: [\"String\"])",
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -3d)\n  |> filter(fn: (r) => r._measurement == \"pv_advice\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({ \"String\": r.string, \"Basis\": r.basis, \"Azimuth\": r.azimuth, \"Tilt\": r.tilt, \"kWh/kWp\": r.kwh_kwp, \"of optimum\": r.pct_of_best,\n      \"Optimum\": if exists r.best_azimuth and exists r.best_tilt then string(v: int(v: r.best_azimuth)) + \"° / \" + string(v: int(v: r.best_tilt)) + \"°\" else \"–\", \"Gain optimum\": r.best_gain_pct,\n      \"Same direction, tilt\": string(v: int(v: r.same_azimuth_tilt)) + \"°\", \"Gain\": r.same_azimuth_gain_pct,\n      \"Vertical facing\": string(v: int(v: r.vertical_azimuth)) + \"°\", \"Gain vertical\": r.vertical_gain_pct, \"Gain flat\": r.flat_gain_pct,\n      \"Winter share\": r.winter_share_pct, \"Shading\": r.shading_loss_pct, \"Zones\": r.shading_zones, \"As of\": r._time }))\n  |> sort(columns: [\"String\"])",
           "refId": "A"
         }
       ],
@@ -6699,25 +6368,25 @@
       "description": "Computed daily with the estimate. Year model from the Open-Meteo archive for the location: yield of the current orientation (configured, else estimated) in kWh per kWp, share of the optimum and gain from alternatives (same direction with best tilt, vertical with best azimuth, flat, optimum). Shading: share of sunny-hour energy missing in sun directions where the measurement stays far below the model; zones with times on the settings page and the website."
     },
     {
-      "id": 87,
+      "id": 84,
       "type": "row",
       "title": "Weather",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 174,
+        "y": 178,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 88,
+      "id": 85,
       "type": "stat",
       "title": "Outdoor temperature",
       "gridPos": {
         "x": 0,
-        "y": 175,
+        "y": 179,
         "w": 4,
         "h": 4
       },
@@ -6786,12 +6455,12 @@
       "description": "Open-Meteo for the plant location, every 10 minutes"
     },
     {
-      "id": 89,
+      "id": 86,
       "type": "stat",
       "title": "Conditions",
       "gridPos": {
         "x": 4,
-        "y": 175,
+        "y": 179,
         "w": 4,
         "h": 4
       },
@@ -6904,12 +6573,12 @@
       "description": "WMO weather code from Open-Meteo"
     },
     {
-      "id": 90,
+      "id": 87,
       "type": "stat",
       "title": "Cloud cover",
       "gridPos": {
         "x": 8,
-        "y": 175,
+        "y": 179,
         "w": 4,
         "h": 4
       },
@@ -6973,12 +6642,12 @@
       }
     },
     {
-      "id": 91,
+      "id": 88,
       "type": "stat",
       "title": "Global irradiance",
       "gridPos": {
         "x": 12,
-        "y": 175,
+        "y": 179,
         "w": 4,
         "h": 4
       },
@@ -7023,12 +6692,12 @@
       "description": "Shortwave irradiance on the horizontal in W/m², reference for PV power"
     },
     {
-      "id": 92,
+      "id": 89,
       "type": "stat",
       "title": "Sunrise / sunset",
       "gridPos": {
         "x": 16,
-        "y": 175,
+        "y": 179,
         "w": 4,
         "h": 4
       },
@@ -7079,12 +6748,12 @@
       "description": "Today, local time"
     },
     {
-      "id": 93,
+      "id": 90,
       "type": "stat",
       "title": "Sunshine today",
       "gridPos": {
         "x": 20,
-        "y": 175,
+        "y": 179,
         "w": 4,
         "h": 4
       },
@@ -7129,12 +6798,12 @@
       "description": "Forecast sunshine duration for the day"
     },
     {
-      "id": 94,
+      "id": 91,
       "type": "stat",
       "title": "Irradiation sum today / tomorrow",
       "gridPos": {
         "x": 0,
-        "y": 179,
+        "y": 183,
         "w": 4,
         "h": 9
       },
@@ -7188,12 +6857,12 @@
       "description": "Daily sum of global irradiance in MJ/m² per forecast (1 MJ/m² ≈ 0.28 kWh/m²)"
     },
     {
-      "id": 95,
+      "id": 92,
       "type": "timeseries",
       "title": "Global irradiance and PV power",
       "gridPos": {
         "x": 4,
-        "y": 179,
+        "y": 183,
         "w": 10,
         "h": 9
       },
@@ -7289,12 +6958,12 @@
       "description": "The ratio of PV power to irradiance reveals shading, orientation and soiling. Irradiance left (W/m²), PV right (W)."
     },
     {
-      "id": 96,
+      "id": 93,
       "type": "timeseries",
       "title": "Cloud cover and temperature",
       "gridPos": {
         "x": 14,
-        "y": 179,
+        "y": 183,
         "w": 10,
         "h": 9
       },
@@ -7394,12 +7063,12 @@
       }
     },
     {
-      "id": 97,
+      "id": 94,
       "type": "barchart",
       "title": "Forecast 48 h: irradiance and cloud cover",
       "gridPos": {
         "x": 0,
-        "y": 188,
+        "y": 192,
         "w": 24,
         "h": 8
       },
@@ -7482,25 +7151,25 @@
       "description": "Hourly Open-Meteo forecast from now. The dashboard time range has no effect here, the panel always shows the next 48 hours."
     },
     {
-      "id": 98,
+      "id": 95,
       "type": "row",
-      "title": "Battery and technical",
+      "title": "Battery",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 196,
+        "y": 200,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 99,
+      "id": 96,
       "type": "timeseries",
       "title": "Temperatures",
       "gridPos": {
         "x": 0,
-        "y": 197,
+        "y": 201,
         "w": 12,
         "h": 9
       },
@@ -7618,12 +7287,12 @@
       }
     },
     {
-      "id": 100,
+      "id": 97,
       "type": "timeseries",
       "title": "Cell voltage (min / max)",
       "gridPos": {
         "x": 12,
-        "y": 197,
+        "y": 201,
         "w": 8,
         "h": 9
       },
@@ -7686,12 +7355,12 @@
       "description": "A large spread indicates unbalanced cells"
     },
     {
-      "id": 101,
+      "id": 98,
       "type": "stat",
       "title": "Cycles",
       "gridPos": {
         "x": 20,
-        "y": 197,
+        "y": 201,
         "w": 4,
         "h": 3
       },
@@ -7734,12 +7403,12 @@
       }
     },
     {
-      "id": 102,
+      "id": 99,
       "type": "stat",
       "title": "Health (SoH)",
       "gridPos": {
         "x": 20,
-        "y": 200,
+        "y": 204,
         "w": 4,
         "h": 3
       },
@@ -7799,12 +7468,12 @@
       }
     },
     {
-      "id": 103,
+      "id": 100,
       "type": "stat",
       "title": "Battery packs",
       "gridPos": {
         "x": 20,
-        "y": 203,
+        "y": 207,
         "w": 4,
         "h": 3
       },
@@ -7847,13 +7516,13 @@
       }
     },
     {
-      "id": 104,
+      "id": 101,
       "type": "stat",
       "title": "Discharge limit",
       "gridPos": {
         "x": 0,
-        "y": 206,
-        "w": 4,
+        "y": 210,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -7897,13 +7566,13 @@
       "description": "The battery does not discharge below this SoC"
     },
     {
-      "id": 105,
+      "id": 102,
       "type": "stat",
       "title": "Charge limit",
       "gridPos": {
-        "x": 4,
-        "y": 206,
-        "w": 4,
+        "x": 6,
+        "y": 210,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -7946,128 +7615,13 @@
       }
     },
     {
-      "id": 106,
-      "type": "stat",
-      "title": "Grid voltage",
-      "gridPos": {
-        "x": 8,
-        "y": 206,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"onGridVoltage\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "volt",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "purple"
-          },
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Register 115. Near 0 V when the NEXA is disconnected from the grid."
-    },
-    {
-      "id": 107,
-      "type": "stat",
-      "title": "Device registers for comparison",
-      "gridPos": {
-        "x": 12,
-        "y": 206,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"pac\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"pac (5)\"})",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"totalBatteryPackChargingPower\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Battery (11)\"})",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"ppv\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"ppv (7)\"})",
-          "refId": "C"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "watt",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "purple"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "none",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "justifyMode": "center"
-      },
-      "description": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings."
-    },
-    {
-      "id": 108,
+      "id": 103,
       "type": "stat",
       "title": "Cell voltage spread",
       "gridPos": {
-        "x": 16,
-        "y": 206,
-        "w": 4,
+        "x": 12,
+        "y": 210,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -8126,271 +7680,13 @@
       }
     },
     {
-      "id": 109,
-      "type": "stat",
-      "title": "Last message",
-      "gridPos": {
-        "x": 20,
-        "y": 206,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"ppv\")\n  |> last()\n  |> map(fn: (r) => ({ _time: r._time, _value: float(v: uint(v: r._time)) / 1000000.0 }))\n  |> keep(columns: [\"_time\", \"_value\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "dateTimeFromNow",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "text"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Time of the last data packet from the dongle"
-    },
-    {
-      "id": 110,
-      "type": "stat",
-      "title": "NEXA firmware (reg. 119/120)",
-      "gridPos": {
-        "x": 0,
-        "y": 210,
-        "w": 6,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"fw_version_part_1\" or r._field == \"fw_version_part_2\" or r._field == \"fw_version_part_3\" or r._field == \"fw_version_part_4\"))\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.fw_version_part_1 and exists r.fw_version_part_2 and exists r.fw_version_part_3 and exists r.fw_version_part_4)\n  |> last(column: \"fw_version_part_1\")\n  |> map(fn: (r) => ({ _time: r._time, _value: string(v: int(v: r.fw_version_part_1)) + \".\" + string(v: int(v: r.fw_version_part_2)) + \".\" + string(v: int(v: r.fw_version_part_3)) + \".\" + string(v: int(v: r.fw_version_part_4)) }))\n  |> keep(columns: [\"_time\", \"_value\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "text"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Raw parts from the registers, Growatt's composition unknown"
-    },
-    {
-      "id": 111,
-      "type": "stat",
-      "title": "Dongle firmware / model",
-      "gridPos": {
-        "x": 6,
-        "y": 210,
-        "w": 6,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"dongle\" and r._field == \"wifi_signal\")\n  |> last()\n  |> map(fn: (r) => ({ _time: r._time, _value: r.model_id + \"  SW \" + r.sw_version + \"  HW \" + r.hw_version }))\n  |> keep(columns: [\"_time\", \"_value\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "text"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 112,
-      "type": "stat",
-      "title": "Dongle Wi-Fi signal",
-      "gridPos": {
-        "x": 12,
-        "y": 210,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"dongle\" and r._field == \"wifi_signal\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "dBm",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": -80
-              },
-              {
-                "color": "green",
-                "value": -67
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      },
-      "description": "Only reported when the dongle connects"
-    },
-    {
-      "id": 113,
-      "type": "stat",
-      "title": "Battery packs detected",
-      "gridPos": {
-        "x": 16,
-        "y": 210,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influx-nexa"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influx-nexa"
-          },
-          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"batteryPackageQuantity\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Value$/",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 114,
+      "id": 104,
       "type": "stat",
       "title": "Cell voltage min",
       "gridPos": {
-        "x": 20,
+        "x": 18,
         "y": 210,
-        "w": 4,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -8433,13 +7729,13 @@
       }
     },
     {
-      "id": 115,
+      "id": 105,
       "type": "timeseries",
       "title": "SoC per battery pack",
       "gridPos": {
         "x": 0,
         "y": 214,
-        "w": 12,
+        "w": 16,
         "h": 8
       },
       "datasource": {
@@ -8518,14 +7814,14 @@
       }
     },
     {
-      "id": 116,
+      "id": 106,
       "type": "stat",
       "title": "Temperature per pack",
       "gridPos": {
-        "x": 12,
+        "x": 16,
         "y": 214,
-        "w": 12,
-        "h": 4
+        "w": 8,
+        "h": 8
       },
       "datasource": {
         "type": "influxdb",
@@ -8611,12 +7907,350 @@
       }
     },
     {
-      "id": 117,
+      "id": 107,
+      "type": "row",
+      "title": "Technical and diagnostics",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 222,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 108,
+      "type": "stat",
+      "title": "NEXA firmware (reg. 119/120)",
+      "gridPos": {
+        "x": 0,
+        "y": 223,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "import \"timezone\"\nimport \"math\"\nimport \"date\"\nimport \"join\"\nimport \"array\"\noption location = timezone.location(name: \"Europe/Berlin\")\nfrom(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and (r._field == \"fw_version_part_1\" or r._field == \"fw_version_part_2\" or r._field == \"fw_version_part_3\" or r._field == \"fw_version_part_4\"))\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => exists r.fw_version_part_1 and exists r.fw_version_part_2 and exists r.fw_version_part_3 and exists r.fw_version_part_4)\n  |> last(column: \"fw_version_part_1\")\n  |> map(fn: (r) => ({ _time: r._time, _value: string(v: int(v: r.fw_version_part_1)) + \".\" + string(v: int(v: r.fw_version_part_2)) + \".\" + string(v: int(v: r.fw_version_part_3)) + \".\" + string(v: int(v: r.fw_version_part_4)) }))\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Raw parts from the registers, Growatt's composition unknown"
+    },
+    {
+      "id": 109,
+      "type": "stat",
+      "title": "Dongle firmware / model",
+      "gridPos": {
+        "x": 6,
+        "y": 223,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"dongle\" and r._field == \"wifi_signal\")\n  |> last()\n  |> map(fn: (r) => ({ _time: r._time, _value: r.model_id + \"  SW \" + r.sw_version + \"  HW \" + r.hw_version }))\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 110,
+      "type": "stat",
+      "title": "Dongle Wi-Fi signal",
+      "gridPos": {
+        "x": 12,
+        "y": 223,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"dongle\" and r._field == \"wifi_signal\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBm",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": -80
+              },
+              {
+                "color": "green",
+                "value": -67
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Only reported when the dongle connects"
+    },
+    {
+      "id": 111,
+      "type": "stat",
+      "title": "Grid voltage",
+      "gridPos": {
+        "x": 16,
+        "y": 223,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"onGridVoltage\")\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Register 115. Near 0 V when the NEXA is disconnected from the grid."
+    },
+    {
+      "id": 112,
+      "type": "stat",
+      "title": "Last message",
+      "gridPos": {
+        "x": 20,
+        "y": 223,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"ppv\")\n  |> last()\n  |> map(fn: (r) => ({ _time: r._time, _value: float(v: uint(v: r._time)) / 1000000.0 }))\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeFromNow",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Value$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "description": "Time of the last data packet from the dongle"
+    },
+    {
+      "id": 113,
+      "type": "stat",
+      "title": "Device registers for comparison",
+      "gridPos": {
+        "x": 0,
+        "y": 227,
+        "w": 12,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influx-nexa"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"pac\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"pac (5)\"})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"totalBatteryPackChargingPower\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Battery (11)\"})",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influx-nexa"
+          },
+          "query": "from(bucket: \"nexa\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"nexa\" and r._field == \"ppv\")\n  |> last()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"ppv (7)\"})",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center"
+      },
+      "description": "Raw device registers. pac and battery power stay at 0 on current firmware, which is why the dashboard uses register 116 and the strings."
+    },
+    {
+      "id": 114,
       "type": "stat",
       "title": "Serial numbers of expansion packs",
       "gridPos": {
         "x": 12,
-        "y": 218,
+        "y": 227,
         "w": 12,
         "h": 4
       },
@@ -8675,25 +8309,12 @@
       "description": "Pack 1 is the main unit with the device serial. Empty = no expansion pack."
     },
     {
-      "id": 118,
-      "type": "row",
-      "title": "Unknown registers (research)",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 222,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 119,
+      "id": 115,
       "type": "timeseries",
       "title": "Unknown input registers, history (≠ 0 only)",
       "gridPos": {
         "x": 0,
-        "y": 223,
+        "y": 231,
         "w": 16,
         "h": 10
       },
@@ -8748,12 +8369,12 @@
       "description": "Raw values of registers the bridge does not know. 30000 = offset for 0 in signed values."
     },
     {
-      "id": 120,
+      "id": 116,
       "type": "table",
       "title": "Holding register dump (unknown, ≠ 0)",
       "gridPos": {
         "x": 16,
-        "y": 223,
+        "y": 231,
         "w": 8,
         "h": 10
       },
@@ -8795,32 +8416,68 @@
       {
         "type": "custom",
         "name": "string",
-        "label": "String (Heatmap)",
-        "query": "1,2,3,4",
+        "label": "Heatmap",
+        "query": "PV total : all,String 1 : 1,String 2 : 2,String 3 : 3,String 4 : 4",
         "current": {
-          "text": "1",
-          "value": "1",
+          "text": "PV total",
+          "value": "all",
           "selected": true
         },
         "options": [
           {
-            "text": "1",
-            "value": "1",
+            "text": "PV total",
+            "value": "all",
             "selected": true
           },
           {
-            "text": "2",
+            "text": "String 1",
+            "value": "1",
+            "selected": false
+          },
+          {
+            "text": "String 2",
             "value": "2",
             "selected": false
           },
           {
-            "text": "3",
+            "text": "String 3",
             "value": "3",
             "selected": false
           },
           {
-            "text": "4",
+            "text": "String 4",
             "value": "4",
+            "selected": false
+          }
+        ],
+        "hide": 0,
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "type": "custom",
+        "name": "rank",
+        "label": "Range (Top-Strings)",
+        "query": "24 h : -24h,7 days : -7d,30 days : -30d",
+        "current": {
+          "text": "24 h",
+          "value": "-24h",
+          "selected": true
+        },
+        "options": [
+          {
+            "text": "24 h",
+            "value": "-24h",
+            "selected": true
+          },
+          {
+            "text": "7 days",
+            "value": "-7d",
+            "selected": false
+          },
+          {
+            "text": "30 days",
+            "value": "-30d",
             "selected": false
           }
         ],

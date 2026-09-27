@@ -27,8 +27,15 @@ Alternativen mit Ertragsgewinn) und Verschattungsanalyse aus den Messdaten; reta
 Strings ohne Konfiguration bekommen für das Erwartungsmodell eine angenommene Ausrichtung (Schätzung, sonst Standortoptimum),
 im pv_model-Payload als "assumed" gekennzeichnet.
 
+Das Optimum in dieser Empfehlung ist verschattungsbereinigt, und solange keine Verschattung gemessen ist, nennt
+advice.py gar keines (site_best = null, Begründung unter "optimum", unbereinigte Rechnung nur als
+site_best_unshaded für das Erwartungsmodell hier). Ein Optimum allein aus der Einstrahlung kann genau in ein
+Hindernis zeigen; südlich des Hauses steht eine große Eiche. Begründung im Kommentar über shaded_optimum().
+
 Standort und Strings kommen aus der Umgebung (WEATHER_LAT/LON, STRING<n>_*) und werden von der retained Nachricht
 <BASE>/grolo/config/site (Einstellungsseite: Ortssuche, Neigung/Ausrichtung/Wp je String) überschrieben.
+Liegt dort eine vermessene Horizontmaske (horizon), reist sie unverändert zu build_advice() und hat dort
+Vorrang vor der aus Betriebsdaten erschlossenen Verschattung.
 
 Umgebung: WEATHER_LAT, WEATHER_LON, WEATHER_INTERVAL (s, Standard 600), MQTT_HOST, MQTT_PORT, HA_BASE_TOPIC,
           INFLUX_URL (Standard http://influxdb:8086), INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET,
@@ -69,6 +76,9 @@ URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
        "&past_days=1&forecast_days=3&timezone=auto&timeformat=unixtime")
 STRINGS = string_config()
 SITE = {"name": os.getenv("WEATHER_NAME", ""), "lat": float(LAT) if LAT else None, "lon": float(LON) if LON else None}
+# Gemessene Horizontmaske von der Einstellungsseite: {Azimut: Höhenwinkel}, dazu Herkunft und Datum.
+# Sie geht unverändert an build_advice() weiter und hat dort Vorrang vor dem erschlossenen Profil.
+HORIZON = {"mask": None, "source": None, "updated": None}
 refresh = threading.Event()   # wird gesetzt, wenn die Konfiguration sich ändert -> sofort neu rechnen
 fit_request = threading.Event()
 LAST = {"fit": None, "advice": None}
@@ -97,6 +107,14 @@ def apply_site(cfg):
             continue
     if strings != STRINGS:
         STRINGS = strings; changed = True
+    hz = cfg.get("horizon") if isinstance(cfg.get("horizon"), dict) else None
+    if (hz or None) != HORIZON["mask"]:
+        HORIZON.update({"mask": hz or None, "source": cfg.get("horizon_source") or None,
+                        "updated": cfg.get("horizon_updated")})
+        LOG.info("Horizontmaske %s", f"übernommen ({len(hz)} Stützstellen, {cfg.get('horizon_source') or 'ohne Quellenangabe'})" if hz else "entfernt")
+        changed = True
+    elif hz:
+        HORIZON.update({"source": cfg.get("horizon_source") or None, "updated": cfg.get("horizon_updated")})
     if changed:
         LOG.info("Konfiguration übernommen: %s (%s, %s), Strings %s", SITE["name"] or "-", LAT, LON,
                  ", ".join(f"{i}: {c['tilt']:.0f}°/{c['azimuth']:.0f}°/{c['wp']:.0f} Wp" for i, c in STRINGS.items()) or "keine")
@@ -153,8 +171,14 @@ def effective_strings():
             continue
         if v.get("status") in ("ok", "uncertain"):
             eff[i] = {"tilt": float(v["tilt"]), "azimuth": float(v["azimuth"]), "wp": float(v["wp"]), "pr": pr, "assumed": True, "source": "fit"}
-        elif adv.get("site_best") and v.get("peak_w", 0) >= 20:
-            b = adv["site_best"]
+        else:
+            # Notausrichtung für das Erwartungsmodell, damit ein String mit messbarer Leistung nicht
+            # ganz aus der Rechnung fällt. Bewusst auch die unbereinigte Fassung: hier geht es darum,
+            # überhaupt eine Fläche zu haben, nicht um einen Rat. Als Rat ist sie gesperrt (site_best
+            # ist dann None), und der PV-Eichfaktor zieht die Höhe ohnehin auf die Messung.
+            b = adv.get("site_best") or adv.get("site_best_unshaded") or {}
+            if b.get("tilt") is None or v.get("peak_w", 0) < 20:
+                continue
             eff[i] = {"tilt": float(b["tilt"]), "azimuth": float(b["azimuth"]), "wp": round(float(v["peak_w"]) / 0.75 / pr / 5.0) * 5.0, "pr": pr, "assumed": True, "source": "site_best"}
     return eff
 
@@ -228,21 +252,40 @@ def fit_loop(client):
             try:
                 power = influx_hourly(INFLUX_URL, INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET, FIT_DAYS)
                 wx = open_meteo_history(float(LAT), float(LON), FIT_DAYS)
-                adv = build_advice(float(LAT), float(LON), STRINGS, LAST["fit"], power, wx, pr)
+                adv = build_advice(float(LAT), float(LON), STRINGS, LAST["fit"], power, wx, pr,
+                                   HORIZON["mask"], HORIZON["source"], HORIZON["updated"])
                 LAST["advice"] = adv
                 client.publish(f"{BASE}/grolo/advice", json.dumps(adv), retain=True)
                 lines = []
                 for k, v in adv["strings"].items():
                     if not v.get("basis"):
                         continue
-                    lines.append(f'pv_advice,string={k} basis="{v["basis"]}",tilt={float(v["tilt"])},azimuth={float(v["azimuth"])},kwh_kwp={float(v["kwh_kwp"])},pct_of_best={float(v["pct_of_best"] or 0)},'
-                                 f'best_tilt={float(v["best"]["tilt"])},best_azimuth={float(v["best"]["azimuth"])},best_gain_pct={float(v["best"]["gain_pct"] or 0)},'
-                                 f'same_azimuth_tilt={float(v["same_azimuth"]["tilt"])},same_azimuth_gain_pct={float(v["same_azimuth"]["gain_pct"] or 0)},'
-                                 f'vertical_azimuth={float(v["vertical"]["azimuth"])},vertical_gain_pct={float(v["vertical"]["gain_pct"] or 0)},flat_gain_pct={float(v["flat"]["gain_pct"] or 0)},'
-                                 f'winter_share_pct={float(v["winter_share_pct"])},shading_loss_pct={float(v.get("shading_loss_pct") or 0)},shading_zones={len(v.get("shading") or [])}i {adv["updated"]}')
+                    vals = [f'basis="{v["basis"]}"', f'tilt={float(v["tilt"])}', f'azimuth={float(v["azimuth"])}',
+                            f'kwh_kwp={float(v["kwh_kwp"])}', f'winter_share_pct={float(v["winter_share_pct"])}',
+                            f'shading_loss_pct={float(v.get("shading_loss_pct") or 0)}',
+                            f'shading_zones={len(v.get("shading") or [])}i',
+                            f'shading_corrected={"true" if v.get("shading_corrected") else "false"}']
+                    # Die Vergleichswerte gibt es nur, wenn sie verschattungsbereinigt sind – sonst
+                    # stünde in Grafana eine Empfehlung, die es im Payload bewusst nicht mehr gibt.
+                    if v.get("best"):
+                        vals += [f'pct_of_best={float(v["pct_of_best"] or 0)}',
+                                 f'best_tilt={float(v["best"]["tilt"])}', f'best_azimuth={float(v["best"]["azimuth"])}',
+                                 f'best_gain_pct={float(v["best"]["gain_pct"] or 0)}',
+                                 f'same_azimuth_tilt={float(v["same_azimuth"]["tilt"])}',
+                                 f'same_azimuth_gain_pct={float(v["same_azimuth"]["gain_pct"] or 0)}',
+                                 f'vertical_azimuth={float(v["vertical"]["azimuth"])}',
+                                 f'vertical_gain_pct={float(v["vertical"]["gain_pct"] or 0)}',
+                                 f'flat_gain_pct={float(v["flat"]["gain_pct"] or 0)}']
+                    lines.append(f'pv_advice,string={k} ' + ",".join(vals) + f' {adv["updated"]}')
                 influx_write(lines)
-                LOG.info("Empfehlungen: Optimum %s°/%s° = %s kWh/kWp; %s", adv["site_best"]["tilt"], adv["site_best"]["azimuth"], adv["site_best"]["kwh_kwp"],
-                         "; ".join(f"{k}: {v['pct_of_best']} % des Optimums ({v['basis']})" + (f", Verschattung {v['shading_loss_pct']} %" if v.get("shading") else "") for k, v in adv["strings"].items() if v.get("basis")) or "keine Ausrichtung bekannt")
+                best = adv.get("site_best")
+                head = (f"Optimum ({'Horizontmaske' if (best or {}).get('horizon_corrected') else 'verschattungsbereinigt'}) "
+                        f"{best['tilt']}°/{best['azimuth']}° = {best['kwh_kwp']} kWh/kWp"
+                        if best else "kein Optimum – ohne gemessene Verschattung wird keines genannt "
+                                     f"(unbereinigt wären es {(adv.get('site_best_unshaded') or {}).get('azimuth')}°/"
+                                     f"{(adv.get('site_best_unshaded') or {}).get('tilt')}°)")
+                LOG.info("Empfehlungen: %s; %s", head,
+                         "; ".join(f"{k}: {v['kwh_kwp']} kWh/kWp ({v['basis']})" + (f", Verschattung {v['shading_loss_pct']} %" if v.get("shading") else "") for k, v in adv["strings"].items() if v.get("basis")) or "keine Ausrichtung bekannt")
                 refresh.set()   # Erwartungsmodell mit angenommener Ausrichtung neu rechnen
             except Exception as e:
                 LOG.warning("Empfehlungen fehlgeschlagen: %s", e)

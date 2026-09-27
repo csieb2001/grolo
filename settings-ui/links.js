@@ -2,8 +2,8 @@
 //
 // Die Adressen werden aus der eigenen ab­geleitet: wird die Seite über einen Hostnamen der Form
 // <dienst>.<domain> ausgeliefert, liegen die anderen Dienste unter denselben Namen (pv., settings.,
-// grafana.). Lokal aufgerufen bleibt es bei den Ports des Stacks, und die Website – die keinen Port
-// veröffentlicht – fehlt dann in der Leiste.
+// grafana.). Lokal aufgerufen bleibt es bei den Ports des Stacks: Einstellungen 8080, Grafana 3000,
+// Übersicht 3001 (seit 26.09.2026 gibt grolo-web diesen Port ins LAN frei).
 //
 // Passt das Muster nicht, hier vollständige Adressen eintragen; leere Einträge werden abgeleitet.
 window.GROLO_LINKS = { overview: '', settings: '', heatpump: '', grafana: '' };
@@ -16,6 +16,7 @@ window.groloNav = function (current, lang) {
   const sub = (name) => secure && host.split('.').length > 2 ? `https://${name}.${domain}` : null;
 
   const settings = cfg.settings || sub('settings') || `http://${host}:8080`;
+  const overview = cfg.overview || sub('pv') || `http://${host}:3001`;
   const grafanaBase = cfg.grafana || sub('grafana') || `http://${host}:3000`;
   const uid = current === 'heatpump' ? `wolf-${lang}` : (lang === 'de' ? 'nexa2000-de' : 'nexa2000');
 
@@ -26,7 +27,7 @@ window.groloNav = function (current, lang) {
     grafana: { en: 'Grafana', de: 'Grafana' },
   };
   const items = [
-    { key: 'overview', href: cfg.overview || sub('pv') },
+    { key: 'overview', href: overview },
     { key: 'settings', href: settings },
     { key: 'heatpump', href: cfg.heatpump || `${settings.replace(/\/$/, '')}/wolf.html` },
     { key: 'grafana', href: `${grafanaBase.replace(/\/$/, '')}/d/${uid}`, blank: true },

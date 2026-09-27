@@ -1,0 +1,33 @@
+{
+  // Die Container laufen nicht auf dem Mac, sondern im LXC 192.168.1.51.
+  // Der Docker-Kontext "grolo" zeigt per SSH dorthin:
+  //   docker context create grolo --docker "host=ssh://root@192.168.1.51"
+  // DOCKER_CONTEXT setzt das nur fuer dieses Fenster - der globale
+  // Docker-Kontext auf dem Mac bleibt unveraendert.
+  "containers.environment": {
+    "DOCKER_CONTEXT": "grolo"
+  },
+
+  // Gesperrt: Compose aus der Oberflaeche wuerde die LOKALE docker-compose.yml
+  // gegen den ENTFERNTEN Daemon fahren. Die relativen Bind-Mounts (./grobro/...,
+  // ./mosquitto/certs, ...) wuerden dann zu Mac-Pfaden aufgeloest, die es auf dem
+  // Server nicht gibt - der Daemon legt sie als leere Verzeichnisse an und die
+  // Container starten ohne ihre Konfiguration.
+  // Ausgeliefert wird ausschliesslich ueber scripts/deploy.sh.
+  "containers.commands.composeUp": [
+    { "label": "GESPERRT - ausliefern ueber scripts/deploy.sh", "template": "echo 'Compose Up ist hier gesperrt. Ausliefern: ./scripts/deploy.sh' && false" }
+  ],
+  "containers.commands.composeUpSubset": [
+    { "label": "GESPERRT - ausliefern ueber scripts/deploy.sh", "template": "echo 'Compose Up ist hier gesperrt. Ausliefern: ./scripts/deploy.sh' && false" }
+  ],
+  "containers.commands.composeDown": [
+    { "label": "GESPERRT - ausliefern ueber scripts/deploy.sh", "template": "echo 'Compose Down ist hier gesperrt. Ausliefern: ./scripts/deploy.sh' && false" }
+  ],
+  "containers.commands.composeDownSubset": [
+    { "label": "GESPERRT - ausliefern ueber scripts/deploy.sh", "template": "echo 'Compose Down ist hier gesperrt. Ausliefern: ./scripts/deploy.sh' && false" }
+  ],
+
+  // In der Kontext-Liste den Endpunkt mitzeigen, damit sichtbar ist, wohin es geht.
+  "containers.contexts.description": ["DockerEndpoint"],
+  "containers.contexts.showInStatusBar": true
+}

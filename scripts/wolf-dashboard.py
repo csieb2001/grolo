@@ -589,9 +589,12 @@ from(bucket: "{BUCKET}")
                "Heat produced divided by electricity, day by day. In summer, hot-water-only operation pulls it down."))
 
     # ---------------------------------------------------------------- Taktung
-    b.row(L("Taktung und Laufzeit", "Cycling and runtime"))
+    # ---------------------------------------------------------------- Taktung: Bewertung
     # Der Befund kommt fertig aus dem Sidecar (wolf_bridge.Cycles.judge), damit Dashboard und Website
-    # dieselbe Aussage treffen. Hier wird er nur angezeigt.
+    # dieselbe Aussage treffen. Hier wird er nur angezeigt. Die Kennzahlen daneben messen über
+    # vierzehn Tage statt über einen Tag: ein einzelner Tag sagt wenig, weil Wetter und
+    # Warmwasserbedarf ihn beliebig färben.
+    b.row(L("Taktung: Bewertung", "Cycling: assessment"))
     b.stat(L("Bewertung", "Assessment"), last("befund_ampel", measurement="wolf_derived"), w=4, h=5,
            decimals=0, background=True,
            mappings=[{"type": "value", "options": {
@@ -609,34 +612,6 @@ from(bucket: "{BUCKET}")
                   "From the last fourteen days: runtime per cycle, share of short cycles and the outside "
                   "temperature they happen at. The sentence names the parameter to turn; nothing is changed "
                   "automatically, that stays with the control page."))
-
-    b.stat(L("Takte heute", "Cycles today"), last("takte_heute", measurement="wolf_derived"), w=4, h=5,
-           decimals=0, thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 12},
-                                   {"color": "orange", "value": 20}, {"color": "red", "value": 30}],
-           desc=L("Wie oft der Verdichter heute angelaufen ist. Wenige lange Takte schonen ihn, "
-                  "viele kurze sind der häufigste Auslegungsfehler.",
-                  "How often the compressor started today. Few long cycles are gentle on it; many short "
-                  "ones are the most common sizing mistake."))
-    b.stat(L("Laufzeit je Takt", "Runtime per cycle"), last("laufzeit_je_takt_min", measurement="wolf_derived"),
-           w=4, h=5, unit="m", decimals=0,
-           thresholds=[{"color": "red", "value": None}, {"color": "orange", "value": 10},
-                       {"color": "yellow", "value": 20}, {"color": "green", "value": 30}],
-           desc=L("Mittlere Laufzeit eines Takts heute. Unter zehn Minuten taktet die Anlage zu kurz.",
-                  "Average runtime of a cycle today. Below ten minutes the system is short-cycling."))
-    b.stat(L("Laufzeit heute", "Runtime today"), last("laufzeit_min_heute", measurement="wolf_derived"),
-           w=4, h=5, unit="m", decimals=0, color="purple")
-    b.stat(L("Abtauungen heute", "Defrosts today"), last("abtauungen_heute", measurement="wolf_derived"),
-           w=4, h=5, decimals=0, color="blue",
-           desc=L("Abtauvorgänge kosten Wärme aus dem Speicher. Bei Außentemperaturen um 0 bis 5 °C "
-                  "mit Feuchte sind sie normal.",
-                  "Defrost cycles take heat back out of the buffer. Around 0 to 5 °C with humidity they are normal."))
-    b.stat(L("Verdichterstarts gesamt", "Compressor starts total"), last("verdichterstarts"), w=4, h=5,
-           decimals=0, color="text")
-    b.stat(L("Betriebsstunden Verdichter", "Compressor hours"), last("betriebsstunden_verdichter"), w=4, h=5,
-           unit="h", decimals=0, color="text")
-
-    # Zweite Reihe: dieselben Fragen über vierzehn Tage statt über einen Tag. Ein einzelner Tag sagt wenig,
-    # weil Wetter und Warmwasserbedarf ihn beliebig färben.
     b.stat(L("Laufzeit je Takt, Median", "Runtime per cycle, median"),
            last("takt_median_min", measurement="wolf_derived"), w=4, h=5, unit="m", decimals=0,
            thresholds=[{"color": "red", "value": None}, {"color": "orange", "value": 10},
@@ -683,45 +658,33 @@ from(bucket: "{BUCKET}")
                   "Median of the pauses. Short runs together with short pauses mean the hysteresis is set too "
                   "tightly and the compressor never reaches its working point."))
 
-    b.histogram(L("Verteilung der Taktlängen", "Distribution of cycle lengths"), cycle_by_mode("min", de),
-                bucket=5, w=12, h=9, unit="m",
-                desc=L("Jeder Balken ist eine Klasse von fünf Minuten, die Höhe die Zahl der Takte darin. "
-                       "Ein Mittelwert verdeckt, ob es viele kurze und wenige lange Takte sind; hier sieht "
-                       "man es. Warmwasserladungen sind getrennt, sie dürfen kurz sein.",
-                       "Each bar is a five-minute class, its height the number of cycles in it. An average "
-                       "hides whether there are many short and a few long cycles; here you see it. Hot water "
-                       "charges are separate, they are allowed to be short."))
-
-    b.bars(L("Takte je Außentemperatur", "Cycles by outside temperature"), cycle_by_temp(de), w=12, h=9,
-           x="Außentemperatur" if de else "Outside temperature",
-           overrides=[{"matcher": {"id": "byName", "options": "Laufzeit je Takt" if de else "Runtime per cycle"},
-                       "properties": [{"id": "custom.axisPlacement", "value": "right"},
-                                      {"id": "unit", "value": "m"},
-                                      {"id": "color", "value": {"mode": "fixed", "fixedColor": "purple"}}]}],
-           desc=L("Hier entscheidet sich, was zu tun ist. Ein Buckel bei acht bis fünfzehn Grad ist "
-                  "Übergangszeit-Takten: das Haus braucht weniger, als der Verdichter herunterregeln kann – "
-                  "Heizkurve flacher, Hysterese größer. Ein Buckel bei Frost ist hydraulisch: zu wenig "
-                  "Durchfluss oder Volumen (VDI 4645 nennt 20 l je kW), oder die Anlage ist zu groß.",
-                  "This is where the decision is made. A bump at eight to fifteen degrees is shoulder-season "
-                  "cycling: the house needs less than the compressor can turn down to – flatten the curve, "
-                  "widen the hysteresis. A bump at freezing is hydraulic: too little flow or volume (VDI 4645 "
-                  "says 20 l per kW), or the unit is oversized."))
-
-    b.series(L("Takte je Tag und Laufzeit je Takt", "Cycles per day and runtime per cycle"),
-             [cycle_daily("count", "Takte" if de else "Cycles"),
-              cycle_daily("median", "Laufzeit je Takt" if de else "Runtime per cycle")],
-             w=12, h=8, style="bars", fill=70,
-             overrides=[{"matcher": {"id": "byName", "options": "Laufzeit je Takt" if de else "Runtime per cycle"},
-                         "properties": [{"id": "custom.drawStyle", "value": "line"},
-                                        {"id": "custom.lineWidth", "value": 2},
-                                        {"id": "custom.axisPlacement", "value": "right"},
-                                        {"id": "unit", "value": "m"},
-                                        {"id": "color", "value": {"mode": "fixed", "fixedColor": "purple"}}]}],
-             desc=L("Der Verlauf nach einer Einstellungsänderung: die Balken sollen sinken, die Linie steigen. "
-                    "Beides zusammen ist der Beleg, dass es gewirkt hat.",
-                    "The trend after a settings change: the bars should fall, the line should rise. Both "
-                    "together are the proof that it worked."))
-
+    # ---------------------------------------------------------------- Taktung: Zähler
+    # Rohe Stände ohne Wertung: was heute passiert ist und was das Gerät seit jeher mitzählt.
+    b.row(L("Taktung: Zähler", "Cycling: counters"))
+    b.stat(L("Takte heute", "Cycles today"), last("takte_heute", measurement="wolf_derived"), w=4, h=5,
+           decimals=0, thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 12},
+                                   {"color": "orange", "value": 20}, {"color": "red", "value": 30}],
+           desc=L("Wie oft der Verdichter heute angelaufen ist. Wenige lange Takte schonen ihn, "
+                  "viele kurze sind der häufigste Auslegungsfehler.",
+                  "How often the compressor started today. Few long cycles are gentle on it; many short "
+                  "ones are the most common sizing mistake."))
+    b.stat(L("Laufzeit je Takt", "Runtime per cycle"), last("laufzeit_je_takt_min", measurement="wolf_derived"),
+           w=4, h=5, unit="m", decimals=0,
+           thresholds=[{"color": "red", "value": None}, {"color": "orange", "value": 10},
+                       {"color": "yellow", "value": 20}, {"color": "green", "value": 30}],
+           desc=L("Mittlere Laufzeit eines Takts heute. Unter zehn Minuten taktet die Anlage zu kurz.",
+                  "Average runtime of a cycle today. Below ten minutes the system is short-cycling."))
+    b.stat(L("Laufzeit heute", "Runtime today"), last("laufzeit_min_heute", measurement="wolf_derived"),
+           w=4, h=5, unit="m", decimals=0, color="purple")
+    b.stat(L("Abtauungen heute", "Defrosts today"), last("abtauungen_heute", measurement="wolf_derived"),
+           w=4, h=5, decimals=0, color="blue",
+           desc=L("Abtauvorgänge kosten Wärme aus dem Speicher. Bei Außentemperaturen um 0 bis 5 °C "
+                  "mit Feuchte sind sie normal.",
+                  "Defrost cycles take heat back out of the buffer. Around 0 to 5 °C with humidity they are normal."))
+    b.stat(L("Verdichterstarts gesamt", "Compressor starts total"), last("verdichterstarts"), w=4, h=5,
+           decimals=0, color="text")
+    b.stat(L("Betriebsstunden Verdichter", "Compressor hours"), last("betriebsstunden_verdichter"), w=4, h=5,
+           unit="h", decimals=0, color="text")
     b.bars(L("Laufzeitanteile heute", "Runtime split today"),
            f'''from(bucket: "{BUCKET}")
   |> range(start: -1h)
@@ -736,10 +699,50 @@ from(bucket: "{BUCKET}")
         else "{"Sperrzeit" if de else "Blocking time"}" }}))
   |> keep(columns: ["_time", "_value", "_field"])
   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")''',
-           w=12, h=8, unit="m",
+           w=24, h=8, unit="m",
            desc=L("Minuten je Betriebsart seit Mitternacht, vom Sidecar mitgezählt.",
                   "Minutes per operating mode since midnight, counted by the sidecar."))
 
+    # ---------------------------------------------------------------- Taktung: Verteilungen
+    # Nicht der Mittelwert, sondern die Verteilung: ob es viele kurze oder wenige lange Takte sind,
+    # bei welcher Außentemperatur sie auftreten und wie sie über die Zeit liegen.
+    b.row(L("Taktung: Verteilungen", "Cycling: distributions"))
+    b.histogram(L("Verteilung der Taktlängen", "Distribution of cycle lengths"), cycle_by_mode("min", de),
+                bucket=5, w=12, h=9, unit="m",
+                desc=L("Jeder Balken ist eine Klasse von fünf Minuten, die Höhe die Zahl der Takte darin. "
+                       "Ein Mittelwert verdeckt, ob es viele kurze und wenige lange Takte sind; hier sieht "
+                       "man es. Warmwasserladungen sind getrennt, sie dürfen kurz sein.",
+                       "Each bar is a five-minute class, its height the number of cycles in it. An average "
+                       "hides whether there are many short and a few long cycles; here you see it. Hot water "
+                       "charges are separate, they are allowed to be short."))
+    b.bars(L("Takte je Außentemperatur", "Cycles by outside temperature"), cycle_by_temp(de), w=12, h=9,
+           x="Außentemperatur" if de else "Outside temperature",
+           overrides=[{"matcher": {"id": "byName", "options": "Laufzeit je Takt" if de else "Runtime per cycle"},
+                       "properties": [{"id": "custom.axisPlacement", "value": "right"},
+                                      {"id": "unit", "value": "m"},
+                                      {"id": "color", "value": {"mode": "fixed", "fixedColor": "purple"}}]}],
+           desc=L("Hier entscheidet sich, was zu tun ist. Ein Buckel bei acht bis fünfzehn Grad ist "
+                  "Übergangszeit-Takten: das Haus braucht weniger, als der Verdichter herunterregeln kann – "
+                  "Heizkurve flacher, Hysterese größer. Ein Buckel bei Frost ist hydraulisch: zu wenig "
+                  "Durchfluss oder Volumen (VDI 4645 nennt 20 l je kW), oder die Anlage ist zu groß.",
+                  "This is where the decision is made. A bump at eight to fifteen degrees is shoulder-season "
+                  "cycling: the house needs less than the compressor can turn down to – flatten the curve, "
+                  "widen the hysteresis. A bump at freezing is hydraulic: too little flow or volume (VDI 4645 "
+                  "says 20 l per kW), or the unit is oversized."))
+    b.series(L("Takte je Tag und Laufzeit je Takt", "Cycles per day and runtime per cycle"),
+             [cycle_daily("count", "Takte" if de else "Cycles"),
+              cycle_daily("median", "Laufzeit je Takt" if de else "Runtime per cycle")],
+             w=24, h=8, style="bars", fill=70,
+             overrides=[{"matcher": {"id": "byName", "options": "Laufzeit je Takt" if de else "Runtime per cycle"},
+                         "properties": [{"id": "custom.drawStyle", "value": "line"},
+                                        {"id": "custom.lineWidth", "value": 2},
+                                        {"id": "custom.axisPlacement", "value": "right"},
+                                        {"id": "unit", "value": "m"},
+                                        {"id": "color", "value": {"mode": "fixed", "fixedColor": "purple"}}]}],
+             desc=L("Der Verlauf nach einer Einstellungsänderung: die Balken sollen sinken, die Linie steigen. "
+                    "Beides zusammen ist der Beleg, dass es gewirkt hat.",
+                    "The trend after a settings change: the bars should fall, the line should rise. Both "
+                    "together are the proof that it worked."))
     b.timeline(L("Taktband Verdichter", "Compressor cycle band"),
                f'''from(bucket: "{BUCKET}")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -752,7 +755,6 @@ from(bucket: "{BUCKET}")
                       "sind der gewünschte Zustand.",
                       "On and off over time. A regular striped pattern is cycling, long blocks are the "
                       "desired state."))
-
     b.table(L("Letzte Takte", "Recent cycles"), cycle_table(), w=24, h=10,
             rename={"_time": L("Ende", "End"), "mode": L("Betriebsart", "Mode"),
                     "min": L("Laufzeit min", "Runtime min"), "pause_min": L("Pause min", "Pause min"),
@@ -923,38 +925,9 @@ from(bucket: "{BUCKET}")
   |> sort(columns: ["_field"])''',
             w=12, h=9)
 
-    # ---------------------------------------------------------------- Haus und PV
-    b.row(L("Haus und PV", "House and PV"))
-    b.series(L("Wärmepumpe, Haus und Solar", "Heat pump, house and solar"), [
-        series("strom_w", "Wärmepumpe W" if de else "Heat pump W", measurement="wolf_derived"),
-        f'''from(bucket: "{BUCKET}")
-  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
-  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "household_w")
-  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)
-  |> keep(columns: ["_time", "_value"])
-  |> set(key: "_field", value: "{"Haus W" if de else "House W"}")''',
-        f'''from(bucket: "{BUCKET}")
-  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
-  |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "pv1Voltage" or r._field == "pv1Current" or r._field == "pv2Voltage" or r._field == "pv2Current" or r._field == "pv3Voltage" or r._field == "pv3Current" or r._field == "pv4Voltage" or r._field == "pv4Current"))
-  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)
-  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-  |> filter(fn: (r) => exists r.pv1Voltage)
-  |> map(fn: (r) => ({{ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }}))
-  |> keep(columns: ["_time", "_value"])
-  |> set(key: "_field", value: "{"Solar W" if de else "Solar W"}")''',
-    ], w=24, h=9, unit="watt", fill=10, overrides=[
-        {"matcher": {"id": "byName", "options": "Wärmepumpe W" if de else "Heat pump W"},
-         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
-        {"matcher": {"id": "byName", "options": "Haus W" if de else "House W"},
-         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}},
-                        {"id": "custom.fillOpacity", "value": 0}]},
-        {"matcher": {"id": "byName", "options": "Solar W"},
-         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]}],
-        desc=L("Die Wärmepumpe meldet ihre Aufnahme nur in ganzen kW, die Stufen sind daher grob. "
-               "Der Shelly misst das ganze Haus inklusive Wärmepumpe.",
-               "The heat pump reports its input only in whole kW, so the steps are coarse. The Shelly "
-               "measures the whole house including the heat pump."))
-
+    # ---------------------------------------------------------------- Wärmekosten
+    # Was die Wärme kostet: alles aus den Zählern der Wolf und dem hinterlegten Arbeitspreis.
+    b.row(L("Wärmekosten", "Heat costs"))
     b.stat(L("Wärmekosten heute", "Heat cost today"),
            f'''import "array"
 strom = from(bucket: "{BUCKET}")
@@ -994,6 +967,40 @@ array.from(rows: [{{ _time: now(), _value: (if length(arr: preis) > 0 then preis
            w=6, h=5, unit="kwatth", decimals=0, color="red")
     b.stat(L("Wärme Jahr", "Heat this year"), last("erzeugte_waermemenge_aktuelles_jahr"),
            w=6, h=5, unit="kwatth", decimals=0, color="orange")
+
+    # ---------------------------------------------------------------- Brücke zum NEXA-Dashboard
+    # Das einzige Panel dieses Dashboards, das fremde Messreihen zeigt (Shelly und NEXA). Es steht
+    # bewusst am Ende und heißt, was es ist: der Übergang zum anderen Dashboard.
+    b.row(L("Brücke zum NEXA-Dashboard: Haus und PV", "Bridge to the NEXA dashboard: house and PV"))
+    b.series(L("Wärmepumpe, Haus und Solar", "Heat pump, house and solar"), [
+        series("strom_w", "Wärmepumpe W" if de else "Heat pump W", measurement="wolf_derived"),
+        f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "shelly" and r._field == "household_w")
+  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value"])
+  |> set(key: "_field", value: "{"Haus W" if de else "House W"}")''',
+        f'''from(bucket: "{BUCKET}")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "nexa" and (r._field == "pv1Voltage" or r._field == "pv1Current" or r._field == "pv2Voltage" or r._field == "pv2Current" or r._field == "pv3Voltage" or r._field == "pv3Current" or r._field == "pv4Voltage" or r._field == "pv4Current"))
+  |> aggregateWindow(every: $__interval, fn: mean, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => exists r.pv1Voltage)
+  |> map(fn: (r) => ({{ _time: r._time, _value: r.pv1Voltage * r.pv1Current + r.pv2Voltage * r.pv2Current + r.pv3Voltage * r.pv3Current + r.pv4Voltage * r.pv4Current }}))
+  |> keep(columns: ["_time", "_value"])
+  |> set(key: "_field", value: "{"Solar W" if de else "Solar W"}")''',
+    ], w=24, h=9, unit="watt", fill=10, overrides=[
+        {"matcher": {"id": "byName", "options": "Wärmepumpe W" if de else "Heat pump W"},
+         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+        {"matcher": {"id": "byName", "options": "Haus W" if de else "House W"},
+         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}},
+                        {"id": "custom.fillOpacity", "value": 0}]},
+        {"matcher": {"id": "byName", "options": "Solar W"},
+         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]}],
+        desc=L("Die Wärmepumpe meldet ihre Aufnahme nur in ganzen kW, die Stufen sind daher grob. "
+               "Der Shelly misst das ganze Haus inklusive Wärmepumpe.",
+               "The heat pump reports its input only in whole kW, so the steps are coarse. The Shelly "
+               "measures the whole house including the heat pump."))
 
     other = "wolf-en" if de else "wolf-de"
     return {

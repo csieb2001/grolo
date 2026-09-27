@@ -42,7 +42,10 @@ services:
       # Cloud-Weiterleitung läuft über den schaltbaren Dienst cloud-gate (Schalter auf der Einstellungsseite).
       # GroBro glaubt, mit mqtt.growatt.com zu sprechen; cloud-gate reicht durch oder schluckt.
       GROWATT_CLOUD: "true"
-      GROWATT_CLOUD_CONFIG_FILTER: "true"
+      # Seit 26.09.2026 aus: die Hersteller-Apps sollen den Dongle wieder vollständig einstellen können.
+      # Auf "true" zurückdrehen, wenn der Weg Cloud -> Gerät wieder beschnitten werden soll (zusammen mit
+      # CONFIG_FILTER im Dienst cloud-gate – es sind zwei getrennte Filter).
+      GROWATT_CLOUD_CONFIG_FILTER: "false"
       FORWARD_MQTT_HOST: cloud-gate
       FORWARD_MQTT_PORT: "7006"
       LOG_LEVEL: "${GROBRO_LOG_LEVEL:-INFO}"
@@ -118,7 +121,10 @@ services:
       CLOUD_HOSTS: "${CLOUD_HOSTS:-8.209.71.240,47.254.130.145}"   # IPs, nicht der Name: mqtt.growatt.com zeigt im LAN auf den Mac
       CLOUD_SNI: mqtt.growatt.com
       CLOUD_VERIFY: "true"
-      CONFIG_FILTER: "true"
+      # Seit 26.09.2026 aus: kein Filter mehr auf dem Weg Cloud -> Gerät, damit die Hersteller-Apps alles
+      # schreiben dürfen – auch Broker- und WLAN-Parameter. Wer das zurücknimmt, schützt wieder die Liste
+      # in PROTECTED_PARAMS (Broker 12/14/17/18/19, Passwort 7, Intervall 4, Neustart 32, IOT aus 35, WLAN 56/57).
+      CONFIG_FILTER: "false"
       PYTHONPATH: /app
       TZ: "${TZ:-Europe/Berlin}"
     volumes:
@@ -269,6 +275,39 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
 
+  # Erkenntnisse: zieht aus allen Quellen zusammen, was eine Frage beantwortet statt nur eine Kurve zu zeigen –
+  # Verschattung je String aus Sonnenstand und Leistung, Vorlauf-Übertemperatur gegen die Bänder realer Anlagen,
+  # Taktung, Heizkurve, Warmwasser-Zeitpunkt, Zellspreizung, Standby und Umlaufwirkungsgrad des Speichers.
+  # Retained auf <BASE>/grolo/insights, von dort holt web_push es für die Website.
+  # Braucht Postgres, weil die feinen Messreihen (samples mit Spannung und Strom je String, heat_samples,
+  # room_samples) dort liegen und nicht in InfluxDB.
+  insights:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-insights
+    restart: unless-stopped
+    profiles: ["web"]            # ohne die Website-Datenbank hat der Dienst keine Datengrundlage
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      grolo-db:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/insights.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      INSIGHTS_INTERVAL: "${INSIGHTS_INTERVAL:-600}"
+      DATABASE_URL: "postgres://${PGUSER:-grolo}:${PGPASSWORD}@grolo-db:5432/${PGDATABASE:-grolo}"
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      PYTHONPATH: /sidecar:/app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
   # ---------------- tado X (Matter over Thread, lokal) ----------------
   # tado bietet für die X-Reihe kein lokales HTTP-API; der lokale Weg ist Matter. Dieser Dienst ist ein
   # vollwertiger Matter-Controller (Open Home Foundation, auf matter.js) mit WebSocket-Schnittstelle auf
@@ -345,7 +384,11 @@ services:
   # nicht mehr lokal direkt verbinden (über das Portal funktioniert sie weiter).
   # Beide Dienste starten nur mit COMPOSE_PROFILES=wolf in der .env.
   wolf:
-    image: zivillian/ism7mqtt:latest
+    # Selbst gebaut aus PR #239 von zivillian/ism7mqtt, weil Firmware 5.20.6 des WOLF Link aufhört zu
+    # antworten, wenn die Push-Abos beim Start am Stück ankommen – der offizielle Client stirbt dadurch
+    # alle ~133 s und wird von Docker neu gestartet. Bauen mit scripts/wolf-build-patched.sh (das Abbild
+    # liegt nur lokal auf dem Host). Sobald der PR in einem Release steckt: wieder zivillian/ism7mqtt:latest.
+    image: ism7mqtt:fw5
     container_name: grolo-wolf
     restart: unless-stopped
     profiles: ["wolf"]
@@ -516,9 +559,11 @@ services:
       grolo-db:
         condition: service_healthy
     ports:
-      # Nur an den Rechner selbst gebunden, nicht ans Netz: zum Nachsehen per SSH-Weiterleitung
-      # (ssh -L 3001:127.0.0.1:3001 root@<host>), ohne die Seite im LAN offen stehen zu lassen.
-      - "127.0.0.1:${WEB_LOCAL_PORT:-3001}:3000"
+      # Seit 26.09.2026 im LAN erreichbar (http://<host>:3001), genau wie die Einstellungsseite auf 8080
+      # und Grafana auf 3000. Die Seite bringt keine eigene Anmeldung mit (SITE_PASSWORD ist leer, den
+      # Zugang regelt Cloudflare Access davor) – im LAN steht sie damit offen. Wer das nicht will, bindet
+      # wieder an 127.0.0.1 und greift per SSH-Weiterleitung zu (ssh -L 3001:127.0.0.1:3001 root@<host>).
+      - "${WEB_LOCAL_PORT:-3001}:3000"
     environment:
       DATABASE_URL: "postgres://${PGUSER:-grolo}:${PGPASSWORD}@grolo-db:5432/${PGDATABASE:-grolo}"
       INGEST_TOKEN: "${WEB_TOKEN}"

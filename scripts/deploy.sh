@@ -10,7 +10,7 @@ set -euo pipefail
 HOST="${GROLO_HOST:-root@192.168.1.51}"
 SRC_STACK="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_WEB="${GROLO_WEB_SRC:-$SRC_STACK/../grolo-web}"
-EX=(--exclude .git --exclude node_modules --exclude .next --exclude .env --exclude NOTES.local.md)
+EX=(--exclude .git --exclude node_modules --exclude .next --exclude .env --exclude NOTES.local.md --exclude .vscode)
 
 echo "→ Stack nach $HOST:/opt/growatt"
 rsync -a --delete "${EX[@]}" "$SRC_STACK/" "$HOST:/opt/growatt/"
@@ -28,6 +28,16 @@ if docker compose config 2>&1 >/dev/null | grep -q 'is not set'; then
   echo "ABBRUCH: in /opt/growatt/.env fehlen Variablen:" >&2
   docker compose config 2>&1 >/dev/null | grep 'is not set' >&2
   exit 1
+fi
+# COMPOSE_PROFILES driftet: laufen Container, deren Profil dort fehlt, zaehlt compose sie nicht mehr zum
+# Projekt und ein spaeteres `docker compose up -d` raeumt sie als verwaist ab. Am 27.09.2026 stand in der
+# Produktion nur "wolf", waehrend Tunnel, Website, Datenbank und tado liefen.
+RUNNING=$(docker ps --format '{{.Names}}' | grep -c '^grolo-' || true)
+# Wichtig: `compose ps` taugt dafuer nicht — es listet die laufenden Container des Projekts unabhaengig
+# vom Profil und meldet deshalb immer dieselbe Zahl. `config --services` ist profilabhaengig.
+MANAGED=$(docker compose config --services 2>/dev/null | grep -c . || true)
+if [ "$RUNNING" != "$MANAGED" ]; then
+  echo "WARNUNG: $RUNNING Container laufen, compose kennt nur $MANAGED. Pruefe COMPOSE_PROFILES in /opt/growatt/.env." >&2
 fi
 docker compose build grolo-web >/dev/null
 docker compose up -d --no-deps grolo-web

@@ -32,8 +32,9 @@
   #site-strings td.az { display:flex; gap:4px; align-items:center } #site-strings td.az input { flex:1 1 60px; min-width:60px } #site-strings td.az select { flex:0 0 auto; width:auto; padding:4px 4px }
   .ctl .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap }
   .desc, .muted { color:var(--muted); font-size:12px }
-  input[type=number], input[type=time], input[type=text], select {
+  input[type=number], input[type=time], input[type=text], select, textarea {
     flex:1; min-width:0; background:#0f1114; color:var(--text); border:1px solid #3a4046; border-radius:4px; padding:6px 8px; font-size:14px }
+  textarea { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; resize:vertical; width:100% }
   input[type=range] { flex:1; accent-color:var(--accent) }
   .ctl .row input[type=number] { flex:0 0 auto; width:76px; min-width:76px }
   button { background:#2f3540; color:var(--text); border:1px solid #444b54; border-radius:4px; padding:6px 12px; font-size:13px; cursor:pointer; white-space:nowrap }
@@ -75,14 +76,6 @@
   .scell { display:flex; flex-direction:column; gap:1px }
   .scell .sl { color:#8e8e8e; font-size:11px; text-transform:uppercase; letter-spacing:.03em }
   .scell .sv { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums }
-  /* Energiefluss-Schema */
-  .flowwrap { display:grid; grid-template-columns:minmax(260px,400px) 1fr; gap:18px; align-items:center } @media (max-width:900px) { .flowwrap { grid-template-columns:1fr } }
-  .flow { width:100%; max-width:420px; height:auto; display:block; margin:0 auto }
-  .flow .base { fill:none; stroke:var(--line); stroke-width:3; stroke-linecap:round }
-  .flow .fe.idle { fill:none; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 6; opacity:.35 }
-  .flow .nl { fill:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em } .flow .nv { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; paint-order:stroke; stroke:#1c1f24; stroke-width:4px; stroke-linejoin:round } .flow .ns { fill:var(--muted); font-size:10.5px }
-  /* Restzeiten etwas größer als die übrigen Unterzeilen: sie sind der Grund, warum man hinsieht. */
-  .flow .ne { font-size:12px; font-weight:600; font-variant-numeric:tabular-nums }
 </style>
 </head>
 <body>
@@ -98,9 +91,6 @@
 </header>
 
 <main>
-  <section id="sec-flow"><h2 data-t="sec.flow"></h2><p class="hint" data-t="sec.flow.hint"></p>
-    <div class="flowwrap"><div id="flow"><span class="muted" data-t="loading"></span></div><div><div class="sgrid" id="flow-cells"></div><div id="flow-why" class="explain" hidden></div></div></div>
-  </section>
   <section id="sec-device"><h2 data-t="sec.device"></h2><p class="hint" data-t="sec.device.hint"></p>
     <div class="info" id="dev-info"></div>
     <h3 data-t="packs.title"></h3>
@@ -108,7 +98,7 @@
     <h3 data-t="dongle.title"></h3><div class="info" id="dongle-info"><span class="muted" data-t="dongle.waiting"></span></div>
   </section>
 
-  <section id="sec-mode"><h2 data-t="sec.mode"></h2><p class="hint" data-t="sec.mode.hint"></p><div class="grid" id="mode-grid"></div></section>
+  <section id="sec-mode"><h2 data-t="sec.mode"></h2><p class="hint" data-t="sec.mode.hint"></p><div class="grid" id="mode-who"></div><div class="grid" id="mode-grid" style="margin-top:10px"></div></section>
   <section id="sec-shelly"><h2 data-t="sec.shelly"></h2><p class="hint" data-t="sec.shelly.hint"></p>
     <div class="grid">
       <div class="ctl">
@@ -165,6 +155,9 @@
     </div>
     <h3 data-t="site.strings"></h3><p class="hint" data-t="site.strings.hint"></p>
     <div class="tablewrap"><table><thead><tr><th>String</th><th data-t="site.name"></th><th data-t="site.tilt"></th><th data-t="site.azimuth"></th><th data-t="site.wp"></th><th data-t="site.now"></th><th data-t="site.fit"></th></tr></thead><tbody id="site-strings"></tbody></table></div>
+    <h3 data-t="hz.title"></h3><p class="hint" data-t="hz.hint"></p>
+    <div class="row"><textarea id="site-horizon" rows="6" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea></div>
+    <div class="muted" id="hz-status"></div>
     <div class="row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="site-save" class="primary" data-t="site.save"></button><span class="muted" id="site-status"></span>
       <span class="spacer"></span><button id="fit-run" data-t="fit.run"></button><span class="muted" id="fit-status" data-t="fit.none"></span></div>
     <h3 data-t="adv.title"></h3><p class="hint" data-t="adv.hint"></p>
@@ -181,6 +174,13 @@
           <span class="sfield"><label class="slab" data-t="tariff.cost"></label><input type="number" id="tariff-cost" step="1" min="0" inputmode="numeric" placeholder="0"></span>
           <span class="sfield"><label class="slab" data-t="tariff.base"></label><input type="number" id="tariff-base" step="0.5" min="0" inputmode="decimal" placeholder="12"></span>
           <span class="sfield"><label class="slab" data-t="tariff.abschlag"></label><input type="number" id="tariff-abschlag" step="1" min="0" inputmode="numeric" placeholder="–"></span>
+          <!-- Gaspreis: der Maßstab für „was hätte die alte Gasheizung gekostet". Er steht hier und nicht
+               beim Haus, weil alle Arbeitspreise an einer Stelle gepflegt werden sollen. Leer greift die
+               Vorgabe 11 ct (Marktmittel Neukunden), ein eigener Eintrag schlägt sie – wie beim Strompreis,
+               wo 30 ct im placeholder stehen. Der Grundpreis bleibt leer: er schwankt zwischen den
+               Anbietern zu stark, um ihn zu raten, und ohne Eintrag fällt er aus der Rechnung. -->
+          <span class="sfield"><label class="slab" data-t="tariff.gas"></label><input type="number" id="tariff-gas" step="0.1" min="0" inputmode="decimal" placeholder="11"></span>
+          <span class="sfield"><label class="slab" data-t="tariff.gasbase"></label><input type="number" id="tariff-gasbase" step="0.5" min="0" inputmode="decimal" placeholder="–"></span>
           <button class="primary" id="tariff-save" data-t="set"></button>
         </div>
         <div class="muted" id="tariff-status"></div>
@@ -285,8 +285,6 @@
       'device': 'Device', 'online': 'device online', 'offline': 'device offline', 'readall': 'Read all values', 'dashboard': 'Dashboard',
       'on': 'On', 'off': 'Off', 'set': 'Set', 'setslot': 'Set slot', 'unknown': 'unknown', 'loading': 'loading…', 'setting': 'setting…', 'run': 'Run',
       'heatpump': 'Heat pump',
-      'sec.flow': 'Power flow', 'sec.flow.hint': 'Live: solar into the NEXA, the NEXA into the house, battery charging or discharging, and the grid when a Shelly meter is connected. Moving dots show the direction, their speed the power.',
-      'flow.solar': 'Solar', 'flow.battery': 'Battery', 'flow.home': 'Home', 'flow.grid': 'Grid', 'flow.nexa': 'NEXA', 'flow.noGrid': 'grid only with a Shelly meter', 'flow.self': 'self-sufficiency', 'flow.charging': 'charging', 'flow.discharging': 'discharging', 'flow.idle': 'idle',
       'x.off': 'Smart control is off. The NEXA runs in “{mode}” with the slot power set by hand and delivers {out}.', 'x.offDev': 'The local controller is off: the NEXA regulates by itself against its paired meter and delivers {out}. The slot power is only the upper limit.', 'x.unreachable': 'Shelly unreachable: the controller cannot measure the grid and holds {target} as the safe value.',
       'x.offline': 'NEXA offline: no data from the dongle, the house ({house}) runs entirely on grid power.',
       'x.batteryLow': 'Battery at {soc} %, at the discharge limit ({lim} %): the NEXA charges first ({bat} from solar) and delivers nothing to the house, so the house ({house}) runs on grid power. The controller asks for {target} and waits until the pack is about 5 % above the limit.',
@@ -294,19 +292,29 @@
       'x.atMax': 'The house needs {house}, more than the NEXA may deliver (max. {max}): it gives {out}, the remaining {grid} comes from the grid.', 'x.raising': 'Grid draw {grid} is above the setpoint {setpoint}: the controller raises the NEXA output (target {target}).',
       'x.export': 'Exporting {grid}: the controller lowers the NEXA output (target {target}).', 'x.balanced': 'Zero feed-in reached: the NEXA covers {out} of the {house} household load, grid draw {grid} (setpoint {setpoint}).',
       'x.noMeter': 'Smart control is on but no fresh meter reading yet; the NEXA delivers {out}.', 'x.charging': ' Surplus of {bat} from solar charges the battery ({soc} %).', 'x.discharging': ' {bat} of that comes from the battery ({soc} %).', 'x.solarOnly': ' Solar covers it directly ({pv}).',
-      'flow.why': 'Why',
-      'flow.acIn': 'Charging from grid', 'flow.etaTo': 'to', 'x.offAc': 'Smart control is off. The NEXA runs in “{mode}” and charges the battery ({soc} %) with {acin} from the grid plus {pv} solar; the house gets nothing from it right now.', 'x.acTail': ' In addition it draws {acin} from the grid into the battery.',
-      'flow.pv': 'Solar', 'flow.out': 'NEXA → house', 'flow.bat': 'Battery', 'flow.soc': 'State of charge', 'flow.gridIn': 'Grid draw', 'flow.gridOut': 'Feed-in', 'flow.house': 'Household (Shelly)',
+      'x.offAc': 'Smart control is off. The NEXA runs in “{mode}” and charges the battery ({soc} %) with {acin} from the grid plus {pv} solar; the house gets nothing from it right now.', 'x.acTail': ' In addition it draws {acin} from the grid into the battery.',
       'sec.device': 'Device and hardware', 'sec.device.hint': 'Reported by the NEXA and its Wi-Fi dongle, read-only. Battery packs appear as soon as the NEXA counts them.',
       'packs.title': 'Battery packs', 'packs.pack': 'Pack / serial', 'packs.temp': 'Temperature', 'packs.cells': 'Cell voltage min / max', 'packs.cycles': 'Cycles', 'packs.soh': 'Health',
       'packs.main': 'main unit', 'packs.ext': 'expansion', 'packs.reported': 'reported',
       'dongle.title': 'Wi-Fi dongle (datalogger)', 'dongle.waiting': 'Waiting for the dongle configuration message (sent when it connects).',
-      'sec.mode': 'Operating mode', 'sec.mode.hint': 'The NEXA has no dedicated mode register: the active mode comes from the running time slot. This control writes the mode of the slot that covers the whole day (usually slot 1). Load first feeds the household, Battery first charges the battery first, Smart regulates automatically.',
+      'sec.mode': 'Operating mode', 'sec.mode.hint': 'The NEXA has no dedicated mode register: the active mode comes from the running time slot. This control writes the mode of the slot that covers the whole day (usually slot 1). Load first feeds the household, Battery first charges the battery first, Smart switches on GroLo’s own zero feed-in control – not the device’s own Smart mode. Which of the two controllers is running is shown right below.',
       'mode.label': 'Operating mode', 'mode.desc': 'Reported by the device', 'mode.noslot': 'No all-day slot found, use the slot table below.',
+      'mode.who': 'Who is regulating right now', 'mode.who.badge.device': 'device', 'mode.who.badge.grolo': 'GroLo', 'mode.who.badge.none': 'nobody', 'mode.who.badge.both': 'conflict',
+      'mode.who.wait': 'No data from the NEXA yet \u2013 waiting for the first status message.',
+      'mode.who.device': 'The NEXA regulates itself: it runs its own Smart mode against a meter paired directly with the device, and GroLo only watches. That pairing was made in the Growatt app and can only be restored there.',
+      'mode.who.grolo': 'GroLo regulates: the local zero feed-in controller reads the Shelly and writes the power of slot {slot} every few seconds. The device runs in \u201cLoad first\u201d for that \u2013 its own Smart mode is not active.',
+      'mode.who.none': 'Nobody is regulating: the device is not in its own Smart mode and the local zero feed-in is off. The output stays at the slot power set by hand.',
+      'mode.who.both': 'Contradiction: the device reports its own Smart mode and the local zero feed-in is on as well. Both write the same slot \u2013 switch one of them off.',
+      'mode.who.meter': 'Meter paired with the device', 'mode.who.make': 'Make / model', 'mode.who.sn': 'Serial number', 'mode.who.comm': 'Communication', 'mode.who.op': 'Operation', 'mode.who.alarm': 'Alarm',
+      'mode.who.ok': 'reporting', 'mode.who.bad': 'silent', 'mode.who.noalarm': 'none',
+      'mode.who.meter.none': 'The NEXA has not said which meter it is paired with yet; that message comes every few minutes.', 'mode.who.meter.age': 'last meter message {min} min ago',
+      'mode.takeover': 'The NEXA is regulating itself right now, with the meter paired directly to the device. Switching on the local zero feed-in writes \u201cLoad first\u201d into the slot and ends that pairing: the device stops regulating on its own, and only the Growatt app can pair the meter again. Switch on anyway?',
+      'mode.smartBtn': 'Smart (GroLo)',
+      'mode.smartNote': '\u201cSmart\u201d here switches on GroLo\u2019s own zero feed-in control and sets the slot to \u201cLoad first\u201d. It is not the device\u2019s Smart mode: that one is paired with a meter in the Growatt app and appears above under \u201cWho is regulating right now\u201d.',
       'sec.battery': 'Battery', 'sec.battery.hint': 'Charge and discharge limits of the battery.',
       'sec.output': 'Output and operation', 'sec.output.hint': 'Base output and operating switches. Default output power is the fallback after a restart and is stored in flash, so change it rarely. Use the slot power for continuous control.',
       'sec.slots': 'Time slots', 'sec.slots.hint': 'Times in the device\'s local time. Power applies to the output within the slot and is held in RAM only (no flash wear).',
-      'slots.active': 'Active', 'slots.start': 'Start', 'slots.end': 'End', 'slots.mode': 'Mode', 'slots.power': 'Power', 'slots.nochange': 'nothing changed',
+      'slots.active': 'Active', 'slots.start': 'Start', 'slots.end': 'End', 'slots.mode': 'Mode', 'slots.power': 'Power', 'slots.nochange': 'nothing changed', 'slots.bygrolo': 'written by the local control',
       'sec.site': 'Location and panels', 'sec.site.hint': 'Used by the weather service, the sun position, the expected-yield model and the sun-path chart. Stored on the local broker (retained), takes effect immediately, no restart needed.',
       'site.place': 'Location', 'site.place.desc': 'Search by town or postcode (Open-Meteo geocoding, no key) or enter coordinates directly.', 'site.search': 'Search', 'site.coords': 'Lat / Lon',
       'site.sun': 'Sun now', 'site.sun.waiting': 'Waiting for the weather service…', 'site.azimuthNow': 'azimuth', 'site.elevationNow': 'elevation', 'site.uses': 'weather service uses',
@@ -317,14 +325,20 @@
       'adv.title': 'Recommendations from the data', 'adv.hint': 'Computed with the estimate: a year model for this location (Open-Meteo archive) compares the current orientation with the optimum and practical alternatives; the shading check looks for sun directions where the measurement stays far below the model.',
       'adv.none': 'no recommendations yet (come with the first estimate)', 'adv.year': 'kWh per kWp and year', 'adv.ofBest': 'of the site optimum', 'adv.optimum': 'Site optimum', 'adv.sameAz': 'Same direction, tilt', 'adv.vertical': 'Vertical (balcony) facing', 'adv.flat': 'Flat',
       'adv.winter': 'winter share', 'adv.lever': 'Biggest lever', 'adv.fine': 'Orientation is close to the optimum, nothing to gain by moving the panels.', 'adv.shade': 'Shading', 'adv.noShade': 'No recurring shading found in the last 30 days.',
-      'adv.shadeText': 'between {from} and {to} (sun at {a}–{b}°) only {r} % of the expected power, loss about {loss} % of the sunny-hour energy. Look for an obstacle in that direction.', 'adv.noBasis': 'Orientation unknown: enter it above or wait for the estimate.',
+      'adv.shadeText': 'between {from} and {to} (sun at {a}–{b}°) only {r} % of the expected power, loss about {loss} % of the sunny-hour energy. Look for an obstacle in that direction.', 'adv.optimumUnknown': 'No optimum as long as the shading is unknown – enter tilt, azimuth and Wp per string, then it is calculated with the shading taken into account.', 'adv.noBasis': 'Orientation unknown: enter it above or wait for the estimate.',
       'adv.free': '{n} of 4 inputs free: another string, e.g. facing {dir}, would use them.', 'adv.fewData': 'shading check needs more sunny hours', 'adv.configured': 'configured', 'adv.estimated': 'estimated', 'adv.tilt': 'tilt', 'adv.period': 'year model',
+      'hz.title': 'Measured horizon mask',
+      'hz.hint': 'The elevation of the horizon (trees, buildings, terrain) seen from the modules, per solar azimuth – surveyed or read off a surface model, not guessed from yields. Where the sun stands below it, no direct beam reaches the array; diffuse and ground-reflected light stay, damped by the sky the obstacle takes away. A measured mask overrides the shading estimated from operating data, and only with it can an optimum be computed at all. One line per entry: "105=33 120=57 …" (azimuth = elevation, both in degrees) is the mask at the modules; "Source: …" says where it comes from; "Name: 105=15 …" adds a second, measured mask for another spot on the roof; "Residual: 11-22" is the horizon that stays behind when the near tree goes (the distant belt); "Tree: height=9.9 az=100-228" is the near tree, height above the module plane in metres. Outside the surveyed azimuth range a free horizon is assumed. Careful with foliage: a mask describes the state it was recorded in. Do not enter a summer mask as if it held in winter – rather leave the bare state open until it is measured.',
+      'hz.ok': 'mask read: {n} support points, {a}° to {b}°, up to {m}° high, visible sky {svf} %',
+      'hz.bad': 'not understood: {what}',
+      'hz.none': 'no mask entered – shading is then estimated from operating data, and that fails where the shadow is wide.',
+      'log.horizon': 'Horizon mask saved',
       'site.fit': 'Estimate from measurements', 'fit.run': 'Estimate orientation now', 'fit.none': 'no estimate yet (runs once a day and on request)', 'fit.running': 'estimating… (about a minute)',
       'fit.last': 'last estimate', 'fit.days': 'days', 'fit.apply': 'Apply', 'fit.ok': 'good', 'fit.uncertain': 'uncertain', 'fit.insufficient': 'not determinable yet', 'fit.unused': 'no panel',
       'fit.hours': 'sunny hours', 'fit.hint': 'Needs several sunny days with direct sun; the range shows equally good solutions.', 'fit.error': 'estimate failed', 'log.fitrun': 'orientation estimate requested', 'log.fit': 'Orientation estimate received',
-      'sec.cloud': 'Growatt cloud', 'sec.cloud.hint': 'Forward the device data through this host to the Growatt cloud so ShinePhone keeps working. The dongle itself stays blocked; the cloud-gate service opens the connection and drops configuration writes from the cloud to the dongle (broker, port).',
+      'sec.cloud': 'Growatt cloud', 'sec.cloud.hint': 'Forward the device data through this host to the Growatt cloud so ShinePhone keeps working. The dongle talks to cloud-gate, not to Growatt directly. Whether cloud-gate drops the cloud\u2019s configuration writes to the dongle (broker, port, WLAN, reboot) is shown below as the filter state \u2014 with the filter off, the cloud may change all of them.',
       'cloud.switch': 'Forward to cloud', 'cloud.desc': 'On = data also goes to Growatt and the app shows live values. Off = everything stays local.', 'cloud.status': 'Status',
-      'cloud.conns': 'connections from the bridge', 'cloud.tocloud': 'to the cloud', 'cloud.bytes': 'up / down', 'cloud.blocked': 'dropped config writes', 'cloud.since': 'since', 'cloud.confirmoff': 'Switch off cloud forwarding? ShinePhone will stop showing live data.',
+      'cloud.conns': 'connections from the bridge', 'cloud.tocloud': 'to the cloud', 'cloud.bytes': 'up / down', 'cloud.blocked': 'dropped config writes', 'cloud.filter': 'config filter', 'cloud.filteron': 'on \u2014 broker, password, WLAN and reboot are protected', 'cloud.filteroff': 'OFF \u2014 the cloud may write every dongle parameter', 'cloud.since': 'since', 'cloud.confirmoff': 'Switch off cloud forwarding? ShinePhone will stop showing live data.',
       'sec.dongle': 'Dongle (datalogger)', 'sec.dongle.hint': 'Reporting interval, clock and time zone of the Wi-Fi module. Broker and port decide where the dongle sends its data. Wrong values disconnect it from this system.',
       'sec.other': 'Other settings', 'sec.other.hint': 'Reported by the device, not categorised here.',
       'sec.log': 'Log', 'sec.log.hint': 'Commands, confirmations, cloud events and device messages.',
@@ -342,7 +356,7 @@
       'L.18': ['MQTT port', 'Port the dongle sends to'], 'L.19': ['MQTT broker', 'Hostname the dongle sends to; usually redirected by local DNS'], 'L.17': ['MQTT IP', 'Server address as seen by the dongle'],
       'btn.sync': 'Sync with host time', 'btn.restart': 'Restart', 'btn.pair': 'Pairing mode', 'L.pair': ['Pairing mode (IOT module off)', 'Writes dongle parameter 35 = 1. The IOT lamp goes out and the dongle leaves the Wi-Fi. A short press on the IOT button of the NEXA then starts the pairing mode (lamp flashes). It only comes back online once ShinePhone sets the Wi-Fi again via Bluetooth.'], 'confirm.pair': 'Switch off the IOT module now? The dongle disappears from this system until you set the Wi-Fi again in ShinePhone via Bluetooth.', 'log.pair': 'Pairing mode requested (parameter 35 = 1)', 'log.param': 'Dongle parameter', 'confirm.run': 'really run?', 'confirm.set': 'set to', 'confirm.danger': 'A wrong value disconnects the dongle from this system.',
       'sec.shelly': 'Zero feed-in (Shelly)', 'sec.shelly.hint': 'Local smart control without the Growatt cloud: a Shelly meter is read every couple of seconds and the NEXA output power is adjusted so the grid draw stays at the setpoint and nothing is fed back. Choosing Smart above turns this on.',
-      'shelly.enabled': 'Control', 'shelly.enabled.desc': 'While on, the output power is steered automatically; the manual output power and the slot power are overridden.',
+      'shelly.enabled': 'Control', 'shelly.enabled.desc': 'While on, the output power is steered automatically; the manual output power and the slot power are overridden. If the NEXA is running its own Smart mode, switching this on ends the meter pairing made in the Growatt app.',
       'shelly.host': 'Shelly address', 'shelly.host.desc': 'Shelly Pro 3EM, EM, 1PM or a Gen1 Shelly on the same network, without password.',
       'shelly.tuning': 'Setpoint and limits', 'shelly.tuning.desc': 'Setpoint = grid draw to hold (W, slightly positive so nothing is exported). Min/Max = output power range in W.',
       'shelly.setpoint': 'Setpoint', 'shelly.min': 'Min', 'shelly.max': 'Max', 'shelly.live': 'Live', 'shelly.on': 'on', 'shelly.off': 'off',
@@ -351,9 +365,10 @@
       'shelly.grid': 'grid', 'shelly.house': 'household', 'shelly.out': 'output', 'shelly.target': 'target', 'shelly.unreachable': 'Shelly unreachable', 'shelly.disabled': 'off', 'shelly.nohost': 'no Shelly address set',
       'shelly.measureOnly': 'off, measuring only', 'shelly.reason.wrong_mode': 'NEXA is not in Load first, the controller is switching the slot mode back', 'x.wrongMode': 'The NEXA is in “{mode}” and keeps all solar ({pv}) for the battery ({soc} %); the house ({house}) runs on grid power. Smart control needs “Load first”: the controller has written the slot mode back, the NEXA should follow within a minute.', 'x.offGrid': ' The house ({house}) draws {grid} from the grid.', 'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
       'sec.tariff': 'Electricity price and savings', 'sec.tariff.hint': 'Used by the Grafana row “Costs and savings” and the website: savings = energy delivered to the house × price, grid cost = grid import (Shelly) × price, payback = total savings relative to the system price. Stored on the local broker (retained), takes effect immediately.',
-      'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide).',
+      'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide). Gas is the yardstick for the old boiler: the website works out what the heat pump’s heat would have cost as gas. Left empty it uses the market average for new contracts (11 ct/kWh, as of 09/2026) — the lowest of the going rates, so it understates the saving rather than flattering it. Enter your own price and yours wins; the website says which of the two it used. The gas base fee is not guessed: without an entry it stays out of the calculation.',
       'tariff.price.short': 'Price ct/kWh', 'tariff.feedin': 'Feed-in ct/kWh', 'tariff.cost': 'System price €', 'tariff.saved': 'saved, dashboards recalculate', 'tariff.invalid': 'Enter a price first', 'log.tariff': 'Electricity price saved',
       'tariff.base': 'Base fee €/month', 'tariff.abschlag': 'Monthly payment €',
+      'tariff.gas': 'Gas ct/kWh', 'tariff.gasbase': 'Gas base fee €/month',
       'sec.tado': 'Rooms (tado° X over Matter)',
       'sec.tado.hint': 'Read and written entirely locally over Thread \u2013 no tado cloud, no rate limit. Devices with the same name form one room: that is how two radiators in one room end up together, and how a wireless sensor joins its thermostat. The name lives in the device itself.',
       'tado.rooms': 'Rooms', 'tado.rooms.desc': 'Room temperature comes from the wireless sensor where there is one, because a thermostat sits on the radiator and measures its heat build-up as well. If the sensor drops out, the thermostat takes over and the row says so.',
@@ -387,8 +402,6 @@
       'device': 'Gerät', 'online': 'Gerät online', 'offline': 'Gerät offline', 'readall': 'Alle Werte lesen', 'dashboard': 'Dashboard',
       'on': 'An', 'off': 'Aus', 'set': 'Setzen', 'setslot': 'Slot setzen', 'unknown': 'unbekannt', 'loading': 'lädt…', 'setting': 'wird gesetzt…', 'run': 'Ausführen',
       'heatpump': 'Wärmepumpe',
-      'sec.flow': 'Energiefluss', 'sec.flow.hint': 'Live: Solar in den NEXA, der NEXA ins Haus, Batterie lädt oder entlädt, und das Netz, sobald ein Shelly-Zähler angebunden ist. Laufende Punkte zeigen die Richtung, ihre Geschwindigkeit die Leistung.',
-      'flow.solar': 'Solar', 'flow.battery': 'Batterie', 'flow.home': 'Haus', 'flow.grid': 'Netz', 'flow.nexa': 'NEXA', 'flow.noGrid': 'Netz nur mit Shelly-Zähler', 'flow.self': 'Eigenversorgung', 'flow.charging': 'lädt', 'flow.discharging': 'entlädt', 'flow.idle': 'Ruhe',
       'x.off': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ mit der von Hand gesetzten Slot-Leistung und gibt {out} ab.', 'x.offDev': 'Der lokale Regler ist aus: der NEXA regelt selbst nach seinem gekoppelten Zähler und gibt {out} ab. Die Slot-Leistung ist dabei nur die Obergrenze.', 'x.unreachable': 'Shelly nicht erreichbar: der Regler kann den Netzbezug nicht messen und hält {target} als Sicherheitswert.',
       'x.offline': 'NEXA offline: der Dongle liefert keine Daten, das Haus ({house}) wird komplett aus dem Netz versorgt.',
       'x.batteryLow': 'Batterie bei {soc} % und damit an der Entladegrenze ({lim} %): der NEXA lädt zuerst ({bat} aus Solar) und gibt nichts ans Haus ab, das Haus ({house}) kommt aus dem Netz. Der Regler fordert {target} an und wartet, bis der Akku etwa 5 % über der Grenze liegt.',
@@ -396,19 +409,29 @@
       'x.atMax': 'Das Haus braucht {house}, mehr als der NEXA darf (max. {max}): er gibt {out} ab, die restlichen {grid} kommen aus dem Netz.', 'x.raising': 'Netzbezug {grid} liegt über dem Sollwert {setpoint}: der Regler erhöht die NEXA-Abgabe (Ziel {target}).',
       'x.export': 'Einspeisung {grid}: der Regler senkt die NEXA-Abgabe (Ziel {target}).', 'x.balanced': 'Nulleinspeisung erreicht: der NEXA deckt {out} von {house} Hausverbrauch, Netzbezug {grid} (Sollwert {setpoint}).',
       'x.noMeter': 'Smart-Regelung ist an, aber noch kein frischer Zählerwert; der NEXA gibt {out} ab.', 'x.charging': ' Der Überschuss von {bat} aus Solar lädt die Batterie ({soc} %).', 'x.discharging': ' {bat} davon kommen aus der Batterie ({soc} %).', 'x.solarOnly': ' Solar deckt das direkt ({pv}).',
-      'flow.why': 'Warum',
-      'flow.acIn': 'Laden aus dem Netz', 'flow.etaTo': 'bis', 'x.offAc': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ und lädt die Batterie ({soc} %) mit {acin} aus dem Netz plus {pv} Solar; das Haus bekommt gerade nichts von ihm.', 'x.acTail': ' Zusätzlich zieht er {acin} aus dem Netz in die Batterie.',
-      'flow.pv': 'Solar', 'flow.out': 'NEXA → Haus', 'flow.bat': 'Batterie', 'flow.soc': 'Ladezustand', 'flow.gridIn': 'Netzbezug', 'flow.gridOut': 'Einspeisung', 'flow.house': 'Haushalt (Shelly)',
+      'x.offAc': 'Smart-Regelung ist aus. Der NEXA läuft im Modus „{mode}“ und lädt die Batterie ({soc} %) mit {acin} aus dem Netz plus {pv} Solar; das Haus bekommt gerade nichts von ihm.', 'x.acTail': ' Zusätzlich zieht er {acin} aus dem Netz in die Batterie.',
       'sec.device': 'Gerät und Hardware', 'sec.device.hint': 'Vom NEXA und vom WLAN-Dongle gemeldet, nur Anzeige. Batteriepacks erscheinen, sobald der NEXA sie zählt.',
       'packs.title': 'Batteriepacks', 'packs.pack': 'Pack / Seriennummer', 'packs.temp': 'Temperatur', 'packs.cells': 'Zellspannung min / max', 'packs.cycles': 'Zyklen', 'packs.soh': 'Gesundheit',
       'packs.main': 'Hauptgerät', 'packs.ext': 'Erweiterung', 'packs.reported': 'gemeldet',
       'dongle.title': 'WLAN-Dongle (Datenlogger)', 'dongle.waiting': 'Wartet auf die Konfigurationsnachricht des Dongles (kommt beim Verbindungsaufbau).',
-      'sec.mode': 'Betriebsmodus', 'sec.mode.hint': 'Der NEXA hat kein eigenes Modus-Register, der aktive Modus ergibt sich aus dem laufenden Zeitfenster. Dieser Schalter schreibt den Modus des Slots, der den ganzen Tag abdeckt (meist Slot 1). Last zuerst speist den Haushalt, Batterie zuerst lädt bevorzugt, Smart regelt automatisch.',
+      'sec.mode': 'Betriebsmodus', 'sec.mode.hint': 'Der NEXA hat kein eigenes Modus-Register, der aktive Modus ergibt sich aus dem laufenden Zeitfenster. Dieser Schalter schreibt den Modus des Slots, der den ganzen Tag abdeckt (meist Slot 1). Last zuerst speist den Haushalt, Batterie zuerst lädt bevorzugt, Smart schaltet GroLos eigene Nulleinspeisung ein – nicht den Smart-Modus des Geräts. Welcher der beiden Regler läuft, steht direkt darunter.',
       'mode.label': 'Betriebsmodus', 'mode.desc': 'Vom Gerät gemeldet', 'mode.noslot': 'Kein ganztägiger Slot gefunden, bitte die Slot-Tabelle nutzen.',
+      'mode.who': 'Wer regelt gerade', 'mode.who.badge.device': 'Ger\u00e4t', 'mode.who.badge.grolo': 'GroLo', 'mode.who.badge.none': 'niemand', 'mode.who.badge.both': 'Widerspruch',
+      'mode.who.wait': 'Noch keine Daten vom NEXA \u2013 wartet auf die erste Statusmeldung.',
+      'mode.who.device': 'Der NEXA regelt selbst: er f\u00e4hrt seinen ger\u00e4teeigenen Smart-Modus gegen einen direkt gekoppelten Z\u00e4hler, GroLo schaut nur zu. Diese Kopplung wurde in der Growatt-App eingerichtet und l\u00e4sst sich auch nur dort wiederherstellen.',
+      'mode.who.grolo': 'GroLo regelt: die lokale Nulleinspeisung liest den Shelly und schreibt alle paar Sekunden die Leistung von Slot {slot}. Das Ger\u00e4t l\u00e4uft daf\u00fcr im Modus \u201eLast zuerst\u201c \u2013 sein eigener Smart-Modus ist nicht aktiv.',
+      'mode.who.none': 'Niemand regelt: das Ger\u00e4t ist nicht in seinem eigenen Smart-Modus und die lokale Nulleinspeisung ist aus. Der Ausgang bleibt auf der von Hand gesetzten Slot-Leistung.',
+      'mode.who.both': 'Widerspruch: das Ger\u00e4t meldet seinen eigenen Smart-Modus und die lokale Nulleinspeisung ist ebenfalls an. Beide schreiben denselben Slot \u2013 bitte eines von beiden ausschalten.',
+      'mode.who.meter': 'Am Ger\u00e4t gekoppelter Z\u00e4hler', 'mode.who.make': 'Hersteller / Modell', 'mode.who.sn': 'Seriennummer', 'mode.who.comm': 'Kommunikation', 'mode.who.op': 'Betrieb', 'mode.who.alarm': 'Alarm',
+      'mode.who.ok': 'meldet', 'mode.who.bad': 'stumm', 'mode.who.noalarm': 'keiner',
+      'mode.who.meter.none': 'Der NEXA hat noch nicht gemeldet, mit welchem Z\u00e4hler er gekoppelt ist; diese Nachricht kommt alle paar Minuten.', 'mode.who.meter.age': 'letzte Z\u00e4hlermeldung vor {min} min',
+      'mode.takeover': 'Der NEXA regelt gerade selbst, mit dem direkt am Ger\u00e4t gekoppelten Z\u00e4hler. Das Einschalten der lokalen Nulleinspeisung schreibt \u201eLast zuerst\u201c in den Slot und hebt diese Kopplung auf: das Ger\u00e4t regelt dann nicht mehr selbst, und nur die Growatt-App kann den Z\u00e4hler wieder koppeln. Trotzdem einschalten?',
+      'mode.smartBtn': 'Smart (GroLo)',
+      'mode.smartNote': '\u201eSmart\u201c schaltet hier GroLos eigene Nulleinspeisung ein und setzt den Slot auf \u201eLast zuerst\u201c. Das ist nicht der Smart-Modus des Ger\u00e4ts: der wird in der Growatt-App mit einem Z\u00e4hler gekoppelt und steht oben unter \u201eWer regelt gerade\u201c.',
       'sec.battery': 'Batterie', 'sec.battery.hint': 'Grenzen für Laden und Entladen des Akkus.',
       'sec.output': 'Ausgang und Betrieb', 'sec.output.hint': 'Grundleistung und Betriebsschalter. Default-Ausgangsleistung ist der Rückfallwert nach einem Neustart und wird im Flash gespeichert, also selten ändern. Für laufende Regelung die Slot-Leistung nutzen.',
       'sec.slots': 'Zeitfenster (Slots)', 'sec.slots.hint': 'Zeiten in lokaler Zeit des Geräts. Leistung gilt für den Ausgang im Zeitfenster und wird nur im RAM gehalten (verschleißfrei).',
-      'slots.active': 'Aktiv', 'slots.start': 'Start', 'slots.end': 'Ende', 'slots.mode': 'Modus', 'slots.power': 'Leistung', 'slots.nochange': 'nichts geändert',
+      'slots.active': 'Aktiv', 'slots.start': 'Start', 'slots.end': 'Ende', 'slots.mode': 'Modus', 'slots.power': 'Leistung', 'slots.nochange': 'nichts geändert', 'slots.bygrolo': 'wird von der lokalen Regelung geschrieben',
       'sec.site': 'Standort und Module', 'sec.site.hint': 'Wird vom Wetterdienst, für den Sonnenstand, das Erwartungsmodell und das Sonnenbahn-Diagramm genutzt. Liegt auf dem lokalen Broker (retained), gilt sofort, kein Neustart nötig.',
       'site.place': 'Standort', 'site.place.desc': 'Ort oder Postleitzahl suchen (Open-Meteo-Geocoding, ohne Schlüssel) oder Koordinaten direkt eintragen.', 'site.search': 'Suchen', 'site.coords': 'Lat / Lon',
       'site.sun': 'Sonne jetzt', 'site.sun.waiting': 'Wartet auf den Wetterdienst…', 'site.azimuthNow': 'Azimut', 'site.elevationNow': 'Höhe', 'site.uses': 'Wetterdienst rechnet mit',
@@ -419,14 +442,20 @@
       'adv.title': 'Empfehlungen aus den Daten', 'adv.hint': 'Wird mit der Schätzung berechnet: Ein Jahresmodell für diesen Standort (Open-Meteo-Archiv) vergleicht die aktuelle Ausrichtung mit dem Optimum und praktischen Alternativen; die Verschattungsprüfung sucht Sonnenrichtungen, in denen die Messung weit unter dem Modell bleibt.',
       'adv.none': 'noch keine Empfehlungen (kommen mit der ersten Schätzung)', 'adv.year': 'kWh je kWp und Jahr', 'adv.ofBest': 'des Standortoptimums', 'adv.optimum': 'Optimum am Standort', 'adv.sameAz': 'Gleiche Richtung, Neigung', 'adv.vertical': 'Senkrecht (Balkon) nach', 'adv.flat': 'Flach',
       'adv.winter': 'Winteranteil', 'adv.lever': 'Größter Hebel', 'adv.fine': 'Die Ausrichtung liegt nahe am Optimum, Umbauen bringt nichts.', 'adv.shade': 'Verschattung', 'adv.noShade': 'Keine wiederkehrende Verschattung in den letzten 30 Tagen gefunden.',
-      'adv.shadeText': 'zwischen {from} und {to} Uhr (Sonne bei {a}–{b}°) nur {r} % der erwarteten Leistung, Verlust etwa {loss} % der Sonnenstunden-Energie. In dieser Richtung nach einem Hindernis schauen.', 'adv.noBasis': 'Ausrichtung unbekannt: oben eintragen oder die Schätzung abwarten.',
+      'adv.shadeText': 'zwischen {from} und {to} Uhr (Sonne bei {a}–{b}°) nur {r} % der erwarteten Leistung, Verlust etwa {loss} % der Sonnenstunden-Energie. In dieser Richtung nach einem Hindernis schauen.', 'adv.optimumUnknown': 'Kein Optimum, solange die Verschattung unbekannt ist – trag Neigung, Azimut und Wp je String ein, dann wird es verschattungsbereinigt gerechnet.', 'adv.noBasis': 'Ausrichtung unbekannt: oben eintragen oder die Schätzung abwarten.',
       'adv.free': '{n} von 4 Eingängen frei: ein weiterer String, z. B. nach {dir}, würde sie nutzen.', 'adv.fewData': 'Verschattungsprüfung braucht mehr Sonnenstunden', 'adv.configured': 'konfiguriert', 'adv.estimated': 'geschätzt', 'adv.tilt': 'Neigung', 'adv.period': 'Jahresmodell',
+      'hz.title': 'Gemessene Horizontmaske',
+      'hz.hint': 'Der Höhenwinkel des Horizonts (Bäume, Gebäude, Gelände) vom Ort der Module aus, je Sonnenazimut – vermessen oder aus einem Oberflächenmodell abgegriffen, nicht aus Erträgen geraten. Wo die Sonne darunter steht, erreicht kein Direktstrahl die Fläche; Diffus- und Bodenanteil bleiben, gedämpft um den Himmel, den das Hindernis wegnimmt. Eine gemessene Maske hat Vorrang vor der aus Betriebsdaten erschlossenen Verschattung, und erst mit ihr lässt sich überhaupt ein Optimum rechnen. Je Zeile ein Eintrag: „105=33 120=57 …“ (Azimut = Höhenwinkel, beides in Grad) ist die Maske am Ort der Module; „Quelle: …“ sagt, woher sie stammt; „Name: 105=15 …“ legt eine zweite, ebenfalls gemessene Maske für eine andere Stelle der Dachfläche daneben; „Restschatten: 11-22“ ist der Horizont, der bleibt, wenn der nahe Baum fällt (der entfernte Gehölzgürtel); „Baum: hoehe=9.9 az=100-228“ beschreibt den nahen Baum, Höhe über der Modulebene in Metern. Außerhalb des vermessenen Azimutbereichs gilt freier Horizont. Vorsicht bei der Laubfrage: eine Maske gilt für den Zustand, in dem sie aufgenommen wurde. Eine Sommermaske nicht als Winterwert eintragen – den kahlen Zustand lieber offen lassen, bis er gemessen ist.',
+      'hz.ok': 'Maske gelesen: {n} Stützstellen, {a}° bis {b}°, bis {m}° hoch, sichtbarer Himmel {svf} %',
+      'hz.bad': 'nicht verstanden: {what}',
+      'hz.none': 'keine Maske eingetragen – die Verschattung wird dann aus Betriebsdaten erschlossen, und das scheitert, wenn der Schatten breit ist.',
+      'log.horizon': 'Horizontmaske gespeichert',
       'site.fit': 'Schätzung aus Messdaten', 'fit.run': 'Ausrichtung jetzt schätzen', 'fit.none': 'noch keine Schätzung (läuft täglich und auf Anforderung)', 'fit.running': 'schätzt… (etwa eine Minute)',
       'fit.last': 'letzte Schätzung', 'fit.days': 'Tage', 'fit.apply': 'Übernehmen', 'fit.ok': 'gut', 'fit.uncertain': 'unsicher', 'fit.insufficient': 'noch nicht bestimmbar', 'fit.unused': 'kein Modul',
       'fit.hours': 'Sonnenstunden', 'fit.hint': 'Braucht mehrere sonnige Tage mit direkter Sonne; die Spanne zeigt gleich gute Lösungen.', 'fit.error': 'Schätzung fehlgeschlagen', 'log.fitrun': 'Ausrichtungsschätzung angefordert', 'log.fit': 'Ausrichtungsschätzung empfangen',
-      'sec.cloud': 'Growatt-Cloud', 'sec.cloud.hint': 'Weiterleitung der Gerätedaten über diesen Host an die Growatt-Cloud, damit ShinePhone nutzbar bleibt. Der Dongle selbst bleibt gesperrt, der Dienst cloud-gate baut die Verbindung auf und verwirft Konfigurations-Schreibbefehle der Cloud an den Dongle (Broker, Port).',
+      'sec.cloud': 'Growatt-Cloud', 'sec.cloud.hint': 'Weiterleitung der Gerätedaten über diesen Host an die Growatt-Cloud, damit ShinePhone nutzbar bleibt. Der Dongle spricht mit cloud-gate, nicht unmittelbar mit Growatt. Ob cloud-gate die Konfigurations-Schreibbefehle der Cloud an den Dongle verwirft (Broker, Port, WLAN, Neustart), steht unten als Zustand des Filters \u2014 ist er aus, darf die Cloud sie alle ändern.',
       'cloud.switch': 'Weiterleitung zur Cloud', 'cloud.desc': 'An = Daten gehen zusätzlich an Growatt, die App zeigt Live-Werte. Aus = alles bleibt lokal.', 'cloud.status': 'Status',
-      'cloud.conns': 'Verbindungen von der Bridge', 'cloud.tocloud': 'zur Cloud', 'cloud.bytes': 'hoch / runter', 'cloud.blocked': 'verworfene Konfig-Schreibbefehle', 'cloud.since': 'seit', 'cloud.confirmoff': 'Weiterleitung zur Growatt-Cloud ausschalten? ShinePhone zeigt dann keine Live-Daten mehr.',
+      'cloud.conns': 'Verbindungen von der Bridge', 'cloud.tocloud': 'zur Cloud', 'cloud.bytes': 'hoch / runter', 'cloud.blocked': 'verworfene Konfig-Schreibbefehle', 'cloud.filter': 'Konfig-Filter', 'cloud.filteron': 'an \u2014 Broker, Passwort, WLAN und Neustart sind geschützt', 'cloud.filteroff': 'AUS \u2014 die Cloud darf jeden Dongle-Parameter schreiben', 'cloud.since': 'seit', 'cloud.confirmoff': 'Weiterleitung zur Growatt-Cloud ausschalten? ShinePhone zeigt dann keine Live-Daten mehr.',
       'sec.dongle': 'Dongle (Datenlogger)', 'sec.dongle.hint': 'Sendeintervall, Uhrzeit und Zeitzone des WLAN-Moduls. Broker und Port bestimmen, wohin der Dongle sendet. Falsche Werte trennen ihn von diesem System.',
       'sec.other': 'Weitere Einstellungen', 'sec.other.hint': 'Vom Gerät gemeldet, hier nicht weiter eingeordnet.',
       'sec.log': 'Protokoll', 'sec.log.hint': 'Befehle, Bestätigungen, Cloud-Ereignisse und Gerätemeldungen.',
@@ -444,7 +473,7 @@
       'L.18': ['MQTT-Port', 'Port, an den der Dongle sendet'], 'L.19': ['MQTT-Broker', 'Hostname, an den der Dongle sendet; meist per lokalem DNS umgeleitet'], 'L.17': ['MQTT-IP', 'Serveradresse aus Sicht des Dongles'],
       'btn.sync': 'Mit Host-Zeit synchronisieren', 'btn.restart': 'Neu starten', 'btn.pair': 'Kopplungsmodus', 'L.pair': ['Kopplungsmodus (IOT-Modul aus)', 'Schreibt Dongle-Parameter 35 = 1. Die IOT-Lampe geht aus und der Dongle verlässt das WLAN. Ein kurzer Druck auf den IOT-Knopf des NEXA startet danach den Kopplungsmodus (Lampe blinkt). Online kommt er erst wieder, wenn ShinePhone per Bluetooth das WLAN neu setzt.'], 'confirm.pair': 'IOT-Modul jetzt abschalten? Der Dongle verschwindet aus diesem System, bis du das WLAN in ShinePhone per Bluetooth neu setzt.', 'log.pair': 'Kopplungsmodus angefordert (Parameter 35 = 1)', 'log.param': 'Dongle-Parameter', 'confirm.run': 'wirklich ausführen?', 'confirm.set': 'setzen auf', 'confirm.danger': 'Ein falscher Wert trennt den Dongle von diesem System.',
       'sec.shelly': 'Nulleinspeisung (Shelly)', 'sec.shelly.hint': 'Lokaler Smart-Modus ohne Growatt-Cloud: ein Shelly-Zähler wird alle paar Sekunden gelesen und die NEXA-Ausgangsleistung so nachgestellt, dass der Netzbezug auf dem Sollwert bleibt und nichts eingespeist wird. Die Auswahl Smart oben schaltet das ein.',
-      'shelly.enabled': 'Regelung', 'shelly.enabled.desc': 'Solange an, wird die Ausgangsleistung automatisch gestellt; die manuelle Ausgangsleistung und die Slot-Leistung werden überschrieben.',
+      'shelly.enabled': 'Regelung', 'shelly.enabled.desc': 'Solange an, wird die Ausgangsleistung automatisch gestellt; die manuelle Ausgangsleistung und die Slot-Leistung werden überschrieben. Läuft der NEXA in seinem eigenen Smart-Modus, hebt das Einschalten die in der Growatt-App eingerichtete Zählerkopplung auf.',
       'shelly.host': 'Shelly-Adresse', 'shelly.host.desc': 'Shelly Pro 3EM, EM, 1PM oder ein Gen1-Shelly im selben Netz, ohne Passwort.',
       'shelly.tuning': 'Sollwert und Grenzen', 'shelly.tuning.desc': 'Sollwert = zu haltender Netzbezug (W, leicht positiv, damit nichts eingespeist wird). Min/Max = Bereich der Ausgangsleistung in W.',
       'shelly.setpoint': 'Sollwert', 'shelly.min': 'Min', 'shelly.max': 'Max', 'shelly.live': 'Live', 'shelly.on': 'an', 'shelly.off': 'aus',
@@ -453,9 +482,10 @@
       'shelly.grid': 'Netz', 'shelly.house': 'Haushalt', 'shelly.out': 'Ausgabe', 'shelly.target': 'Ziel', 'shelly.unreachable': 'Shelly nicht erreichbar', 'shelly.disabled': 'aus', 'shelly.nohost': 'keine Shelly-Adresse gesetzt',
       'shelly.measureOnly': 'aus, nur Messung', 'shelly.reason.wrong_mode': 'NEXA steht nicht auf Last zuerst, der Regler stellt den Slot-Modus zurück', 'x.wrongMode': 'Der NEXA steht auf „{mode}“ und behält alle Solarleistung ({pv}) für die Batterie ({soc} %); das Haus ({house}) läuft aus dem Netz. Die Smart-Regelung braucht „Last zuerst“: der Regler hat den Slot-Modus zurückgeschrieben, der NEXA sollte binnen einer Minute folgen.', 'x.offGrid': ' Das Haus ({house}) holt {grid} aus dem Netz.', 'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
       'sec.tariff': 'Strompreis und Ersparnis', 'sec.tariff.hint': 'Grundlage für die Grafana-Zeile „Kosten und Ersparnis“ und die Website: Ersparnis = ins Haus abgegebene Energie × Preis, Netzkosten = Netzbezug (Shelly) × Preis, Amortisation = gesamte Ersparnis im Verhältnis zum Anlagenpreis. Liegt auf dem lokalen Broker (retained), gilt sofort.',
-      'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden).',
+      'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden). Gas ist der Maßstab für den alten Kessel: Die Website rechnet aus, was die Wärme der Wärmepumpe als Gas gekostet hätte. Leer gilt das Marktmittel für Neukunden (11 ct/kWh, Stand 09/2026) – der niedrigste der gängigen Sätze, der die Ersparnis damit eher unterschätzt als beschönigt. Trägst du deinen eigenen Preis ein, gilt deiner; die Website schreibt dazu, welcher der beiden gerechnet wurde. Den Gas-Grundpreis rate ich nicht: ohne Eintrag bleibt er aus der Rechnung.',
       'tariff.price.short': 'Preis ct/kWh', 'tariff.feedin': 'Einspeisung ct/kWh', 'tariff.cost': 'Anlagenpreis €', 'tariff.saved': 'gespeichert, Dashboards rechnen neu', 'tariff.invalid': 'Bitte zuerst einen Preis eintragen', 'log.tariff': 'Strompreis gespeichert',
       'tariff.base': 'Grundpreis €/Monat', 'tariff.abschlag': 'Abschlag €/Monat',
+      'tariff.gas': 'Gas ct/kWh', 'tariff.gasbase': 'Gas-Grundpreis €/Monat',
       'sec.tado': 'Räume (tado° X über Matter)',
       'sec.tado.hint': 'Vollständig lokal über Thread gelesen und geschrieben \u2013 ohne tado-Cloud und ohne Rate-Limit. Geräte mit demselben Namen bilden einen Raum: so kommen zwei Heizkörper eines Zimmers zusammen, und so stellt sich ein Funkfühler zu seinem Thermostat. Der Name steht im Gerät selbst.',
       'tado.rooms': 'Räume', 'tado.rooms.desc': 'Die Raumtemperatur kommt vom Funkfühler, wo einer hängt \u2013 ein Thermostat sitzt am Heizkörper und misst dessen Wärmestau mit. Fällt der Fühler aus, übernimmt das Thermostat, und die Zeile sagt es dazu.',
@@ -498,7 +528,7 @@
   const SKIP = new Set(['read_all', '76']);   // 76 = Wi-Fi signal, read-only sensor
 
   // ------------------------------------------------------------------ Zustand / state
-  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, tariff: null, device: null, avail: null, stTs: 0, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
+  const state = { site: null, wx: null, fit: null, advice: null, siteDirty: false, shelly: null, shellyState: null, tariff: null, device: null, avail: null, stTs: 0, eco: null, ecoTs: 0, cmps: {}, values: {}, pending: {}, loadingUntil: 0, st: null, dongle: null, cloud: null, cloudState: null, packs: null, lastStatus: null, lastMode: null };
   const logEl = document.getElementById('log');
   const log = (msg, cls = '') => {
     const d = document.createElement('div'); d.className = cls; d.textContent = `${new Date().toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB')}  ${msg}`;
@@ -526,7 +556,8 @@
     client.subscribe([`${BASE}/device/+/config`, `${BASE}/+/grobro/+/+/get`, `${BASE}/grobro/+/availability`, `${BASE}/grobro/+/state`, `${BASE}/grobro/+/dongle`,
                       `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`, `${BASE}/grolo/config/tariff`, `${BASE}/grolo/config/house`, `${BASE}/grolo/forecast`,
                       `${BASE}/grolo/tado/rooms`, `${BASE}/grolo/tado/commission/result`, `${BASE}/grolo/tado/set/result`,
-                      `${BASE}/grolo/config/heatshift`, `${BASE}/grolo/heatshift/state`, `${BASE}/grolo/battery`]);
+                      `${BASE}/grolo/config/heatshift`, `${BASE}/grolo/heatshift/state`, `${BASE}/grolo/battery`,
+                      `${BASE}/sensor/grobro/+/eco_tracker/state`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -548,11 +579,12 @@
     if (topic === `${BASE}/grolo/tado/set/result`) { try { onTadoSet(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/heatshift`) { try { onShiftCfg(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/heatshift/state`) { try { onShiftState(JSON.parse(p)); } catch {} return; }
-    if (topic === `${BASE}/grolo/battery`) { try { state.battery = JSON.parse(p); renderFlow(); } catch {} return; }
+    if (topic === `${BASE}/grolo/battery`) { try { state.battery = JSON.parse(p); } catch {} return; }
     if (topic === `${BASE}/grolo/weather/current`) { try { onWeatherCurrent(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit`) { try { onFit(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/advice`) { try { onAdvice(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/fit/status`) { try { const st = JSON.parse(p); if (st.error) { fitPending = false; $('fit-status').textContent = `${t('fit.error')}: ${st.error}`; log(`${t('fit.error')}: ${st.error}`, 'log-err'); } } catch {} return; }
+    if ((m = topic.match(new RegExp(`^${BASE}/sensor/grobro/([^/]+)/eco_tracker/state$`)))) { if (!state.device || m[1] === state.device) { try { onEcoTracker(JSON.parse(p)); } catch {} } return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/state$`)))) { if (!state.device || m[1] === state.device) { try { onState(m[1], JSON.parse(p)); } catch {} } return; }
     if (topic === `${BASE}/grolo/dongle/param/result`) { try { const r = JSON.parse(p); log(r.error ? `⚠ ${t('log.param')}: ${r.error}` : r.ack ? `✔ ${t('log.param')} ${t('log.confirmed')}` : `← ${t('log.param')} ${r.reg} = ${r.value}`, r.error ? 'log-err' : 'log-ok'); } catch {} return; }
     if ((m = topic.match(new RegExp(`^${BASE}/grobro/([^/]+)/dongle$`)))) { if (!state.device || m[1] === state.device) { try { onDongle(JSON.parse(p)); } catch {} } return; }
@@ -643,7 +675,7 @@
     for (const n of Object.keys(slots).sort((a, b) => a - b)) document.getElementById('slots').appendChild(renderSlot(n, slots[n]));
     renderModeControl(); refreshValues();
   }
-  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.shelly) onShelly(state.shelly, true); if (state.shellyState) onShellyState(state.shellyState); if (state.tariff) onTariff(state.tariff, true); renderTariffLive(); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); };
+  const renderAll = () => { renderSiteStrings(); if (state.site) onSiteConfig(state.site, true); if (state.wx) onWeatherCurrent(state.wx); if (state.fit) onFit(state.fit, true); if (state.advice) onAdvice(state.advice); if (state.st) onState(state.device, state.st, true); if (state.shelly) onShelly(state.shelly, true); if (state.shellyState) onShellyState(state.shellyState); if (state.tariff) onTariff(state.tariff, true); renderTariffLive(); if (state.dongle) onDongle(state.dongle, true); if (state.cloudState != null) onCloudState(state.cloudState, true); if (state.cloud) onCloudStatus(state.cloud, true); renderModeWho(); updateSlotOwner(); };
 
   function curSpan(id) { const s = document.createElement('span'); s.className = 'cur unknown'; s.dataset.cur = id; s.textContent = '–'; return s; }
   function updateValue(id) {
@@ -761,7 +793,7 @@
     if (badge && st.enabled) { const bad = !st.ok; badge.textContent = bad ? '⚠' : t('shelly.on'); badge.className = 'cur ' + (bad ? 'unknown' : 'ok'); }
     renderTariffLive();
   }
-  document.getElementById('shelly-on').onclick = () => { publishShelly({ enabled: true }); const c = cmpOf(`slot${allDaySlot()}_mode`); if (c) send(c.id, modePayload(c, '0')); };   // Smart braucht Last zuerst
+  document.getElementById('shelly-on').onclick = () => { if (!confirmTakeover()) return; publishShelly({ enabled: true }); const c = cmpOf(`slot${allDaySlot()}_mode`); if (c) send(c.id, modePayload(c, '0')); };   // Smart braucht Last zuerst
   document.getElementById('shelly-off').onclick = () => publishShelly({ enabled: false });
   document.getElementById('shelly-host-save').onclick = () => publishShelly({ host: document.getElementById('shelly-host').value.trim() });
   document.getElementById('shelly-save').onclick = () => publishShelly({ setpoint_w: +document.getElementById('shelly-setpoint').value || 0, min_w: +document.getElementById('shelly-min').value || 0, max_w: +document.getElementById('shelly-max').value || 800 });
@@ -771,6 +803,8 @@
     const tr = document.createElement('tr');
     const td = (el) => { const c = document.createElement('td'); if (el) c.appendChild(el); tr.appendChild(c); return c; };
     const num = td(); num.className = 'slotno'; num.textContent = n;
+    // Wer hier von Hand dreht, wird von der lokalen Regelung stillschweigend ueberschrieben – also am Slot selbst sagen, wem er gerade gehoert.
+    const owner = document.createElement('div'); owner.className = 'muted'; owner.style.fontWeight = '400'; owner.dataset.slotOwner = n; owner.hidden = true; num.appendChild(owner);
     if (s.enabled) { const w = document.createElement('div'); w.style.display = 'grid'; w.style.gap = '4px'; w.append(curSpan(s.enabled.id), toggle(s.enabled)); td(w); } else td();
     const inputs = {};
     for (const k of ['start_time', 'end_time', 'mode', 'power']) {
@@ -802,19 +836,70 @@
     const d = document.createElement('div'); d.className = 'desc'; d.id = 'mode-reported'; box.appendChild(d);
     const row = document.createElement('div'); row.className = 'row';
     for (const [v, txt] of Object.entries(t('modes'))) {
-      const b = document.createElement('button'); b.dataset.modeBtn = v; b.textContent = txt;
+      const b = document.createElement('button'); b.dataset.modeBtn = v; b.textContent = v === '2' ? t('mode.smartBtn') : txt;   // der Knopf setzt GroLos Regler, nicht den Geraetemodus
       b.onclick = () => {
-        if (v === '2') { publishShelly({ enabled: true }); send(c.id, modePayload(c, '0')); }   // Smart = eigener Shelly-Regler, Slot bleibt Last zuerst
+        if (v === '2') { if (!confirmTakeover()) return; publishShelly({ enabled: true }); send(c.id, modePayload(c, '0')); }   // Smart = eigener Shelly-Regler, Slot bleibt Last zuerst
         else { if (state.shelly && state.shelly.enabled) publishShelly({ enabled: false }); send(c.id, modePayload(c, v)); }
       };
       row.appendChild(b);
     }
-    box.appendChild(row); g.appendChild(box); updateModeControl();
+    box.appendChild(row);
+    const note = document.createElement('div'); note.className = 'desc'; note.textContent = t('mode.smartNote'); box.appendChild(note);
+    g.appendChild(box); updateModeControl();
   }
   function updateModeControl() {
     const n = allDaySlot(); const cur = state.values[`slot${n}_mode`]; const key = (state.shelly && state.shelly.enabled) ? '2' : (MODE_EN[cur] ?? String(cur));
     for (const b of document.querySelectorAll('[data-mode-btn]')) b.className = b.dataset.modeBtn === key ? 'primary' : '';
     const rep = document.getElementById('mode-reported'); if (rep && state.st) rep.textContent = `${t('mode.desc')}: ${modeText(state.st.workMode)}`;
+    renderModeWho(); updateSlotOwner();
+  }
+
+  // ------------------------------------------------------------------ Wer regelt gerade?
+  // Zwei Regler koennen dieselbe Anlage stellen und schliessen sich gegenseitig aus: der NEXA mit seinem
+  // geraeteeigenen Smart-Modus (Zaehler direkt gekoppelt, nur ueber die Growatt-App einzurichten) und GroLos
+  // lokale Nulleinspeisung, die dafuer "Last zuerst" in den Slot schreibt. Bisher stand nirgends, wer von
+  // beiden laeuft - und ein Klick auf "Smart" hat die Geraetekopplung stillschweigend zerstoert.
+  // "Grid First" ist die Beschriftung, die dieser Stack bis 09/2026 fuer denselben Geraetewert 2 geschrieben hat.
+  const deviceSmart = () => { const raw = state.st ? String(state.st.workMode) : ''; return raw === 'Smart' || raw === 'Grid First'; };
+  const groloSmart = () => !!(state.shelly && state.shelly.enabled);
+  const groloSlot = () => String((state.shelly && state.shelly.slot) ?? SHELLY_DEFAULTS.slot);
+  // Muster wie bei cloud.confirmoff: erst fragen, wenn der Klick etwas Laufendes zerstoert.
+  const confirmTakeover = () => !deviceSmart() || confirm(t('mode.takeover'));
+  function onEcoTracker(d) { state.eco = d; state.ecoTs = Date.now(); renderModeWho(); }
+  function renderEcoMeter() {
+    const e = state.eco, esc = x => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    if (!e) return `<div class="desc" style="margin-top:6px;color:var(--orange)">${t('mode.who.meter.none')}</div>`;
+    const cell = (l, v, color) => `<div class="scell"><div class="sl">${l}</div><div class="sv" style="font-size:14px${color ? ';color:' + color : ''}">${v}</div></div>`;
+    // comm_sts/op_sts melden 1, solange der Zaehler spricht und arbeitet; alarm 0 heisst: nichts anliegend.
+    const flag = (v, good) => v == null ? '\u2013' : (Number(v) === good ? t('mode.who.ok') : t('mode.who.bad'));
+    const col = (v, good) => v == null ? '' : Number(v) === good ? 'var(--green)' : 'var(--red)';
+    const age = Math.max(0, Math.round((Date.now() - state.ecoTs) / 60000));
+    return `<h3>${t('mode.who.meter')}</h3><div class="sgrid">`
+      + cell(t('mode.who.make'), esc(`${e.manu ?? '\u2013'} ${e.model ?? ''}`.trim()))
+      + cell(t('mode.who.sn'), esc(e.sn ?? '\u2013'))
+      + cell(t('mode.who.comm'), flag(e.comm_sts, 1), col(e.comm_sts, 1))
+      + cell(t('mode.who.op'), flag(e.op_sts, 1), col(e.op_sts, 1))
+      + cell(t('mode.who.alarm'), e.alarm ? esc(e.alarm) : t('mode.who.noalarm'), e.alarm ? 'var(--red)' : 'var(--green)')
+      + `</div><div class="desc" style="margin-top:6px">${t('mode.who.meter.age').replace('{min}', age)}</div>`;
+  }
+  function renderModeWho() {
+    const el = document.getElementById('mode-who'); if (!el) return;
+    const dev = deviceSmart(), gro = groloSmart();
+    const key = (dev && gro) ? 'both' : dev ? 'device' : gro ? 'grolo' : state.st ? 'none' : 'wait';
+    const badge = key === 'wait' ? '\u2013' : t('mode.who.badge.' + key);
+    const cls = key === 'both' ? 'cur pending' : (key === 'none' || key === 'wait') ? 'cur unknown' : 'cur ok';
+    el.innerHTML = `<div class="ctl" style="grid-column:1/-1">
+      <div class="top"><label>${t('mode.who')}</label><span class="${cls}">${key === 'both' ? '\u26a0 ' : ''}${badge}</span></div>
+      <div class="desc">${t('mode.who.' + key).replace('{slot}', groloSlot())}</div>
+      ${dev ? renderEcoMeter() : ''}</div>`;
+  }
+  // Der Slot, den die lokale Regelung schreibt, steht in ihrer Konfiguration (Vorgabe 1).
+  function updateSlotOwner() {
+    const on = groloSmart(), n = groloSlot();
+    for (const el of document.querySelectorAll('[data-slot-owner]')) {
+      const mine = on && el.dataset.slotOwner === n;
+      el.textContent = mine ? t('slots.bygrolo') : ''; el.hidden = !mine;
+    }
   }
 
   // ------------------------------------------------------------------ Gerät, Packs, Dongle, Cloud (Anzeige)
@@ -880,6 +965,9 @@
     const kb = n => (n / 1024).toFixed(1) + ' KB';
     document.getElementById('cloud-status').innerHTML = [`${t('cloud.conns')}: ${st.connections}`, `${t('cloud.tocloud')}: ${st.cloud_connected}${st.cloud_host ? ' (' + st.cloud_host + ')' : ''}`,
       `${t('cloud.bytes')}: ${kb(st.bytes_up)} / ${kb(st.bytes_down)}`, `${t('cloud.blocked')}: ${st.blocked_config_writes}`,
+      // Ohne diese Zeile behauptet die Seite einen Schutz, den es nicht gibt: bei ausgeschaltetem Filter
+      // bleibt der Zähler oben zwangsläufig auf 0, weil gar nicht mehr verworfen wird.
+      `${t('cloud.filter')}: ${st.config_filter === false ? t('cloud.filteroff') : st.config_filter === true ? t('cloud.filteron') : '?'}`,
       st.last_error ? `<span style="color:var(--red)">${t('error')}: ${st.last_error}</span>` : '', `${t('cloud.since')} ${st.since}`].filter(Boolean).join('<br>');
   }
   const cloudSet = on => { cloudPending = on; const el = document.getElementById('cloud-state'); el.textContent = t('setting'); el.className = 'cur pending';
@@ -933,20 +1021,33 @@
     const dir = az => `${compassName(az)} ${Math.round(az)}°`;
     const fill = (str, m) => str.replace(/\{(\w+)\}/g, (_, k) => m[k] ?? '');
     const esc = x => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    // Seit dem 27.09.2026 liefert advice kein Optimum mehr, solange die Verschattung unbekannt ist: die
+    // einstrahlungsoptimale Richtung zeigt an diesem Standort in eine große Eiche im Süden, ein Rat dorthin
+    // würde den Ertrag verschlechtern. Statt der Zahl kommt dann ein Satz, der sagt, was fehlt. Alles, was
+    // site_best oder die best_*-Felder liest, muss das aushalten – sonst wirft onAdvice() und das ganze
+    // Empfehlungs-Panel bleibt stehen.
+    const sb = a.site_best;
+    const optText = () => sb ? `${t('adv.optimum')}: ${dir(sb.azimuth)}, ${t('adv.tilt')} ${sb.tilt}° (${sb.kwh_kwp} ${t('adv.year')})`
+                             : (a.optimum && (a.optimum[lang] || a.optimum.de)) || t('adv.optimumUnknown');
     const parts = [];
     for (const i of [1, 2, 3, 4]) {
       const v = (a.strings || {})[String(i)]; if (!v || v.unused) continue;
       const head = `<b>${strName(i).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</b>`;
-      if (!v.basis) { parts.push(`<div class="item">${head}<div>${esc(t('adv.noBasis'))}</div><div>${esc(t('adv.optimum'))}: ${dir(a.site_best.azimuth)}, ${t('adv.tilt')} ${a.site_best.tilt}° (${a.site_best.kwh_kwp} ${esc(t('adv.year'))})</div></div>`); continue; }
-      const opts = [[`${t('adv.sameAz')} ${v.same_azimuth.tilt}°`, v.same_azimuth.gain_pct], [`${t('adv.vertical')} ${dir(v.vertical.azimuth)}`, v.vertical.gain_pct], [t('adv.flat'), v.flat.gain_pct], [`${t('adv.optimum')} ${dir(v.best.azimuth)} / ${v.best.tilt}°`, v.best.gain_pct]];
+      if (!v.basis) { parts.push(`<div class="item">${head}<div>${esc(t('adv.noBasis'))}</div><div>${esc(optText())}</div></div>`); continue; }
+      // Ohne bekannte Verschattung stehen die Alternativen auf null – dann gibt es keinen Hebel zu zeigen.
+      const opts = [];
+      if (v.same_azimuth) opts.push([`${t('adv.sameAz')} ${v.same_azimuth.tilt}°`, v.same_azimuth.gain_pct]);
+      if (v.vertical) opts.push([`${t('adv.vertical')} ${dir(v.vertical.azimuth)}`, v.vertical.gain_pct]);
+      if (v.flat) opts.push([t('adv.flat'), v.flat.gain_pct]);
+      if (v.best) opts.push([`${t('adv.optimum')} ${dir(v.best.azimuth)} / ${v.best.tilt}°`, v.best.gain_pct]);
       const best = opts.filter(o => (o[1] ?? 0) >= 5).sort((x, y) => (y[1] ?? 0) - (x[1] ?? 0))[0];
-      const lines = [`${dir(v.azimuth)}, ${t('adv.tilt')} ${v.tilt}° (${v.basis === 'config' ? t('adv.configured') : t('adv.estimated')}): ${v.kwh_kwp} ${t('adv.year')}, ${v.pct_of_best} % ${t('adv.ofBest')} (${dir(a.site_best.azimuth)}, ${a.site_best.tilt}°: ${a.site_best.kwh_kwp}). ${t('adv.winter')} ${v.winter_share_pct} % (${t('adv.optimum').toLowerCase()} ${v.best_winter_share_pct} %).`,
+      const lines = [`${dir(v.azimuth)}, ${t('adv.tilt')} ${v.tilt}° (${v.basis === 'config' ? t('adv.configured') : t('adv.estimated')}): ${v.kwh_kwp} ${t('adv.year')}${sb && v.pct_of_best != null ? `, ${v.pct_of_best} % ${t('adv.ofBest')} (${dir(sb.azimuth)}, ${sb.tilt}°: ${sb.kwh_kwp})` : ''}. ${t('adv.winter')} ${v.winter_share_pct} % (${t('adv.optimum').toLowerCase()} ${v.best_winter_share_pct} %).`,
                      opts.map(o => `${o[0]}: ${pct(o[1])}`).join(' · ')];
       if (v.shading && v.shading.length) for (const z of v.shading) lines.push(`${t('adv.shade')}: ${fill(t('adv.shadeText'), { from: z.time_from ?? '?', to: z.time_to ?? '?', a: z.az_from, b: z.az_to, r: Math.round(z.ratio * 100), loss: v.shading_loss_pct ?? 0 })}`);
       else lines.push(v.ratio_median == null ? `${t('adv.shade')}: ${t('adv.fewData')}.` : t('adv.noShade'));
       parts.push(`<div class="item" style="border-left-color:var(--accent)">${head}<span class="lever">${esc(best ? `${t('adv.lever')}: ${best[0]} (${pct(best[1])})` : t('adv.fine'))}</span>${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div>`);
     }
-    if (a.free_inputs > 0) parts.push(`<div class="item">${esc(fill(t('adv.free'), { n: a.free_inputs, dir: dir(a.site_best.azimuth) }))}</div>`);
+    if (a.free_inputs > 0 && sb) parts.push(`<div class="item">${esc(fill(t('adv.free'), { n: a.free_inputs, dir: dir(sb.azimuth) }))}</div>`);
     const el = $('advice'); el.className = parts.length ? '' : 'muted';
     el.innerHTML = parts.length ? `<div class="muted" style="font-size:12px;margin-bottom:6px">${esc(t('adv.period'))} ${a.period[0]} – ${a.period[1]} · ${new Date(a.updated * 1000).toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB')}</div>` + parts.join('') : esc(t('adv.none'));
   }
@@ -960,6 +1061,8 @@
     if (state.siteDirty && !rerender) return;   // eigene Eingabe nicht überschreiben
     $('site-lat').value = cfg.lat ?? ''; $('site-lon').value = cfg.lon ?? ''; $('site-q').value = cfg.name || ''; $('site-q').dataset.name = cfg.name || '';
     for (let i = 1; i <= 4; i++) { const c = (cfg.strings || {})[String(i)] || {}; $(`site-s${i}-tilt`).value = c.tilt ?? ''; $(`site-s${i}-az`).value = c.azimuth ?? ''; $(`site-s${i}-wp`).value = c.wp || ''; $(`site-s${i}-name`).value = (cfg.names || {})[String(i)] || ''; }
+    $('site-horizon').value = horizonText(cfg);
+    renderHorizonStatus();
     renderStringLabels();
   }
   function onWeatherCurrent(w) {
@@ -983,6 +1086,89 @@
       sel.onchange = pick; pick();
     } catch (e) { $('site-status').textContent = t('site.searcherr'); }
   }
+  // ------------------------------------------------------------------ Horizontmaske / horizon mask
+  // Schlichter Text, weil das nichts ist, was man täglich ändert: je Zeile ein Eintrag, Paare "Azimut=Höhe".
+  // Eine Zeile ohne Beschriftung ist die Maske am Ort der Module; eine Zeile "Name: …" eine zweite gemessene
+  // Maske für eine andere Stelle der Fläche (die Erkenntnisse vergleichen damit, was ein Umsetzen brächte).
+  // Was hier NICHT vorgesehen ist: ein erfundener Winterwert. Eine Maske gilt für den Zustand, in dem sie
+  // aufgenommen wurde; der kahle Zustand bekommt später eine eigene, gemessene Zeile oder gar keine.
+  const HZ_LABEL = { source: /^(quelle|source)$/i, residual: /^(restschatten|residual|rest)$/i, tree: /^(baum|tree)$/i };
+  const hzPairs = (rest) => {
+    const m = {}; let bad = null;
+    for (const tok of rest.split(/[\s,;]+/).filter(Boolean)) {
+      const x = tok.match(/^(\d{1,3})\s*[=:]\s*(-?\d{1,2}(?:[.,]\d+)?)$/);
+      if (!x) { bad = tok; continue; }
+      const az = Number(x[1]), el = Number(x[2].replace(',', '.'));
+      if (az > 360 || el < -5 || el > 90) { bad = tok; continue; }
+      m[String(az % 360)] = el;
+    }
+    return { mask: m, bad };
+  };
+  function parseHorizon(text) {
+    const out = { horizon: null, horizon_source: null, horizon_variants: null, horizon_residual: null, horizon_tree: null, bad: null };
+    for (const raw of String(text || '').split(/\r?\n/)) {
+      const line = raw.trim(); if (!line || line.startsWith('#')) continue;
+      const lab = line.match(/^([A-Za-zÄÖÜäöüß][\wÄÖÜäöüß .\-\/]{0,39}?)\s*:\s*(.*)$/);
+      const key = lab ? lab[1].trim() : '', rest = lab ? lab[2].trim() : line;
+      if (lab && HZ_LABEL.source.test(key)) { out.horizon_source = rest || null; continue; }
+      if (lab && HZ_LABEL.residual.test(key)) {
+        const r = rest.match(/(-?\d{1,2}(?:[.,]\d+)?)\s*(?:[-–…]|bis|to)?\s*(-?\d{1,2}(?:[.,]\d+)?)?/);
+        if (!r) { out.bad = out.bad || line; continue; }
+        const lo = Number(r[1].replace(',', '.')), hi = r[2] == null ? lo : Number(r[2].replace(',', '.'));
+        out.horizon_residual = [Math.min(lo, hi), Math.max(lo, hi)]; continue;
+      }
+      if (lab && HZ_LABEL.tree.test(key)) {
+        const h = rest.match(/(?:h(?:oehe|öhe|eight))\s*[=:]\s*(\d{1,2}(?:[.,]\d+)?)/i);
+        const a = rest.match(/(?:az|azimut|azimuth)\s*[=:]\s*(\d{1,3})\s*[-–]\s*(\d{1,3})/i);
+        if (!h || !a) { out.bad = out.bad || line; continue; }
+        out.horizon_tree = { height_m: Number(h[1].replace(',', '.')), az_from: Number(a[1]), az_to: Number(a[2]) };
+        continue;
+      }
+      const { mask, bad } = hzPairs(rest);
+      if (bad) out.bad = out.bad || bad;
+      if (!Object.keys(mask).length) { out.bad = out.bad || line; continue; }
+      if (lab) (out.horizon_variants = out.horizon_variants || {})[key] = mask;
+      else out.horizon = mask;
+    }
+    return out;
+  }
+  const hzLine = (m) => Object.keys(m).map(Number).sort((a, b) => a - b).map(a => `${a}=${m[String(a)]}`).join(' ');
+  function horizonText(cfg) {
+    const l = [];
+    if (cfg.horizon_source) l.push(`${lang === 'de' ? 'Quelle' : 'Source'}: ${cfg.horizon_source}`);
+    if (cfg.horizon && Object.keys(cfg.horizon).length) l.push(hzLine(cfg.horizon));
+    for (const [k, v] of Object.entries(cfg.horizon_variants || {})) l.push(`${k}: ${hzLine(v)}`);
+    if (cfg.horizon_residual) l.push(`${lang === 'de' ? 'Restschatten' : 'Residual'}: ${cfg.horizon_residual[0]}-${cfg.horizon_residual[1]}`);
+    const tr = cfg.horizon_tree;
+    if (tr) l.push(`${lang === 'de' ? 'Baum' : 'Tree'}: ${lang === 'de' ? 'hoehe' : 'height'}=${tr.height_m} az=${tr.az_from}-${tr.az_to}`);
+    return l.join('\n');
+  }
+  // Himmelssichtfaktor wie im Modell (solar.py): 1/2π · ∫ cos²(h) da, außerhalb der Stützstellen freier
+  // Himmel. Steht hier nur, damit die Seite dieselbe Zahl anzeigt, die der Dienst rechnet.
+  function hzSummary(m) {
+    const pts = Object.keys(m || {}).map(k => [Number(k), Number(m[k])]).sort((a, b) => a[0] - b[0]);
+    if (pts.length < 2) return null;
+    const el = a => {
+      if (a <= pts[0][0] || a >= pts[pts.length - 1][0]) return 0;
+      let i = 0; while (i + 1 < pts.length && pts[i + 1][0] < a) i++;
+      const [a0, h0] = pts[i], [a1, h1] = pts[i + 1];
+      return a1 === a0 ? h0 : h0 + (h1 - h0) * (a - a0) / (a1 - a0);
+    };
+    let s = 0; for (let a = 0; a < 360; a++) s += Math.cos(el(a + 0.5) * Math.PI / 180) ** 2;
+    return { n: pts.length, a: pts[0][0], b: pts[pts.length - 1][0], m: Math.max(...pts.map(x => x[1])), svf: Math.round(100 * s / 360) };
+  }
+  function renderHorizonStatus() {
+    const fill = (str, m) => str.replace(/\{(\w+)\}/g, (_, k) => m[k] ?? '');
+    const h = parseHorizon($('site-horizon').value);
+    const el = $('hz-status');
+    if (h.bad) { el.textContent = fill(t('hz.bad'), { what: h.bad }); el.style.color = 'var(--orange)'; return h; }
+    el.style.color = '';
+    const sum = h.horizon && hzSummary(h.horizon);
+    el.textContent = sum ? fill(t('hz.ok'), sum) : t('hz.none');
+    return h;
+  }
+  $('site-horizon').oninput = () => { markDirty(); renderHorizonStatus(); };
+
   $('site-search').onclick = siteSearch; $('site-q').onkeydown = e => { if (e.key === 'Enter') siteSearch(); };
   $('site-save').onclick = () => {
     const lat = parseFloat($('site-lat').value), lon = parseFloat($('site-lon').value);
@@ -992,15 +1178,45 @@
       if (!isNaN(tilt) && !isNaN(az)) strings[i] = { tilt, azimuth: az, wp: isNaN(wp) ? 0 : wp }; }
     const names = {}; for (let i = 1; i <= 4; i++) { const n = ($(`site-s${i}-name`).value || '').trim(); if (n) names[i] = n; }
     const cfg = { name: $('site-q').dataset.name || $('site-q').value.trim(), lat, lon, strings, names, updated: Math.floor(Date.now() / 1000) };
+    // Die Maske reist als eigene Felder mit: horizon (am Ort der Module), horizon_source/-_updated als
+    // Vermerk, woher sie stammt, und daneben Platz für eine zweite gemessene Maske, den Restschatten und
+    // den nahen Baum. horizon_updated wird nur neu gesetzt, wenn sich die Maske wirklich geändert hat –
+    // sonst stünde bei jedem Speichern ein neues Messdatum an einer alten Messung.
+    const hz = parseHorizon($('site-horizon').value);
+    if (hz.horizon && Object.keys(hz.horizon).length) {
+      const old = state.site || {};
+      const same = JSON.stringify(old.horizon || null) === JSON.stringify(hz.horizon);
+      cfg.horizon = hz.horizon;
+      cfg.horizon_source = hz.horizon_source || old.horizon_source || '';
+      cfg.horizon_updated = same && old.horizon_updated ? old.horizon_updated : cfg.updated;
+      if (hz.horizon_variants) cfg.horizon_variants = hz.horizon_variants;
+      if (hz.horizon_residual) cfg.horizon_residual = hz.horizon_residual;
+      if (hz.horizon_tree) cfg.horizon_tree = hz.horizon_tree;
+    }
     client.publish(`${BASE}/grolo/config/site`, JSON.stringify(cfg), { qos: 0, retain: true });
     // Namen zusätzlich flach für Telegraf -> InfluxDB -> Grafana-Variablen (leer = Standard "String n")
     client.publish(`${BASE}/grolo/config/string_names`, JSON.stringify({ s1: names[1] || `String 1`, s2: names[2] || `String 2`, s3: names[3] || `String 3`, s4: names[4] || `String 4`, updated: cfg.updated }), { qos: 0, retain: true });
     renderStringLabels();
     state.siteDirty = false; $('site-status').textContent = t('site.saved'); log(`→ ${t('log.site')}: ${cfg.name || ''} (${lat}, ${lon}), ${Object.keys(strings).length} Strings`, 'log-tx');
+    if (cfg.horizon) log(`→ ${t('log.horizon')}: ${Object.keys(cfg.horizon).length} ${lang === 'de' ? 'Stützstellen' : 'support points'}${cfg.horizon_source ? ' · ' + cfg.horizon_source : ''}`, 'log-tx');
   };
 
   // ------------------------------------------------------------------ Strompreis und Ersparnis / electricity price
-  const TARIFF_DEFAULTS = { price_ct_kwh: 30, feedin_ct_kwh: 0, system_cost_eur: 0 };
+  // gas_ct_kwh: Marktmittel Neukunden Deutschland, Stand 09/2026. Greift nur, solange das Feld leer ist;
+  // gerechnet wird die Vorgabe auf der Website (GAS_CT_KWH_MARKET), hier steht sie als Beleg und im
+  // placeholder des Felds. Gas-Grundpreis bewusst ohne Vorgabe – er schwankt zwischen den Anbietern zu stark.
+  const TARIFF_DEFAULTS = { price_ct_kwh: 30, feedin_ct_kwh: 0, system_cost_eur: 0, gas_ct_kwh: 11 };
+  // Der Nutzungsgrad des alten Kessels wird bei den Hausdaten gepflegt (boiler_eff in grolo/config/house)
+  // und gehört auch dorthin. Zur Website reist aber nur der Tarif – die Hausdaten bleiben im Haus. Damit
+  // sie den Gasvergleich trotzdem rechnen kann, fährt der Nutzungsgrad als Kopie im Tarif mit. Eine Kopie
+  // veraltet, deshalb schreibt sie jeder der beiden Speichern-Knöpfe neu; gepflegt wird weiter nur an
+  // einer Stelle. Ohne Angabe bleibt sie leer, und die Website lässt die Kachel weg.
+  const gasEff = () => {
+    const h = state.house && Number(state.house.boiler_eff);
+    if (h) return Math.round(h * 100) / 100;
+    const v = parseFloat($('house-eff').value);
+    return isNaN(v) || v <= 0 ? null : Math.round(v) / 100;
+  };
   const fmtCt = v => new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 1 }).format(v);
   const fmtEur = v => new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', { style: 'currency', currency: 'EUR' }).format(v);
   function onTariff(cfg, rerender = false) {
@@ -1009,6 +1225,7 @@
     const set = (id, v) => { const el = $(id); if (el && document.activeElement !== el) el.value = v ?? ''; };
     set('tariff-price', cfg.price_ct_kwh); set('tariff-feedin', cfg.feedin_ct_kwh ?? 0); set('tariff-cost', cfg.system_cost_eur || '');
     set('tariff-base', cfg.base_eur_month ?? ''); set('tariff-abschlag', cfg.abschlag_eur_month ?? '');
+    set('tariff-gas', cfg.gas_ct_kwh ?? ''); set('tariff-gasbase', cfg.gas_base_eur_month ?? '');
     $('tariff-cur').textContent = `${fmtCt(cfg.price_ct_kwh)} ct/kWh` + (cfg.system_cost_eur ? ` · ${fmtEur(cfg.system_cost_eur)}` : ''); $('tariff-cur').className = 'cur';
     renderTariffLive();
   }
@@ -1029,7 +1246,9 @@
     if (isNaN(price) || price < 0) { $('tariff-status').textContent = t('tariff.invalid'); return; }
     const num = id => { const v = parseFloat($(id).value); return isNaN(v) || v < 0 ? null : Math.round(v * 100) / 100; };
     const cfg = { price_ct_kwh: Math.round(price * 100) / 100, feedin_ct_kwh: Math.max(0, parseFloat($('tariff-feedin').value) || 0), system_cost_eur: Math.max(0, parseFloat($('tariff-cost').value) || 0),
-                  base_eur_month: num('tariff-base'), abschlag_eur_month: num('tariff-abschlag'), currency: 'EUR', updated: Math.floor(Date.now() / 1000) };
+                  base_eur_month: num('tariff-base'), abschlag_eur_month: num('tariff-abschlag'),
+                  gas_ct_kwh: num('tariff-gas'), gas_base_eur_month: num('tariff-gasbase'), gas_eff: gasEff(),
+                  currency: 'EUR', updated: Math.floor(Date.now() / 1000) };
     client.publish(`${BASE}/grolo/config/tariff`, JSON.stringify(cfg), { qos: 0, retain: true });
     $('tariff-status').textContent = t('tariff.saved'); log(`→ ${t('log.tariff')}: ${fmtCt(cfg.price_ct_kwh)} ct/kWh, ${t('tariff.feedin')} ${fmtCt(cfg.feedin_ct_kwh)}, ${t('tariff.cost')} ${cfg.system_cost_eur}`, 'log-tx');
     onTariff(cfg, true);
@@ -1199,6 +1418,14 @@
                   dhw_share: num('house-dhw', 100), battery_kwh: parseFloat($('house-battery').value) || null,
                   updated: Math.floor(Date.now() / 1000) };
     client.publish(`${BASE}/grolo/config/house`, JSON.stringify(cfg), { qos: 0, retain: true });
+    // Der Nutzungsgrad fährt als Kopie im Tarif mit (siehe gasEff). Ändert er sich hier, muss der Tarif
+    // nachgezogen werden – sonst rechnete die Website den Gasvergleich weiter mit dem alten Kessel.
+    // „nicht gesetzt" ist hier fehlend wie leer dasselbe, sonst schriebe jeder Speichern-Klick den Tarif neu.
+    if (state.tariff && (state.tariff.gas_eff ?? null) !== (cfg.boiler_eff ?? null)) {
+      const tf = Object.assign({}, state.tariff, { gas_eff: cfg.boiler_eff ?? null, updated: Math.floor(Date.now() / 1000) });
+      client.publish(`${BASE}/grolo/config/tariff`, JSON.stringify(tf), { qos: 0, retain: true });
+      onTariff(tf, true);
+    }
     $('house-status').textContent = t('house.saved');
     log(`→ ${t('log.house')}: ${cfg.gas_kwh_year || '–'} kWh Gas, ${cfg.area_m2 || '–'} m², ${cfg.battery_kwh || '–'} kWh`, 'log-tx');
     onHouse(cfg, true);
@@ -1219,114 +1446,6 @@
   }
   if ($('house-forecast')) $('house-forecast').innerHTML = `<span class="muted">${t('house.waiting')}</span>`;
 
-  // ------------------------------------------------------------------ Energiefluss / power flow (SVG wie auf der Website)
-  const FC = { pv: '#f2cc0c', house: '#ff9830', bat: '#73bf69', grid: '#5794f2', red: '#f2495c', muted: '#8e8e8e', panel: '#1c1f24' };
-  const fmtW = w => w == null ? '–' : Math.abs(w) < 1000 ? `${Math.round(w)} W` : `${(w / 1000).toFixed(2)} kW`;
-  const flowSpeed = w => { const a = Math.abs(w ?? 0); return a < 2 ? null : `${Math.max(0.5, Math.min(6, 6 - 5.5 * Math.min(1, a / 800))).toFixed(2)}s`; };
-  // Kante: Grundlinie plus drei kleine Pfeile, die in Flussrichtung entlanglaufen (Tempo nach Leistung); ohne Fluss gepunktet
-  const edge = (d, w, color, rev) => { const s = flowSpeed(w); if (!s) return `<path class="base" d="${d}"/><path class="fe idle" d="${d}" stroke="${color}"/>`; const secs = parseFloat(s);
-    return `<path class="base" d="${d}"/>` + [0, 1, 2].map(i => `<polygon points="-5,-3.5 4,0 -5,3.5" fill="${color}"><animateMotion dur="${s}" repeatCount="indefinite" begin="${-(i * secs / 3)}s" rotate="${rev ? 'auto-reverse' : 'auto'}" path="${d}" keyPoints="${rev ? '1;0' : '0;1'}" keyTimes="0;1" calcMode="linear"/></polygon>`).join(''); };
-  const node = (x, y, color, label, value, sub, icon, r = 30, right = false) => `<g transform="translate(${x} ${y})"><circle r="${r}" fill="${FC.panel}" stroke="${color}" stroke-width="2.5"/><g stroke="${color}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</g><text class="nl" y="${-r - 10}" text-anchor="middle">${label}</text>${right ? `<text class="nv" x="${r + 8}" y="5" text-anchor="start" fill="${color}">${value}</text>` : `<text class="nv" y="${r + 20}" text-anchor="middle" fill="${color}">${value}</text>`}${sub ? `<text class="ns" y="${r + 34}" text-anchor="middle">${sub}</text>` : ''}</g>`;
-  function renderFlow() {
-    const el = $('flow'); if (!el || !state.st) return;
-    const st = state.st, sh = state.shellyState;
-    const live = sh && sh.ok && sh.grid_w != null && sh.ts && (Date.now() / 1000 - sh.ts) < 600;   // Messwerte auch bei ausgeschalteter Regelung
-    // Gerätewerte und Zählerwerte sind zwei Quellen mit eigenen Zeitpunkten. Meldet der Dongle nichts mehr (GroBro
-    // setzt die Verfügbarkeit dann auf offline), ist die letzte Meldung schnell Minuten alt und darf nicht neben
-    // einem frischen Zählerwert als „jetzt" stehen – sonst hängt ein Ausgang von vorhin am Netzbezug von gerade.
-    // Der Reglerstatus trägt out_w und soc aus demselben Augenblick wie grid_w/household_w: die gelten dann,
-    // PV und Batterie bleiben unbekannt statt veraltet.
-    const stale = !!live && (state.avail === 'offline' || !state.stTs || (Date.now() - state.stTs) / 1000 >= 120);
-    const pv = stale ? null : [1, 2, 3, 4].reduce((a, i) => a + Number(st[`pv${i}Voltage`] || 0) * Number(st[`pv${i}Current`] || 0), 0);
-    const out = stale ? (sh.out_w != null ? Number(sh.out_w) : null) : (st.onGridPower != null ? (Number(st.onGridPower) - 30000) / 10 : null);
-    const bat = stale || out == null ? null : pv - out;
-    const soc = stale && sh.soc != null ? Number(sh.soc) : Number(st.totalBatteryPackSoc), lim = st.dischargeSocLimit != null ? Number(st.dischargeSocLimit) : null, packs = Number(st.batteryPackageQuantity) || null;
-    const acIn = (out ?? 0) < -2;   // Register 116 negativ: NEXA zieht aus dem Netz (AC-Laden)
-    const grid = live ? sh.grid_w : null, house = live ? sh.household_w : (out != null && !acIn ? out : null);
-    const gridDraw = (grid ?? 0) > 0; const hasGrid = grid != null;
-    const self = house && house > 0 && out != null && !acIn ? Math.max(0, Math.min(100, out / house * 100)) : null;
-    const socPct = isNaN(soc) ? 0 : Math.max(0, Math.min(100, soc)); const socColor = socPct <= (lim ?? 8) + 2 ? FC.red : socPct < 30 ? FC.house : FC.bat;
-    const batTxt = bat == null ? '' : `${bat > 2 ? '▲ ' : bat < -2 ? '▼ ' : ''}${fmtW(Math.abs(bat))} ${bat > 2 ? t('flow.charging') : bat < -2 ? t('flow.discharging') : t('flow.idle')}`;
-    // Im Kasten dieselbe Sprache wie beim Haus-Satz: beide Abgaben zusammen ergeben die Solarleistung oben.
-    const batFlow = bat == null ? '' : Math.abs(bat) > 2 ? `${bat > 0 ? '↓' : '↑'} ${t('flow.battery')}: ${fmtW(Math.abs(bat))}` : `${t('flow.battery')}: ${t('flow.idle')}`;
-    const limited = sh && sh.enabled && sh.limited;
-    const siteName = state.site && state.site.name ? state.site.name : t('flow.home');
-    // Restzeiten: der Energiebedarf je Prozentpunkt kommt gemessen aus dem Stack (retained grolo/battery).
-    // Ohne diese Zahl wird nichts angezeigt – eine Restzeit aus einer angenommenen Kapazität wäre geraten.
-    const whPct = state.battery && state.battery.wh_per_pct ? Number(state.battery.wh_per_pct) : null;
-    const fmtEta = m => m < 1 ? '< 1 min' : m < 90 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')} min`;
-    const eta = target => {
-      if (whPct == null || isNaN(soc) || bat == null || Math.abs(bat) < 5) return null;
-      const delta = target - socPct;
-      if (delta === 0 || (delta > 0 && bat <= 0) || (delta < 0 && bat >= 0)) return null;
-      const m = Math.abs(delta) * whPct / Math.abs(bat) * 60;
-      return m > 60 * 48 ? null : fmtEta(m);
-    };
-    const etaLimit = lim != null && socPct < lim ? eta(lim) : null;
-    const etaFull = eta(100);
-    const etaEmpty = lim != null && socPct > lim ? eta(lim) : null;
-    const etaLines = (etaLimit ? 1 : 0) + (etaFull ? 1 : 0) + (etaEmpty ? 1 : 0);
-    const etaTxt = (y, txt, color) => `<text class="ne" y="${y}" text-anchor="middle" fill="${color}">${txt}</text>`;
-    el.innerHTML = `<svg class="flow" viewBox="0 0 440 ${320 + etaLines * 17}" role="img">
-      ${edge('M85 92 L85 200', pv, FC.pv)}${edge('M160 222 C 176 222, 182 200, 193 192', out, acIn ? FC.grid : FC.house, acIn)}
-      ${hasGrid ? edge('M333 170 L263 170', grid, gridDraw ? FC.grid : FC.bat, !gridDraw) : '<path class="base" d="M263 170 L333 170" opacity=".3"/>'}
-      ${hasGrid ? `<text class="ns" x="298" y="188" text-anchor="middle" fill="${gridDraw ? FC.grid : FC.bat}">${gridDraw ? '←' : '→'} ${fmtW(Math.abs(grid))}</text>` : ''}
-      ${out != null && Math.abs(out) > 2 ? `<text class="ns" x="170" y="212" text-anchor="start" fill="${acIn ? FC.grid : FC.house}">${fmtW(Math.abs(out))}</text>` : ''}
-      ${node(85, 62, FC.pv, t('flow.solar'), fmtW(pv), '', '<circle r="7"/><path d="M0 -13 V-17 M0 13 V17 M-13 0 H-17 M13 0 H17 M-9 -9 L-12 -12 M9 9 L12 12 M9 -9 L12 -12 M-9 9 L-12 12"/>', 30, true)}
-      <g transform="translate(85 250)"><rect x="-75" y="-50" width="150" height="${100 + etaLines * 17}" rx="12" fill="${FC.panel}" stroke="${limited ? FC.house : FC.bat}" stroke-width="2.5"/>
-        <text class="nl" y="-34" text-anchor="middle">${t('flow.nexa')}${packs ? ` · ${packs} × ${t('flow.battery')}` : ''}</text>
-        <rect x="-62" y="-22" width="60" height="28" rx="4" fill="none" stroke="${FC.muted}" stroke-width="2"/><rect x="-1" y="-13" width="5" height="10" rx="1" fill="${FC.muted}"/>
-        <rect x="-59" y="-19" width="${Math.max(0, 54 * socPct / 100)}" height="22" rx="2" fill="${socColor}" opacity=".85"/>
-        ${lim != null ? `<line x1="${-59 + 54 * Math.min(100, lim) / 100}" x2="${-59 + 54 * Math.min(100, lim) / 100}" y1="-22" y2="6" stroke="${FC.red}" stroke-width="1.5" stroke-dasharray="2 2"/>` : ''}
-        <text class="nv" x="38" y="-3" text-anchor="middle" fill="${socColor}">${isNaN(soc) ? '–' : Math.round(soc) + ' %'}</text>
-        <text class="ns" y="22" text-anchor="middle" fill="${acIn ? FC.grid : FC.house}">${acIn ? `← ${t('flow.acIn')}: ${fmtW(-out)}` : `→ ${t('flow.home')}: ${fmtW(out)}`}</text>
-        <text class="ns" y="38" text-anchor="middle" fill="${bat != null && Math.abs(bat) > 2 ? (bat > 0 ? FC.bat : FC.house) : FC.muted}">${batFlow}</text>
-        ${etaLimit ? etaTxt(56, `${t('flow.etaTo')} ${Math.round(lim)} %: ${etaLimit}`, FC.red) : ''}
-        ${etaFull ? etaTxt(etaLimit ? 73 : 56, `${t('flow.etaTo')} 100 %: ${etaFull}`, FC.bat) : ''}
-        ${etaEmpty ? etaTxt(56, `${t('flow.etaTo')} ${Math.round(lim)} %: ${etaEmpty}`, FC.house) : ''}</g>
-      ${node(225, 170, FC.house, siteName, fmtW(house), self != null ? `${Math.round(self)} % ${t('flow.self')}` : '', '<path d="M-16 2 L0 -14 L16 2 M-12 -1 V14 H12 V-1 M-4 14 V5 H4 V14"/>', 36)}
-      ${node(365, 170, hasGrid ? (gridDraw ? FC.grid : FC.bat) : FC.muted, t('flow.grid'), hasGrid ? fmtW(Math.abs(grid)) : '–', hasGrid ? '' : t('flow.noGrid'), '<path d="M-9 14 L-4 -12 H4 L9 14 M-8 -4 H8 M-10 4 H10 M-4 -12 L-14 -6 M4 -12 L14 -6 M-6 14 L0 4 L6 14"/>')}
-    </svg>`;
-    const cell = (label, val, color) => `<div class="scell"><div class="sl">${label}</div><div class="sv"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
-    $('flow-cells').innerHTML = cell(t('flow.pv'), fmtW(pv), FC.pv) + (acIn ? cell(t('flow.acIn'), fmtW(-out), FC.grid) : cell(t('flow.out'), fmtW(out), FC.house)) + cell(t('flow.bat'), batTxt || '–', bat != null && bat > 2 ? FC.bat : bat != null && bat < -2 ? FC.house : '')
-      + cell(t('flow.soc'), isNaN(soc) ? '–' : `${Math.round(soc)} %`, socColor)
-      + (hasGrid ? cell(gridDraw ? t('flow.gridIn') : t('flow.gridOut'), fmtW(Math.abs(grid)), gridDraw ? FC.grid : FC.bat) + cell(t('flow.house'), fmtW(house), FC.house) : '');
-    const why = $('flow-why'); why.hidden = false; why.innerHTML = `<b>${t('flow.why')}:</b> ${explainSmart(pv, out, bat, soc, live)}`;
-  }
-  // Warum tut der Smart-Regler gerade das? (gleiche Logik wie app/explain.ts auf der Website)
-  function explainSmart(pv, out, bat, socDev, live) {
-    const sh = state.shellyState, cfg = state.shelly;
-    const fill = (k, m) => t(k).replace(/\{(\w+)\}/g, (_, x) => m[x] ?? '–');
-    const pct = v => v == null || isNaN(v) ? '–' : String(Math.round(v));
-    const batRaw = bat; out = out ?? 0; bat = bat ?? 0;
-    const soc = sh && sh.soc != null ? sh.soc : socDev, lim = sh ? sh.soc_limit : null;
-    const grid = live ? sh.grid_w : null, house = live ? sh.household_w : null, target = sh ? sh.target_w : null, setpoint = (sh && sh.setpoint_w) ?? 20, max = sh && sh.max_w != null ? sh.max_w : (cfg ? cfg.max_w : null);
-    const acIn = out < -2;
-    const m = { mode: state.st ? modeText(state.st.workMode) : '–', out: fmtW(Math.max(0, out)), acin: fmtW(-out), target: fmtW(target), house: fmtW(house), grid: fmtW(grid == null ? null : Math.abs(grid)), soc: pct(soc), lim: pct(lim), bat: fmtW(Math.abs(bat)), pv: fmtW(pv), setpoint: fmtW(setpoint), max: fmtW(max) };
-    // Ohne Gerätewerte (alte Meldung, Dongle weg) bleibt der Nachsatz weg, statt „Solar deckt das direkt (–)" zu schreiben.
-    const tail = acIn ? fill('x.acTail', m) : batRaw == null ? '' : bat > 2 ? fill('x.charging', m) : bat < -2 ? fill('x.discharging', m) : (out > 2 && pv != null ? fill('x.solarOnly', m) : '');
-    const enabled = (sh && sh.enabled) || (cfg && cfg.enabled);
-    // Seit der NEXA seinen eigenen Smart-Modus kann (gekoppelter Zaehler), heisst "Regler aus" nicht mehr "von Hand".
-    // "Grid First" ist die Beschriftung, die dieser Stack bis 09/2026 fuer denselben Geraete-Wert 2 geschrieben hat.
-    const rawMode = state.st ? String(state.st.workMode) : '';
-    const devSmart = rawMode === 'Smart' || rawMode === 'Grid First';
-    if (!enabled) return fill(acIn ? 'x.offAc' : (devSmart ? 'x.offDev' : 'x.off'), m) + (devSmart && !acIn ? tail : '') + (live && grid != null && grid > 0 ? fill('x.offGrid', m) : '');
-    if (!sh) return fill('x.noMeter', m) + tail;
-    if (sh.ok === false || sh.reason === 'shelly_unreachable') return fill('x.unreachable', m);
-    if (sh.reason === 'device_offline') return fill('x.offline', m);
-    if (sh.reason === 'wrong_mode') return fill('x.wrongMode', m);
-    if (sh.reason === 'battery_low') return fill('x.batteryLow', m);
-    if (sh.limited || sh.reason === 'device_limited') return fill('x.limited', m) + tail;
-    if (!live || grid == null) return fill('x.noMeter', m) + tail;
-    if (grid < -5) return fill('x.export', m) + tail;
-    if (grid > setpoint + 30 && max != null && target != null && target >= max - 1) return fill('x.atMax', m) + tail;
-    if (grid > setpoint + 30) return fill('x.raising', m) + tail;
-    return fill('x.balanced', m) + tail;
-  }
-  const _onState = onState; onState = function (device, st, rerender) { _onState(device, st, rerender); renderFlow(); };
-  const _onShellyState = onShellyState; onShellyState = function (st) { _onShellyState(st); renderFlow(); };
-  const _onShelly = onShelly; onShelly = function (cfg, quiet) { _onShelly(cfg, quiet); renderFlow(); };
-  const _onSiteConfig = onSiteConfig; onSiteConfig = function (cfg, rerender) { _onSiteConfig(cfg, rerender); renderFlow(); };
 })();
 </script>
 </body>

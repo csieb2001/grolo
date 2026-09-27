@@ -207,6 +207,18 @@ mosquitto_pub -h <host> -t homeassistant/number/grobro/<serial>/slot1_power/set 
 mosquitto_sub -h <host> -t 'homeassistant/+/grobro/<serial>/+/get' -v
 ```
 
+## The overview page
+
+Five thematic areas: **Now**, **Insights**, **Energy and costs**, **Warmth in the house**, **Plant and planning**,
+**Technical**. Long sections start collapsed (`<details>/<summary>`, so keyboard and screen reader work without
+extra code); the state is kept per viewer in `localStorage`, every access wrapped in try/catch — with the store
+blocked or empty the defaults apply and nothing breaks.
+
+A collapsed section must never be the reason someone misses a problem: each one carries its most important
+number in the header, in a warning colour when it matters — the SoC spread of the battery packs, a string with
+no yield while the others deliver, humidity above 60 % in n rooms, a cycling verdict of "warn". The **Insights**
+block cannot be collapsed at all; a section you can close is one you close and stop reading.
+
 ## Weather (Open-Meteo)
 
 The `weather` service fetches solar-relevant weather for the plant location from [Open-Meteo](https://open-meteo.com) (free, no
@@ -382,7 +394,10 @@ provide, and turns control requests from the page back into ISM7 writes.
 1. Put the Link's address and password into `.env`, and enable the profile the two services live in:
 
    ```
-   COMPOSE_PROFILES=wolf
+   # Every profile whose services should run has to be listed. A missing one does not stop the container,
+   # but compose no longer counts it as part of the project — and a later `docker compose up -d` removes it
+   # as an orphan. On 27.09.2026 only "wolf" was set here while tunnel, website, database and tado were running.
+   COMPOSE_PROFILES=wolf,tado,web,tunnel,cloud-poll
    WOLF_HOST=192.168.1.57
    WOLF_PASSWORD=<the device password>
    WOLF_EXPERT_PIN=1111        # code for the installer level of the control page, empty = no code
@@ -472,6 +487,22 @@ on `homeassistant/grolo/wolf/set/result` with a reason when it is refused. Devic
 - The `gateway` device (the Link's own network settings) has no eBus values, so it stays empty — that is why the check reports
   5 of 6 devices.
 
+### The patched ism7mqtt (firmware 5.20.6)
+
+Firmware **5.20.6** of the WOLF Link stops answering — keepalives included — when ism7mqtt sends all its push
+subscriptions at once during startup. About 90 s later the link drops the connection, ism7mqtt exits with code 0
+and Docker restarts it: a cycle of roughly 133 s, hundreds of restarts a day. Measured on 25.09.2026: 20, 40 and
+60 parameters (1–3 push bundles) run fine, 100 (5 bundles) dies after 96 s, the full 329 after ~133 s.
+
+The fix is [PR #239](https://github.com/zivillian/ism7mqtt/pull/239) ("Send push subscribes one at a time"),
+which is open and in no release — 0.0.22 is the latest. Therefore `scripts/wolf-build-patched.sh` builds the
+image `ism7mqtt:fw5` from the fork, pinned to a commit, and `docker-compose.yml` points the `wolf` service at it.
+Measured with all 329 parameters: 401 s without a single error message, then in production 11 min with restart
+count 0. **The image only exists locally on the host** — run the script again after rebuilding the LXC, otherwise
+the service will not start. Once the PR lands in a release, put `zivillian/ism7mqtt:latest` back.
+
+Check the firmware with `curl -s http://<ip>/status.xml` and look for `<fwver>`.
+
 ## Rooms (tado° X over Matter, fully local)
 
 tado offers **no local API** for the X line — their own words: "tado provides no local API — neither on their
@@ -519,6 +550,38 @@ capped at 1.5 K and at 23 °C absolute, never lowers anything, stays out of the 
 original target, including after a restart or a fault. Turn a thermostat by hand while it is raised and your
 value wins. Be realistic about the size: with 1.3 kWp and an 800 W output limit this earns cents, and least of
 all in winter when the heating actually runs.
+
+## Insights, shading mask and what the tree costs
+
+The `insights` service turns the raw data into sentences. Every statement carries its basis — *measured*,
+*modelled* or *thin* — because a number without that is worth little.
+
+**Shading map per string.** Sun azimuth and elevation are computed per sample, binned (5° × 2°) and the maximum
+per bin is kept, which filters clouds. Per string that shows where it drops out. Two limits worth knowing:
+a shadow that hits **all** strings equally is invisible to this comparison — only the absolute level betrays it;
+and the sector detector in `advice.py` measures against the median, so a **wide** shadow becomes the median
+itself and nothing stands out. That is why a measured horizon beats anything derived from operating data.
+
+**Horizon mask.** `grolo/config/site` takes a measured horizon (`horizon`, elevation in degrees per azimuth,
+plus `horizon_variants` for other spots on the same surface, `horizon_tree` and `horizon_residual`). Below the
+horizon the direct beam is **zero**, not damped — a trunk is not a grey filter. Diffuse and ground irradiance
+are scaled by the sky view factor. A measured mask takes priority over the derived profile and re-enables the
+optimum, which is otherwise withheld: an optimum from irradiance alone can point straight into an obstacle.
+
+For this site the mask was taken from the official surface model (bDOM20, 20 cm raster). The result: towards
+south the horizon stands at 63°, **above the highest sun this location ever sees** (59.8° on 21 June). Midday
+sun never reaches the surface, all year. That alone explains why the array delivers about a quarter of what the
+irradiance model expects.
+
+**Two suggestions, clearly marked as calculations.** From the mask the service derives what trimming the tree
+would bring (several steps, with the tree belt behind it left standing) and what moving the modules closer to
+the ridge would bring. Both are phrased in the conditional and carry `basis: "modelled"` — they stand next to
+measured values, and the confusion would be expensive. The numbers hold up better as percentages than as kWh:
+even with the mask the model overestimates by 20–30 %, and partial shading within a string is something a
+horizon mask cannot know.
+
+**What is deliberately not shown:** degradation rate, year-on-year comparison, an annual SPF, remaining battery
+life from a few weeks of cycles. They would look solid and be wrong.
 
 ## Annual forecast
 
@@ -706,6 +769,9 @@ The cloud IPs are configured in `.env` because `mqtt.growatt.com` resolves to yo
 | `web-push` | grobro image + `grobro/sidecar/web_push.py` | pushes cleaned samples, weather and heat pump data to the GroLo website |
 | `grolo-db` | postgres:18-alpine | database of the website, no published port (profile `web`) |
 | `grolo-web` | built from `../grolo-web` | the website itself (Next.js), no published port (profile `web`) |
+| `insights` | ghcr.io/robertzaage/grobro | draws conclusions from all sources and publishes them to `<BASE>/grolo/insights`: shading per string from sun position and power,
+  flow temperature against the bands of real installations, cycling, heating curve, hot-water timing, cell-voltage spread, standby and round-trip efficiency of the battery,
+  plus two *modelled* suggestions — what trimming the tree or moving the modules towards the ridge would bring (profile `web`, needs the website database) |
 | `cloudflared` | cloudflare/cloudflared | outbound tunnel that makes the chosen services reachable from the internet (profile `tunnel`) |
 | `shelly-control` | grobro image + `grobro/sidecar/shelly_control.py` | local zero-feed-in: reads a Shelly meter and steers the NEXA output power |
 | `wolf` | zivillian/ism7mqtt | ISM7 protocol to the WOLF Link on TLS 9092, one JSON topic per bus device (profile `wolf`) |
@@ -800,6 +866,7 @@ scripts/growatt-register-nexa.py  add a NEXA to a Growatt plant (no check code n
 scripts/fit-orientation.py   estimate tilt/azimuth per string from the measurements
 grobro/sidecar/forecast.py   annual forecast: consumption, bill and recommended monthly payment
 scripts/wolf-config.sh       ask the WOLF Link which devices are on the eBus -> wolf/parameter.json
+│  ├─ wolf-build-patched.sh   builds ism7mqtt with the fix for firmware 5.20.6 (see the heat pump chapter)
 scripts/wolf-catalog.py      build wolf/catalog.json from Wolf's own resources (names, units, limits, menus)
 scripts/wolf-dashboard.py    generates grafana/dashboards/wolf-de.json and wolf-en.json
 scripts/wolf-nexa-link.py    adds the heat pump row and link to the NEXA dashboards
