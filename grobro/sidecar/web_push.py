@@ -17,7 +17,8 @@ Wärmepumpe, Solar und Batterie Minute für Minute gegeneinander rechnen kann:
   heat.cycles   die seit dem letzten Push beendeten Verdichterläufe, einzeln
   heat.state.cycling  die Auswertung der Taktung samt Befund, unverändert aus der wolf-bridge
 Die Jahresprognose (Sidecar forecast) geht als "forecast" mit, sobald sie sich ändert, die Erkenntnisse aus der
-Messhistorie (Sidecar insights) als "insights" auf demselben Weg.
+Messhistorie (Sidecar insights) als "insights" auf demselben Weg. Die einzelnen Verbraucher (Sidecar consumers) gehen
+bei jedem Push als "consumers" mit, der letzte Stand – sie ändern sich alle paar Sekunden, ein Dirty-Flag spart nichts.
 
 Umgebung: WEB_URL (z. B. https://grolo.vercel.app), WEB_TOKEN, PUSH_INTERVAL (s, Standard 30), MQTT_HOST/MQTT_PORT, HA_BASE_TOPIC.
 """
@@ -68,7 +69,9 @@ site_cfg = {"cfg": None}   # retained grolo/config/site (String-Namen)
 tariff = {"cfg": None, "dirty": False}
 forecast = {"data": None, "dirty": False}   # Jahresprognose vom Sidecar forecast, geht mit, sobald sie sich ändert
 insights = {"data": None, "dirty": False}   # Erkenntnisse vom Sidecar insights, alle 10 min neu, gehen genauso mit
+house_chk = {"data": None, "dirty": False}      # Hauscheck, einmal am Tag – derselbe Weg
 tado = {"rooms": None}                      # Räume der tado-Bridge, gehen bei jedem Push mit
+consumers = {"data": None}                  # einzelne Verbraucher (Sidecar consumers), gehen bei jedem Push mit
 # Wärmepumpe: letzter Zustand je Gerät der wolf-bridge plus Mittelwerte des laufenden Intervalls
 wolf = {"state": {}, "derived": {}, "cycling": None, "n": 0, "sums": {}, "last": {}}
 WOLF_AVG = ("hp_w", "heat_w", "flow_c", "return_c", "dhw_c", "outside_c", "spread", "freq", "flow_lpm")
@@ -294,6 +297,12 @@ def on_message(client, userdata, msg):
         elif parts[-2:] == ["grolo", "insights"]:
             with lock:
                 insights["data"] = json.loads(msg.payload); insights["dirty"] = True
+        elif parts[-2:] == ["grolo", "house_check"]:
+            with lock:
+                house_chk["data"] = json.loads(msg.payload); house_chk["dirty"] = True
+        elif parts[-2:] == ["consumers", "state"]:
+            with lock:
+                consumers["data"] = json.loads(msg.payload)
         elif parts[-2:] == ["config", "tariff"]:
             with lock:
                 tariff["cfg"] = json.loads(msg.payload); tariff["dirty"] = True
@@ -330,9 +339,12 @@ def flush():
         forecast["dirty"] = False
         ins = insights["data"] if (insights["dirty"] and insights["data"]) else None
         insights["dirty"] = False
+        hc = house_chk["data"] if (house_chk["dirty"] and house_chk["data"]) else None
+        house_chk["dirty"] = False
         rooms = tado["rooms"]
+        cons = consumers["data"]
         heat = wolf_payload(now)
-    if not queue and not heat_queue and not cycle_queue and not info and not wx and not sh and not tf and not fc and not ins:
+    if not queue and not heat_queue and not cycle_queue and not info and not wx and not sh and not tf and not fc and not ins and not hc:
         return
     batch = list(queue)[:200]
     heat_batch = list(heat_queue)[:200]
@@ -350,8 +362,12 @@ def flush():
         body["forecast"] = fc
     if ins:
         body["insights"] = ins
+    if hc:
+        body["house_check"] = hc
     if rooms:
         body["rooms"] = rooms
+    if cons:
+        body["consumers"] = cons
     if heat or heat_batch or cycle_batch:
         body["heat"] = {**(heat or {}), "samples": heat_batch, "cycles": cycle_batch}
     req = urllib.request.Request(f"{URL}/api/ingest", data=json.dumps(body).encode(), method="POST",
@@ -370,7 +386,7 @@ def flush():
         LOG.info("gesendet: %d Samples%s%s (Antwort %s, Wetter %s%s), Puffer %d", len(batch),
                  f" + {len(heat_batch)} Wärmepumpe" if heat_batch else "",
                  f" + {len(cycle_batch)} Takte" if cycle_batch else "", res.get("inserted"), res.get("weather"),
-                 (", Tarif" if tf else "") + (", Erkenntnisse" if ins else ""),
+                 (", Tarif" if tf else "") + (", Erkenntnisse" if ins else "") + (", Hauscheck" if hc else ""),
                  len(queue) + len(heat_queue) + len(cycle_queue))
     except urllib.error.HTTPError as e:
         LOG.warning("HTTP %s von %s: %s", e.code, URL, e.read()[:200]); queue_save()
@@ -378,12 +394,14 @@ def flush():
             info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
             tariff["dirty"] = tariff["dirty"] or bool(tf); forecast["dirty"] = forecast["dirty"] or bool(fc)
             insights["dirty"] = insights["dirty"] or bool(ins)
+            house_chk["dirty"] = house_chk["dirty"] or bool(hc)
     except Exception as e:
         LOG.warning("Senden fehlgeschlagen (%s), Puffer %d", e, len(queue)); queue_save()
         with lock:
             info_pending.update(info); weather["dirty"] = weather["dirty"] or bool(wx); shelly["dirty"] = shelly["dirty"] or bool(sh)
             tariff["dirty"] = tariff["dirty"] or bool(tf); forecast["dirty"] = forecast["dirty"] or bool(fc)
             insights["dirty"] = insights["dirty"] or bool(ins)
+            house_chk["dirty"] = house_chk["dirty"] or bool(hc)
 
 
 def main():
@@ -395,8 +413,8 @@ def main():
                                                      c.subscribe([(f"{BASE}/grobro/+/state", 0), (f"{BASE}/grobro/+/dongle", 0), (f"{BASE}/grolo/weather/current", 0), (f"{BASE}/grolo/weather/forecast", 0), (f"{BASE}/grolo/pv_model", 0), (f"{BASE}/grolo/fit", 0), (f"{BASE}/grolo/advice", 0), (f"{BASE}/grolo/shelly/state", 0), (f"{BASE}/grolo/config/tariff", 0), (f"{BASE}/grolo/config/site", 0),
                                                                   (f"{BASE}/grolo/wolf/+/state", 0), (f"{BASE}/grolo/wolf/derived", 0),
                                                                   (f"{BASE}/grolo/wolf/cycling", 0), (f"{BASE}/grolo/wolf/cycle", 1),
-                                                                  (f"{BASE}/grolo/forecast", 0), (f"{BASE}/grolo/insights", 0),
-                                                                  (f"{BASE}/grolo/tado/rooms", 0)]))
+                                                                  (f"{BASE}/grolo/forecast", 0), (f"{BASE}/grolo/insights", 0), (f"{BASE}/grolo/house_check", 0),
+                                                                  (f"{BASE}/grolo/tado/rooms", 0), (f"{BASE}/grolo/consumers/state", 0)]))
     client.on_message = on_message
     while True:
         try:

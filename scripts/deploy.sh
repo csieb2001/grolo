@@ -10,7 +10,9 @@ set -euo pipefail
 HOST="${GROLO_HOST:-root@192.168.1.51}"
 SRC_STACK="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_WEB="${GROLO_WEB_SRC:-$SRC_STACK/../grolo-web}"
-EX=(--exclude .git --exclude node_modules --exclude .next --exclude .env --exclude NOTES.local.md --exclude .vscode)
+# grobro/dump: Mitschnitte, die cloud-gate im LXC schreibt (cloud_down/*.bin) – auf dem Mac gibt es sie nicht,
+# und ohne Ausnahme räumt --delete sie bei jedem Ausliefern ab.
+EX=(--exclude .git --exclude node_modules --exclude .next --exclude .env --exclude NOTES.local.md --exclude .vscode --exclude grobro/dump)
 
 echo "→ Stack nach $HOST:/opt/growatt"
 rsync -a --delete "${EX[@]}" "$SRC_STACK/" "$HOST:/opt/growatt/"
@@ -39,7 +41,9 @@ MANAGED=$(docker compose config --services 2>/dev/null | grep -c . || true)
 if [ "$RUNNING" != "$MANAGED" ]; then
   echo "WARNUNG: $RUNNING Container laufen, compose kennt nur $MANAGED. Pruefe COMPOSE_PROFILES in /opt/growatt/.env." >&2
 fi
-docker compose build grolo-web >/dev/null
+# Ausgabe nur im Fehlerfall: bis zum 18.10.2026 ging sie ganz nach /dev/null, und ein gescheiterter Build
+# meldete sich nur als nacktes „exit code: 1" ohne Grund.
+docker compose build grolo-web > /tmp/grolo-web-build.log 2>&1 || { tail -40 /tmp/grolo-web-build.log >&2; exit 1; }
 docker compose up -d --no-deps grolo-web
 docker compose restart settings shelly-control web-push
 REMOTE

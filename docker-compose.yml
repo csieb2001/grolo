@@ -178,6 +178,72 @@ services:
     volumes:
       - ./grobro/sidecar:/sidecar:ro
 
+  # Einzelne Verbraucher (Shelly-Steckdosen, Wärmepumpe, Brücken) für das Flussbild „Haus → Geräte"
+  consumers:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-consumers
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/consumers.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      INFLUX_URL: "http://influxdb:8086"
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      CONSUMERS_SUBNET: "${CONSUMERS_SUBNET:-192.168.1}"
+      CONSUMERS_HOSTS: "${CONSUMERS_HOSTS:-}"
+      PYTHONPATH: /sidecar:/app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - consumers-state:/state         # Tageszählerstände überleben einen Neustart
+
+  # Samsung-Waschmaschine und -Trockner über die SmartThings-Cloud (lokal bieten sie nichts an). Läuft erst,
+  # wenn smartthings.json im Volume liegt – einrichten mit `--setup`, siehe Kopf von smartthings_bridge.py.
+  smartthings:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-smartthings
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/smartthings_bridge.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - smartthings-state:/state       # OAuth-Token; das Refresh-Token gilt nur einmal und darf nicht verloren gehen
+
+  # SwitchBot-Messstecker über die SwitchBot-Cloud (Matter liefert nur Ein/Aus). Läuft erst, wenn switchbot.json
+  # im Volume liegt – einrichten mit `--setup <token> <secret>`, siehe Kopf von switchbot_bridge.py.
+  switchbot:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-switchbot
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/switchbot_bridge.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+      - switchbot-state:/state         # Token und Secret
+
   # Wetter für den Anlagenstandort (Open-Meteo, kostenlos, ohne Schlüssel): aktuell + 48 h Vorhersage
   weather:
     image: ghcr.io/robertzaage/grobro:latest
@@ -298,6 +364,38 @@ services:
       MQTT_PORT: "1883"
       HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
       INSIGHTS_INTERVAL: "${INSIGHTS_INTERVAL:-600}"
+      DATABASE_URL: "postgres://${PGUSER:-grolo}:${PGPASSWORD}@grolo-db:5432/${PGDATABASE:-grolo}"
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: "${INFLUX_TOKEN}"
+      INFLUX_ORG: "${INFLUX_ORG:-growatt}"
+      INFLUX_BUCKET: "${INFLUX_BUCKET:-nexa}"
+      PYTHONPATH: /sidecar:/app
+      TZ: "${TZ:-Europe/Berlin}"
+    volumes:
+      - ./grobro/sidecar:/sidecar:ro
+
+  # ---------------- Hauscheck ----------------
+  # Einmal am Tag (HOUSE_CHECK_HOUR, Standard 6 Uhr) die kritischen Punkte des Hauses als Kacheln:
+  # Datenfrische, Anlagendruck, Schimmelrisiko, Räume, Warmwasser, Akku, Grundlast, PV – kurzfristig – und
+  # Druckverlust, Wärme je Gradtag, Grundlast über Monate, PV- und Akku-Alterung langfristig. Retained auf
+  # <BASE>/grolo/house_check, Neuberechnung von Hand mit einer Nachricht an <BASE>/grolo/house_check/run.
+  house-check:
+    image: ghcr.io/robertzaage/grobro:latest
+    container_name: grolo-house-check
+    restart: unless-stopped
+    profiles: ["web"]            # liest dieselbe Website-Datenbank wie insights
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      grolo-db:
+        condition: service_healthy
+    entrypoint: ["python", "/sidecar/house_check.py"]
+    working_dir: /app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      HA_BASE_TOPIC: "${HA_BASE_TOPIC:-homeassistant}"
+      HOUSE_CHECK_HOUR: "${HOUSE_CHECK_HOUR:-6}"
       DATABASE_URL: "postgres://${PGUSER:-grolo}:${PGPASSWORD}@grolo-db:5432/${PGDATABASE:-grolo}"
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: "${INFLUX_TOKEN}"
@@ -597,3 +695,6 @@ volumes:
   matter-data:
   heatshift-state:
   wolf-state:
+  consumers-state:
+  smartthings-state:
+  switchbot-state:
