@@ -207,11 +207,25 @@ def day_save():
         LOG.debug("Tageswerte sichern: %s", e)
 
 
+def integrate_kwh(key, w, now):
+    """Bezug seit Mitternacht aus der Leistung über die Zeit (Rechteck je Abfrage) – für Geräte, deren eigener
+    Tageszähler nicht taugt. Der SwitchBot-Wert usedElectricity sprang am 18.10.2026 ohne Last von 0,36 auf
+    1,44 kWh und stieg bei ausgeschaltetem Stecker; ein Jahresverbrauch darauf wäre Unsinn. Lücken über
+    5 Minuten zählen nicht mit, damit ein Ausfall der Brücke keine erfundene Energie einträgt."""
+    today_kwh(key, None, None)                  # setzt den Tag um Mitternacht zurück
+    days.setdefault("int", {}); days.setdefault("int_ts", {})
+    last = days["int_ts"].get(key)
+    if w is not None and last is not None and 0 < now - last < 300:
+        days["int"][key] = days["int"].get(key, 0.0) + max(0.0, w) * (now - last) / 3600.0
+    days["int_ts"][key] = now
+    return round(days["int"].get(key, 0.0) / 1000.0, 4)
+
+
 def today_kwh(key, total_wh, ret_wh):
     """Bezug seit Mitternacht in kWh aus dem Zählerstand. Der erste Stand des Tages ist die Basis."""
     today = time.strftime("%Y-%m-%d")
     if days["day"] != today:
-        days.update({"day": today, "start": {}, "ret_start": {}})
+        days.update({"day": today, "start": {}, "ret_start": {}, "int": {}, "int_ts": {}})
     if total_wh is None:
         return None, None
     start = days["start"].setdefault(key, total_wh)
@@ -347,8 +361,10 @@ def collect():
             c = item_cfg(cid)
             name = c.get("name") or p.get("name") or cid
             items.append({"id": cid, "name": name, "icon": c.get("icon") or p.get("icon") or guess_icon(name),
-                          "kind": p.get("kind") or "ext", "w": num(p.get("w")), "kwh_today": num(p.get("kwh_today")),
+                          "kind": p.get("kind") or "ext", "w": num(p.get("w")),
+                          "kwh_today": integrate_kwh(cid, num(p.get("w")), now) if p.get("integrate") else num(p.get("kwh_today")),
                           "state": p.get("state"), "remaining_min": num(p.get("remaining_min")),
+                          "estimated": bool(p.get("estimated")),
                           "role": c.get("role") if c.get("role") not in (None, "auto") else "consumer",
                           "ok": p.get("ok", True)})
     return items

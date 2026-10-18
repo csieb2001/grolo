@@ -20,7 +20,12 @@ Die Jahresprognose (Sidecar forecast) geht als "forecast" mit, sobald sie sich �
 Messhistorie (Sidecar insights) als "insights" auf demselben Weg. Die einzelnen Verbraucher (Sidecar consumers) gehen
 bei jedem Push als "consumers" mit, der letzte Stand – sie ändern sich alle paar Sekunden, ein Dirty-Flag spart nichts.
 
-Umgebung: WEB_URL (z. B. https://grolo.vercel.app), WEB_TOKEN, PUSH_INTERVAL (s, Standard 30), MQTT_HOST/MQTT_PORT, HA_BASE_TOPIC.
+Daneben ein schneller Weg nur für das Flussbild: alle LIVE_INTERVAL Sekunden der letzte Rohstand von NEXA, Zähler und
+Verbrauchern an /api/ingest/live, ohne Mittelung und ohne Datenbank. Mit nur dem 30-s-Weg (Push 30 s + Seite 30 s)
+stand eine eben angesprungene Wärmepumpe bis zu einer Minute im „Rest".
+
+Umgebung: WEB_URL (z. B. https://grolo.vercel.app), WEB_TOKEN, PUSH_INTERVAL (s, Standard 30), LIVE_INTERVAL (s, Standard 5,
+0 = aus), MQTT_HOST/MQTT_PORT, HA_BASE_TOPIC.
 """
 import json, logging, os, threading, time, urllib.request, urllib.error
 from collections import deque
@@ -30,6 +35,7 @@ BASE = os.getenv("HA_BASE_TOPIC", "homeassistant")
 HOST = os.getenv("MQTT_HOST", "mosquitto"); PORT = int(os.getenv("MQTT_PORT", "1883"))
 URL = os.getenv("WEB_URL", "").rstrip("/"); TOKEN = os.getenv("WEB_TOKEN", "")
 INTERVAL = int(os.getenv("PUSH_INTERVAL", "30"))
+LIVE_INTERVAL = float(os.getenv("LIVE_INTERVAL", "5"))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 LOG = logging.getLogger("web-push")
 
@@ -72,6 +78,7 @@ insights = {"data": None, "dirty": False}   # Erkenntnisse vom Sidecar insights,
 house_chk = {"data": None, "dirty": False}      # Hauscheck, einmal am Tag – derselbe Weg
 tado = {"rooms": None}                      # Räume der tado-Bridge, gehen bei jedem Push mit
 consumers = {"data": None}                  # einzelne Verbraucher (Sidecar consumers), gehen bei jedem Push mit
+nexa_live = {}                              # device -> (letzter Rohstand, Empfangszeit) für den schnellen Weg
 # Wärmepumpe: letzter Zustand je Gerät der wolf-bridge plus Mittelwerte des laufenden Intervalls
 wolf = {"state": {}, "derived": {}, "cycling": None, "n": 0, "sums": {}, "last": {}}
 WOLF_AVG = ("hp_w", "heat_w", "flow_c", "return_c", "dhw_c", "outside_c", "spread", "freq", "flow_lpm")
@@ -245,6 +252,7 @@ def on_message(client, userdata, msg):
             with lock:
                 a = acc.setdefault(device, {"n": 0, "pv": 0.0, "out": 0.0, "bat": 0.0, "soc": 0.0, "last": None})
                 a["n"] += 1; a["pv"] += d["pv_w"]; a["out"] += d["out_w"]; a["bat"] += d["bat_w"]; a["soc"] += d["soc"]; a["last"] = d
+                nexa_live[device] = (d, time.time())
         elif parts[-2:] == ["weather", "current"]:
             with lock:
                 weather["current"] = json.loads(msg.payload); weather["dirty"] = True
@@ -404,6 +412,26 @@ def flush():
             house_chk["dirty"] = house_chk["dirty"] or bool(hc)
 
 
+def live_loop():
+    """Der schnelle Weg: kleiner Rohstand, kein Puffer, kein Nachholen – was verpasst ist, ist ohnehin veraltet."""
+    while True:
+        time.sleep(LIVE_INTERVAL)
+        now = time.time()
+        with lock:
+            nx = None
+            if nexa_live:
+                device, (d, t) = max(nexa_live.items(), key=lambda kv: kv[1][1])
+                nx = {"device": device, "pv_w": round(d["pv_w"], 1), "out_w": round(d["out_w"], 1), "bat_w": round(d["bat_w"], 1),
+                      "soc": d["soc"], "age_s": round(now - t, 1)}
+            body = {"ts": int(now), "nexa": nx, "shelly": shelly["state"], "consumers": consumers["data"]}
+        req = urllib.request.Request(f"{URL}/api/ingest/live", data=json.dumps(body).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"})
+        try:
+            urllib.request.urlopen(req, timeout=5).read()
+        except Exception as e:
+            LOG.debug("live: %s", e)
+
+
 def main():
     if not URL or not TOKEN:
         LOG.error("WEB_URL oder WEB_TOKEN fehlt"); time.sleep(3600); return
@@ -422,6 +450,8 @@ def main():
         except Exception as e:
             LOG.warning("MQTT nicht erreichbar (%s)", e); time.sleep(5)
     client.loop_start()
+    if LIVE_INTERVAL > 0:
+        threading.Thread(target=live_loop, daemon=True).start()
     while True:
         time.sleep(INTERVAL)
         try:

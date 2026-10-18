@@ -22,11 +22,22 @@ import paho.mqtt.client as mqtt
 
 BASE = os.getenv("HA_BASE_TOPIC", "homeassistant")
 HOST = os.getenv("MQTT_HOST", "mosquitto"); PORT = int(os.getenv("MQTT_PORT", "1883"))
-INTERVAL = float(os.getenv("SB_INTERVAL", "60"))
+INTERVAL = float(os.getenv("SB_INTERVAL", "0"))   # 0 = nach Tagesbudget (siehe BUDGET)
+# Die API erlaubt 10 000 Aufrufe am Tag. Davon gehen ~150 an die Geräteliste; der Rest wird gleichmäßig auf die
+# Stecker verteilt, mit Reserve: bei vier Steckern alle ~38 s, bei acht alle ~77 s. Schneller als 20 s nie.
+BUDGET = 9000
 STATE_DIR = os.getenv("STATE_DIR", "/state")
 CRED_FILE = os.path.join(STATE_DIR, "switchbot.json")
 API = "https://api.switch-bot.com/v1.1"
 METERING = ("Plug Mini", "Plug", "Relay Switch 1PM")   # Gerätetypen mit Leistungsmessung
+# Standby: Der Plug Mini meldet unter etwa 0,5 W „power": 0, obwohl Strom fließt (TV im Standby: 0 W bei 15 mA).
+# Strom × Spannung allein wäre die Scheinleistung und bei Standby-Netzteilen ein Vielfaches der Wirkleistung.
+# Deshalb wird je Stecker der Leistungsfaktor gelernt, wann immer er beides meldet, und im Standby damit
+# hochgerechnet. Ohne Lernwert gilt PF_DEFAULT. Der war zuerst 0,15 (Kühlschrank-Stecker: 0,9 W bei 28 mA) und
+# lag damit fünffach zu hoch: die SwitchBot-App zeigt für den Fernseher im Standby 0,1 W bei 15 mA, also ≈ 0,03
+# (18.10.2026). Standby-Netzteile streuen so stark, dass der kleinere Wert die ehrlichere Vorgabe ist.
+PF_DEFAULT = 0.03
+PF_MIN_W = 0.5        # darunter meldet der Stecker 0 – die Schätzung bleibt deshalb unter dieser Grenze
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 LOG = logging.getLogger("switchbot")
 
@@ -76,10 +87,13 @@ def main():
             LOG.warning("MQTT nicht erreichbar (%s)", e); time.sleep(5)
     client.loop_start()
     plugs, plugs_at = [], 0.0
+    pf = {}               # deviceId -> gelernter Leistungsfaktor
     while True:
         t0 = time.time()
         try:
-            if t0 - plugs_at > 3600 or not plugs:
+            # Geräteliste alle 10 min: sie trägt die Namen aus der App, und eine Umbenennung soll nicht eine
+            # Stunde auf sich warten lassen. Kostet einen Aufruf, bei 10 000 am Tag kein Thema.
+            if t0 - plugs_at > 600 or not plugs:
                 plugs = [d for d in api(cred, "/devices").get("deviceList", [])
                          if any(m in (d.get("deviceType") or "") for m in METERING)]
                 plugs_at = t0
@@ -93,8 +107,19 @@ def main():
                     client.publish(f"{BASE}/grolo/consumers/ext/sb-{did}", json.dumps({"name": d.get("deviceName"), "kind": "switchbot", "ok": False}), retain=True)
                     continue
                 used = num(st.get("usedElectricity"))
-                p = {"name": d.get("deviceName") or did, "kind": "switchbot", "w": num(st.get("power")),
-                     "kwh_today": None if used is None else round(used / 1000.0, 3),
+                w, v, ma = num(st.get("power")), num(st.get("voltage")), num(st.get("electricCurrent"))
+                estimated = False
+                # Nur aus kleinen Lasten lernen: im Betrieb hat ein Fernseher einen Leistungsfaktor um 0,9, im
+                # Standby um 0,1–0,2. Ein im Betrieb gelernter Faktor würde den Standby um das Fünffache überschätzen.
+                if w and v and ma and 0 < w < 3 and ma > 0:
+                    f = max(0.05, min(1.0, w / (v * ma / 1000.0)))
+                    pf[did] = f if did not in pf else 0.8 * pf[did] + 0.2 * f
+                elif w == 0 and v and ma and ma > 0 and st.get("switchStatus") == 1:
+                    w = round(min(PF_MIN_W, v * ma / 1000.0 * pf.get(did, PF_DEFAULT)), 2); estimated = True
+                p = {"name": d.get("deviceName") or did, "kind": "switchbot", "w": w, "estimated": estimated,
+                     # usedElectricity springt und steigt auch ohne Last – den Tagesverbrauch rechnet consumers.py
+                     # aus der Leistung (integrate). Der Rohwert geht nur zur Kontrolle mit.
+                     "integrate": True, "used_raw": used,
                      "voltage": num(st.get("voltage")), "current_ma": num(st.get("electricCurrent")),
                      "state": "on" if st.get("switchStatus") == 1 else "off", "ok": True}
                 client.publish(f"{BASE}/grolo/consumers/ext/sb-{did}", json.dumps(p), retain=True)
@@ -102,7 +127,8 @@ def main():
             LOG.warning("SwitchBot HTTP %s: %s", e.code, e.read()[:200])
         except Exception as e:
             LOG.warning("SwitchBot: %s", e)
-        time.sleep(max(5.0, INTERVAL - (time.time() - t0)))
+        every = INTERVAL or max(20.0, len(plugs) * 86400.0 / BUDGET)
+        time.sleep(max(5.0, every - (time.time() - t0)))
 
 
 if __name__ == "__main__":
