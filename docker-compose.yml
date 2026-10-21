@@ -489,6 +489,9 @@ services:
     image: ism7mqtt:fw5
     container_name: grolo-wolf
     restart: unless-stopped
+    # Nach einem Absturz nicht sofort wieder anmelden: jeder Start fragt alle Parameter auf einmal ab, und am
+    # 18.10.2026 waren das 52 Starts in drei Stunden gegen einen Link, der ohnehin gerade wackelte.
+    entrypoint: ["/bin/sh", "-c", "sleep ${WOLF_START_DELAY:-60}; exec /app/ism7mqtt"]
     profiles: ["wolf"]
     depends_on:
       mosquitto:

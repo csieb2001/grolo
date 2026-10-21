@@ -18,8 +18,13 @@ Quellen:
           name, w, kwh_today, icon, state, ok). So kommen Geräte dazu, die über eine eigene Brücke laufen
           (SmartThings, Home Connect), ohne dass dieser Dienst ihr Protokoll kennt.
 
+  virtual Geräte ohne Messung mit festem Mittelwert aus dem Datenblatt (Konfiguration „virtual"), etwa ein
+          Einbau-Kühlschrank ohne erreichbare Steckdose: 201 kWh/a → 23 W. Bei Kühlgeräten liefert Home Connect keinen
+          Kompressorzustand, nur Tür und Sondermodi – genauer als der Jahresmittelwert wird es ohne Messung nicht.
+
 Konfiguration retained <BASE>/grolo/config/consumers (Einstellungsseite):
-  {"devices": {"<id>": {"name": "Trockner", "icon": "dryer", "role": "auto|consumer|source|hidden"}}}
+  {"devices": {"<id>": {"name": "Trockner", "icon": "dryer", "role": "auto|consumer|source|hidden"}},
+   "virtual": {"<id>": {"name": "Kühlschrank - Küche", "icon": "fridge", "kwh_year": 201}}}   (oder "w": 23)
   role source = die Steckdose misst einen Erzeuger (z. B. den Wechselrichter am Balkon) – sie gehört nicht in
   die Verbraucherliste. „auto" entscheidet nach der Richtung: wer über den Tag mehr zurückspeist als bezieht,
   ist ein Erzeuger.
@@ -56,7 +61,12 @@ LOG = logging.getLogger("consumers")
 lock = threading.Lock()
 cfg = {"devices": {}}
 shellies = {}        # id -> {"host", "gen", "model", "name", "channels": [(kind, n)]}
-wolf = {"w": None, "kwh_today": None, "ts": 0.0}
+wolf = {"w": None, "kwh_today": None, "ts": 0.0, "seen": None}   # seen: Zeit des letzten ECHTEN Werts der Wärmepumpe
+# Die wolf-bridge veröffentlicht derived auch dann weiter, wenn der WOLF Link weg ist – mit dem letzten bekannten
+# Stand. Am 18.10.2026 stand so eine halbe Stunde „600 W, Betrieb" im Fächer, während der Link nicht einmal auf
+# Ping antwortete und die Wärmepumpe längst aus war; der Rest fiel auf 0. Maßgeblich ist deshalb das Alter aus
+# <BASE>/grolo/wolf/status, nicht der Takt von derived.
+WOLF_STALE_S = 300
 # Eichung Wolf-Wert → Mehrverbrauch am Hauszähler. Startwerte aus der Woche bis 18.10.2026, bis die erste eigene
 # Rechnung vorliegt.
 wolf_cal = {"slope": 0.70, "offset": 65.0, "n": 0, "basis": "prior", "at": 0}
@@ -135,6 +145,11 @@ def identify(host):
         if not chans:
             return None
         name = (sc.get("device") or {}).get("name")
+        if not name and len(chans) == 1:            # manche Apps benennen nur den Schaltkanal, nicht das Gerät
+            try:
+                name = get_json(f"http://{host}/rpc/{chans[0][0].capitalize()}.GetConfig?id={chans[0][1]}").get("name")
+            except Exception:
+                pass
         did = d.get("id") or host
         return {"host": host, "gen": gen, "model": model, "id": did, "name": name, "channels": [(k, int(n)) for k, n in chans]}
     # Gen1: Leistung unter meters[], Name in /settings
@@ -337,8 +352,12 @@ def collect():
             name = c.get("name") or dev.get("name") or (dev["model"] + (f" {n + 1}" if len(chans) > 1 else ""))
             role = c.get("role") or "auto"
             if role == "auto":
-                # Mehr zurückgespeist als bezogen (heute oder gerade deutlich negativ): ein Erzeuger
-                role = "source" if ((ret_kwh or 0) > max(0.01, kwh or 0) or (w is not None and w < -5)) else "consumer"
+                # Mehr zurückgespeist als bezogen (heute oder gerade deutlich negativ): ein Erzeuger. Die Einstufung
+                # bleibt hängen – sonst wechselte die Steckdose am Wechselrichter nachts bei 0 W in die Verbraucherliste.
+                src = days.setdefault("sources", [])
+                if ((ret_kwh or 0) > max(0.01, kwh or 0) or (w is not None and w < -5)) and cid not in src:
+                    src.append(cid)
+                role = "source" if cid in src else "consumer"
             items.append({"id": cid, "name": name, "icon": c.get("icon") or guess_icon(name), "kind": "shelly",
                           "host": dev["host"], "model": dev["model"], "w": None if w is None else round(w, 1),
                           "kwh_today": None if kwh is None else round(kwh, 3), "role": role, "ok": ok})
@@ -346,14 +365,29 @@ def collect():
     with lock:
         if wolf["ts"] and now - wolf["ts"] < 600:
             c = item_cfg("wolf")
-            w = wolf_real(wolf["w"])
+            stale = wolf["seen"] is not None and now - wolf["seen"] > WOLF_STALE_S
+            w = None if stale else wolf_real(wolf["w"])
             items.append({"id": "wolf", "name": c.get("name") or "Wärmepumpe", "icon": c.get("icon") or "heatpump",
-                          "kind": "wolf", "w": None if w is None else round(w, 1), "w_reported": wolf["w"],
+                          "kind": "wolf", "w": None if w is None else round(w, 1), "w_reported": None if stale else wolf["w"],
+                          "state": "offline" if stale else None,
                           "estimated": True, "cal": dict(wolf_cal), "kwh_today_reported": wolf["kwh_today"],
                           # Der Tageszähler der Wolf ist aus derselben Rechnung gebildet: geeicht wie die Leistung,
                           # der Sockel der Geraden über die Laufzeit des Tages
                           "kwh_today": None if wolf["kwh_today"] is None else round(
                               wolf["kwh_today"] * wolf_cal["slope"] + wolf_cal["offset"] * (wolf.get("run_min") or 0) / 60000.0, 2),
+                          "role": c.get("role") if c.get("role") not in (None, "auto") else "consumer", "ok": not stale})
+        for cid, v in (cfg.get("virtual") or {}).items():
+            w = num(v.get("w"))
+            if w is None and num(v.get("kwh_year")) is not None:
+                w = num(v["kwh_year"]) * 1000.0 / 8760.0
+            if w is None:
+                continue
+            vid = f"virt-{cid}"
+            c = item_cfg(vid)                       # Umbenennen auf der Einstellungsseite gilt auch für virtuelle Geräte
+            name = c.get("name") or v.get("name") or cid
+            items.append({"id": vid, "name": name, "icon": c.get("icon") or v.get("icon") or guess_icon(name),
+                          "kind": "virtual", "w": round(w, 1), "estimated": True,
+                          "kwh_today": integrate_kwh(vid, w, now),
                           "role": c.get("role") if c.get("role") not in (None, "auto") else "consumer", "ok": True})
         for cid, p in ext.items():
             if now - p.get("_ts", 0) > EXT_STALE_S:
@@ -404,11 +438,25 @@ def on_message(client, userdata, msg):
                     wolf["w"] = num(d["strom_w"]); wolf["ts"] = time.time()
                 if d.get("laufzeit_min_heute") is not None:
                     wolf["run_min"] = num(d["laufzeit_min_heute"])
+        elif parts[-2:] == ["wolf", "status"]:
+            d = json.loads(msg.payload)
+            hp = next((x for x in d.get("devices", []) if x.get("id") == "heatpump"), None)
+            with lock:
+                wolf["seen"] = None if not hp or hp.get("age") is None else float(d.get("ts", time.time())) - float(hp["age"])
         elif parts[-3:] == ["wolf", "heatpump", "state"]:
             d = json.loads(msg.payload)
             with lock:
                 if d.get("verbrauch_aktueller_tag") is not None:
                     wolf["kwh_today"] = num(d["verbrauch_aktueller_tag"])
+        elif parts[-2:] == ["consumers", "identify"]:
+            # Knopf „LED blinken" der Einstellungsseite: Shelly.Identify lässt die LED des Steckers blinken, ohne
+            # zu schalten – wichtig, denn hinter einem Stecker kann das IT-Rack hängen.
+            cid = msg.payload.decode().strip().split(":")[0]
+            with lock:
+                dev = shellies.get(cid)
+            if dev and dev["gen"] >= 2:
+                threading.Thread(target=lambda h=dev["host"]: _safe(lambda: get_json(f"http://{h}/rpc/Shelly.Identify")), daemon=True).start()
+                LOG.info("LED blinkt: %s (%s)", cid, dev["host"])
         elif len(parts) >= 2 and parts[-2] == "ext" and parts[-3] == "consumers":
             with lock:
                 if not msg.payload:
@@ -431,7 +479,8 @@ def main():
     client = mqtt.Client(client_id="grolo-consumers", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = lambda c, u, f, rc, p=None: c.subscribe([
         (f"{BASE}/grolo/config/consumers", 0), (f"{BASE}/grolo/wolf/derived", 0),
-        (f"{BASE}/grolo/wolf/heatpump/state", 0), (f"{BASE}/grolo/consumers/ext/+", 0)])
+        (f"{BASE}/grolo/wolf/heatpump/state", 0), (f"{BASE}/grolo/wolf/status", 0), (f"{BASE}/grolo/consumers/ext/+", 0),
+        (f"{BASE}/grolo/consumers/identify", 0)])
     client.on_message = on_message
     mqtt_watchdog.install(client, "consumers", idle_s=1800.0)
     while True:

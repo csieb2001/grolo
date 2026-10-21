@@ -192,6 +192,12 @@
       </div>
     </div>
   </section>
+  <section id="sec-consumers"><h2 data-t="sec.consumers"></h2><p class="hint" data-t="sec.consumers.hint"></p>
+    <div class="tablewrap"><table class="rooms"><thead><tr>
+      <th data-t="cons.now"></th><th data-t="cons.device"></th><th data-t="cons.room"></th><th data-t="cons.icon"></th><th data-t="cons.role"></th><th data-t="cons.source"></th><th></th>
+    </tr></thead><tbody id="cons-rows"><tr><td colspan="7" class="muted" data-t="cons.waiting"></td></tr></tbody></table></div>
+    <div class="srow" style="margin-top:10px"><button class="primary" id="cons-save" data-t="set"></button><span class="muted" id="cons-status"></span></div>
+  </section>
   <section id="sec-tado"><h2 data-t="sec.tado"></h2><p class="hint" data-t="sec.tado.hint"></p>
     <div class="ctl" style="margin-bottom:10px">
       <div class="top"><label data-t="tado.rooms"></label><span class="cur unknown" id="tado-cur">–</span></div>
@@ -364,6 +370,10 @@
       'shelly.holdw': 'Tolerance W', 'shelly.holds': 'After s', 'shelly.writes': 'Adjust every s', 'shelly.exportw': 'Export limit W',
       'shelly.grid': 'grid', 'shelly.house': 'household', 'shelly.out': 'output', 'shelly.target': 'target', 'shelly.unreachable': 'Shelly unreachable', 'shelly.disabled': 'off', 'shelly.nohost': 'no Shelly address set',
       'shelly.measureOnly': 'off, measuring only', 'shelly.reason.wrong_mode': 'NEXA is not in Load first, the controller is switching the slot mode back', 'x.wrongMode': 'The NEXA is in “{mode}” and keeps all solar ({pv}) for the battery ({soc} %); the house ({house}) runs on grid power. Smart control needs “Load first”: the controller has written the slot mode back, the NEXA should follow within a minute.', 'x.offGrid': ' The house ({house}) draws {grid} from the grid.', 'shelly.status': 'status', 'shelly.reason.battery_low': 'battery at discharge limit, NEXA delivers less than the target', 'shelly.reason.device_limited': 'NEXA delivers less than the target', 'shelly.reason.device_offline': 'NEXA offline, no data from the dongle', 'shelly.soc': 'SoC',
+      'sec.consumers': 'Consumers', 'sec.consumers.hint': 'Every device the website shows in the power flow fan: measuring plugs (found automatically), the heat pump, bridges (SmartThings, SwitchBot) and virtual devices. Name and room are shown as \u201cDevice \u2013 Room\u201d. Producer = the plug measures something that feeds in (e.g. the NEXA) and is left out of the list; hidden = measured but not shown. Stored on the local broker, takes effect within seconds.',
+      'cons.now': 'Now', 'cons.device': 'Device', 'cons.room': 'Room', 'cons.icon': 'Icon', 'cons.role': 'Type', 'cons.source': 'Source', 'cons.waiting': 'waiting for the consumer service\u2026',
+      'cons.role.auto': 'automatic', 'cons.role.consumer': 'consumer', 'cons.role.source': 'producer', 'cons.role.hidden': 'hidden',
+      'cons.virtual': 'virtual', 'cons.blink': 'Blink LED', 'cons.blinking': 'LED blinks for 20 s', 'cons.saved': 'saved', 'log.cons': 'Consumers',
       'sec.tariff': 'Electricity price and savings', 'sec.tariff.hint': 'Used by the Grafana row “Costs and savings” and the website: savings = energy delivered to the house × price, grid cost = grid import (Shelly) × price, payback = total savings relative to the system price. Stored on the local broker (retained), takes effect immediately.',
       'tariff.price': 'Tariff', 'tariff.price.desc': 'Price you pay per kWh from the grid (gross, in cents). Feed-in only matters if your meter exports and you get paid for it. System price: what the NEXA, batteries and panels cost you, for the payback figure (leave 0 to hide). Gas is the yardstick for the old boiler: the website works out what the heat pump’s heat would have cost as gas. Left empty it uses the market average for new contracts (11 ct/kWh, as of 09/2026) — the lowest of the going rates, so it understates the saving rather than flattering it. Enter your own price and yours wins; the website says which of the two it used. The gas base fee is not guessed: without an entry it stays out of the calculation.',
       'tariff.price.short': 'Price ct/kWh', 'tariff.feedin': 'Feed-in ct/kWh', 'tariff.cost': 'System price €', 'tariff.saved': 'saved, dashboards recalculate', 'tariff.invalid': 'Enter a price first', 'log.tariff': 'Electricity price saved',
@@ -481,6 +491,10 @@
       'shelly.holdw': 'Toleranz W', 'shelly.holds': 'Nach s', 'shelly.writes': 'Stellrate s', 'shelly.exportw': 'Einspeisegrenze W',
       'shelly.grid': 'Netz', 'shelly.house': 'Haushalt', 'shelly.out': 'Ausgabe', 'shelly.target': 'Ziel', 'shelly.unreachable': 'Shelly nicht erreichbar', 'shelly.disabled': 'aus', 'shelly.nohost': 'keine Shelly-Adresse gesetzt',
       'shelly.measureOnly': 'aus, nur Messung', 'shelly.reason.wrong_mode': 'NEXA steht nicht auf Last zuerst, der Regler stellt den Slot-Modus zurück', 'x.wrongMode': 'Der NEXA steht auf „{mode}“ und behält alle Solarleistung ({pv}) für die Batterie ({soc} %); das Haus ({house}) läuft aus dem Netz. Die Smart-Regelung braucht „Last zuerst“: der Regler hat den Slot-Modus zurückgeschrieben, der NEXA sollte binnen einer Minute folgen.', 'x.offGrid': ' Das Haus ({house}) holt {grid} aus dem Netz.', 'shelly.status': 'Status', 'shelly.reason.battery_low': 'Batterie an der Entladegrenze, NEXA liefert weniger als das Ziel', 'shelly.reason.device_limited': 'NEXA liefert weniger als das Ziel', 'shelly.reason.device_offline': 'NEXA offline, keine Daten vom Dongle', 'shelly.soc': 'SoC',
+      'sec.consumers': 'Verbraucher', 'sec.consumers.hint': 'Alle Ger\u00e4te, die die Website im F\u00e4cher des Energieflusses zeigt: Messsteckdosen (werden von selbst gefunden), die W\u00e4rmepumpe, Br\u00fccken (SmartThings, SwitchBot) und virtuelle Ger\u00e4te. Name und Raum erscheinen als \u201eGer\u00e4t \u2013 Raum\u201c. Erzeuger = die Steckdose misst etwas, das einspeist (z. B. den NEXA), und f\u00e4llt aus der Liste; ausgeblendet = wird gemessen, aber nicht gezeigt. Liegt auf dem lokalen Broker und gilt nach wenigen Sekunden.',
+      'cons.now': 'Jetzt', 'cons.device': 'Ger\u00e4t', 'cons.room': 'Raum', 'cons.icon': 'Symbol', 'cons.role': 'Art', 'cons.source': 'Quelle', 'cons.waiting': 'warte auf den Verbraucher-Dienst\u2026',
+      'cons.role.auto': 'automatisch', 'cons.role.consumer': 'Verbraucher', 'cons.role.source': 'Erzeuger', 'cons.role.hidden': 'ausgeblendet',
+      'cons.virtual': 'virtuell', 'cons.blink': 'LED blinken', 'cons.blinking': 'LED blinkt 20 s', 'cons.saved': 'gespeichert', 'log.cons': 'Verbraucher',
       'sec.tariff': 'Strompreis und Ersparnis', 'sec.tariff.hint': 'Grundlage für die Grafana-Zeile „Kosten und Ersparnis“ und die Website: Ersparnis = ins Haus abgegebene Energie × Preis, Netzkosten = Netzbezug (Shelly) × Preis, Amortisation = gesamte Ersparnis im Verhältnis zum Anlagenpreis. Liegt auf dem lokalen Broker (retained), gilt sofort.',
       'tariff.price': 'Tarif', 'tariff.price.desc': 'Preis, den du je kWh aus dem Netz zahlst (brutto, in Cent). Einspeisung zählt nur, wenn dein Zähler exportiert und du dafür Geld bekommst. Anlagenpreis: was NEXA, Akkus und Module gekostet haben, für die Amortisation (0 = ausblenden). Gas ist der Maßstab für den alten Kessel: Die Website rechnet aus, was die Wärme der Wärmepumpe als Gas gekostet hätte. Leer gilt das Marktmittel für Neukunden (11 ct/kWh, Stand 09/2026) – der niedrigste der gängigen Sätze, der die Ersparnis damit eher unterschätzt als beschönigt. Trägst du deinen eigenen Preis ein, gilt deiner; die Website schreibt dazu, welcher der beiden gerechnet wurde. Den Gas-Grundpreis rate ich nicht: ohne Eintrag bleibt er aus der Rechnung.',
       'tariff.price.short': 'Preis ct/kWh', 'tariff.feedin': 'Einspeisung ct/kWh', 'tariff.cost': 'Anlagenpreis €', 'tariff.saved': 'gespeichert, Dashboards rechnen neu', 'tariff.invalid': 'Bitte zuerst einen Preis eintragen', 'log.tariff': 'Strompreis gespeichert',
@@ -557,7 +571,7 @@
                       `${BASE}/switch/grobro/cloud_forward/get`, `${BASE}/grobro/cloud_forward/status`, `${BASE}/grolo/config/site`, `${BASE}/grolo/weather/current`, `${BASE}/grolo/fit`, `${BASE}/grolo/fit/status`, `${BASE}/grolo/advice`, `${BASE}/grolo/config/shelly`, `${BASE}/grolo/shelly/state`, `${BASE}/grolo/config/tariff`, `${BASE}/grolo/config/house`, `${BASE}/grolo/forecast`,
                       `${BASE}/grolo/tado/rooms`, `${BASE}/grolo/tado/commission/result`, `${BASE}/grolo/tado/set/result`,
                       `${BASE}/grolo/config/heatshift`, `${BASE}/grolo/heatshift/state`, `${BASE}/grolo/battery`,
-                      `${BASE}/sensor/grobro/+/eco_tracker/state`]);
+                      `${BASE}/sensor/grobro/+/eco_tracker/state`, `${BASE}/grolo/consumers/state`, `${BASE}/grolo/config/consumers`]);
   });
   client.on('reconnect', () => setPill('conn', t('reconnecting'), 'warn'));
   client.on('close', () => setPill('conn', t('disconnected'), 'bad'));
@@ -572,6 +586,8 @@
     if (topic === `${BASE}/grolo/config/shelly`) { try { onShelly(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/shelly/state`) { try { onShellyState(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/config/tariff`) { try { onTariff(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/consumers/state`) { try { onConsumers(JSON.parse(p)); } catch {} return; }
+    if (topic === `${BASE}/grolo/config/consumers`) { try { state.consCfg = JSON.parse(p || '{}'); applyConsCfg(); } catch {} return; }
     if (topic === `${BASE}/grolo/config/house`) { try { onHouse(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/forecast`) { try { onForecast(JSON.parse(p)); } catch {} return; }
     if (topic === `${BASE}/grolo/tado/rooms`) { try { onTadoRooms(JSON.parse(p)); } catch {} return; }
@@ -1254,6 +1270,63 @@
     onTariff(cfg, true);
   };
   renderTariffLive();
+
+  // ------------------------------------------------------------------ Verbraucher
+  // Die Liste kommt vom Dienst consumers (alle 10 s). Die Felder werden nur beim ersten Auftauchen eines Geräts
+  // befüllt und danach nicht mehr angefasst – sonst risse jede Aktualisierung den halb getippten Namen weg.
+  // Gespeichert wird in <BASE>/grolo/config/consumers, devices.<id> = { name: "Gerät - Raum", icon, role }.
+  const CONS_ICONS = ['plug', 'fridge', 'tv', 'pc', 'washer', 'dryer', 'dishwasher', 'oven', 'heatpump', 'coffee', 'light', 'ac', 'car'];
+  const CONS_ROLES = ['auto', 'consumer', 'source', 'hidden'];
+  const esc2 = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const consSplit = n => { const m = String(n || '').match(/^(.+?)\s+[-–—|·]\s+(.+)$/); return m ? [m[1], m[2]] : [String(n || ''), '']; };
+  function onConsumers(st) {
+    const tb = $('cons-rows'); if (!tb) return;
+    if (tb.querySelector('td[colspan]')) tb.innerHTML = '';
+    for (const it of st.items || []) {
+      let tr = tb.querySelector(`tr[data-id="${CSS.escape(it.id)}"]`);
+      if (!tr) {
+        const cfg = ((state.consCfg || {}).devices || {})[it.id] || {};
+        const [dev, room] = consSplit(cfg.name || it.name);
+        const src = it.kind === 'shelly' ? `Shelly ${esc2(it.host || '')}` : it.kind === 'switchbot' ? 'SwitchBot' : it.kind === 'smartthings' ? 'SmartThings'
+          : it.kind === 'wolf' ? 'WOLF Link' : it.kind === 'virtual' ? t('cons.virtual') : esc2(it.kind || '');
+        tr = document.createElement('tr'); tr.dataset.id = it.id;
+        tr.innerHTML = `<td class="cons-w"></td>
+          <td><input type="text" class="cons-dev" maxlength="40" value="${esc2(dev)}"></td>
+          <td><input type="text" class="cons-room" maxlength="30" value="${esc2(room)}" placeholder="–"></td>
+          <td><select class="cons-icon">${CONS_ICONS.map(x => `<option${(cfg.icon || it.icon) === x ? ' selected' : ''}>${x}</option>`).join('')}</select></td>
+          <td><select class="cons-role">${CONS_ROLES.map(x => `<option value="${x}"${(cfg.role || 'auto') === x ? ' selected' : ''}>${t('cons.role.' + x)}</option>`).join('')}</select></td>
+          <td class="muted">${src}</td>
+          <td>${it.kind === 'shelly' ? `<button class="cons-blink">${t('cons.blink')}</button>` : ''}</td>`;
+        const b = tr.querySelector('.cons-blink');
+        if (b) b.onclick = () => { client.publish(`${BASE}/grolo/consumers/identify`, it.id); $('cons-status').textContent = t('cons.blinking'); };
+        tb.appendChild(tr);
+      }
+      tr.querySelector('.cons-w').textContent = it.w == null ? '–' : (it.estimated && it.w > 0.1 ? '≈ ' : '') + (Math.abs(it.w) < 10 ? it.w.toFixed(1) : Math.round(it.w)) + ' W';
+    }
+  }
+  // Die gespeicherte Einstellung kann nach der ersten Geräteliste ankommen: dann Art und Symbol nachziehen,
+  // die Namensfelder nur, solange niemand darin tippt.
+  function applyConsCfg() {
+    const devs = (state.consCfg || {}).devices || {};
+    for (const tr of document.querySelectorAll('#cons-rows tr[data-id]')) {
+      const c = devs[tr.dataset.id]; if (!c) continue;
+      if (c.role) tr.querySelector('.cons-role').value = c.role;
+      if (c.icon) tr.querySelector('.cons-icon').value = c.icon;
+      if (c.name && !tr.contains(document.activeElement)) { const [d, r] = consSplit(c.name); tr.querySelector('.cons-dev').value = d; tr.querySelector('.cons-room').value = r; }
+    }
+  }
+  $('cons-save').onclick = () => {
+    const cfg = JSON.parse(JSON.stringify(state.consCfg || {})); cfg.devices = cfg.devices || {};
+    for (const tr of $('cons-rows').querySelectorAll('tr[data-id]')) {
+      const id = tr.dataset.id, dev = tr.querySelector('.cons-dev').value.trim(), room = tr.querySelector('.cons-room').value.trim();
+      const d = cfg.devices[id] = cfg.devices[id] || {};
+      if (dev) d.name = room ? `${dev} - ${room}` : dev; else delete d.name;
+      d.icon = tr.querySelector('.cons-icon').value;
+      const role = tr.querySelector('.cons-role').value; if (role === 'auto') delete d.role; else d.role = role;
+    }
+    client.publish(`${BASE}/grolo/config/consumers`, JSON.stringify(cfg), { qos: 0, retain: true });
+    state.consCfg = cfg; $('cons-status').textContent = t('cons.saved'); log(`→ ${t('log.cons')}: ${Object.keys(cfg.devices).length}`, 'log-tx');
+  };
 
   // ------------------------------------------------------------------ Räume (tado X über Matter)
   // Die Seite rechnet nichts und hält nichts vor: sie zeigt, was die tado-Bridge veröffentlicht, und
